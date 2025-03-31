@@ -30,7 +30,10 @@ class MakeNextMove(Task):
 			import os
 
 			print(os.getcwd())
-			csv_file = '../assets/lichess_db_puzzle.csv'  # Replace with your CSV file path
+			csv_file = '../assets/lichess_db_puzzle.csv'
+			if not os.path.exists(csv_file):
+				print('WARNING: Full database bnot found using truncated version')
+				csv_file = '../assets/truncated_lichess_db_puzzle.csv'
 			self.dataset = pd.read_csv(csv_file, nrows=index + 5, header=None)
 			self.data_len = len(self.dataset)
 		csv_line = self.dataset.iloc[(index  + 1)% self.data_len]
