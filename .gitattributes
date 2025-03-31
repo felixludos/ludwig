@@ -1,2 +1,0 @@
-ludwig/assets/lichess_db_puzzle.csv filter=lfs diff=lfs merge=lfs -text
-* !text !filter !merge !diff
