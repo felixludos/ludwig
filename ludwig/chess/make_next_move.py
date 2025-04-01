@@ -2,6 +2,7 @@ from ..imports import *
 from ..core import Task, LLM_Tool, ParsingError
 import chess
 import pandas as pd
+import re
 
 
 
@@ -16,7 +17,7 @@ class MakeNextMove(Task):
 
 	@property
 	def total_questions(self) -> Optional[int]:
-		return 1 # for demo purposes
+		return self.data_len
 
 	def context(self) -> str:
 		return ("Implement all the rules of Chess. You will be give a board position and who to move. "
@@ -24,35 +25,43 @@ class MakeNextMove(Task):
 
 	def description(self) -> str:
 		return "We're playing ches we find our selves in the following situation."
-
-	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], str]:
+	def _load_data(self, index: int, *, seed: Optional[int] = None) -> Tuple[str, str]:
 		if self.dataset is None:
 			import os
 
-			print(os.getcwd())
-			csv_file = '../assets/lichess_db_puzzle.csv'
-			if not os.path.exists(csv_file):
-				print('WARNING: Full database bnot found using truncated version')
-				csv_file = '../assets/truncated_lichess_db_puzzle.csv'
-			self.dataset = pd.read_csv(csv_file, nrows=index + 5, header=None)
-			self.data_len = len(self.dataset)
-		csv_line = self.dataset.iloc[(index  + 1)% self.data_len]
-		board_state, next_moves = csv_line[1], csv_line[2]
-		return [board_state, ], next_moves.split(' ')[0]
+		print(os.getcwd())
+		csv_file = '../assets/lichess_db_puzzle.csv'
+		if not os.path.exists(csv_file):
+			print('WARNING: Full database bnot found using truncated version')
+		csv_file = '../assets/truncated_lichess_db_puzzle.csv'
+
+		self.dataset = pd.read_csv(csv_file, header=None)
+		self.data_len = len(self.dataset)
+		csv_line = self.dataset.iloc[(index + 1) % self.data_len]
+		board_state, next_best_moves = csv_line[1], csv_line[2]
+		return board_state, next_best_moves
+
+	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], List[str]]:
+		board_state, _ = self._load_data(index=index, seed=seed)
+		board = chess.Board(board_state)
+		next_moves = [move.uci() for move in board.legal_moves]
+		return [board_state, ], next_moves
 
 	def observe(self, problem: List[str], *, seed: int = None) -> str:
 		# This is a placeholder implementation for demo purposes.
-		template = "Alice started with {0} and I played {1}. She took {2}, so I defended with {3}. Now Alice played at {4}. I think I should play in the middle because it's a good spot in general. Is that my best move?"
+		template = ("Here is a chess board state in 'fen' format {0}. Please print the next legal move. It may or "
+					"may not be a good move.")
 		return template.format(*problem)
 
 	def correct(self, response: str, answer: bool) -> bool:
-		# This is a placeholder implementation for demo purposes.
+		# in this case the answer must be all possible  moves
 		clean = response.strip().lower()
-		if clean.startswith('yes'):
-			return answer
-		elif clean.startswith('no'):
-			return not answer
-		raise ParsingError(response, 'Can\'t decide if the answer is "yes" or "no"')
+		uci_regex = re.compile(r'^[a-h][1-8][a-h][1-8][nbrqNBRQ]?$')
+		castling_regex = re.compile(r'^O-O(-O)?$')
+		#TODO(Partha, Felix): opportunity here return better error messages.
+		if bool(uci_regex.match(clean)) or bool(castling_regex.match(clean)):
+			return clean in answer
+		raise ParsingError(response, 'Returned answer is not a valid chess move. It must follow UCI notation')
 
 	@staticmethod
 	def draw_chessboard(board, ax):
@@ -110,5 +119,6 @@ if __name__ == '__main__':
 	# 			   "Italian_Game_Classical_Variation")
 
 	chess_puzzles = MakeNextMove()
-	board_state, next_move = chess_puzzles.load(index=0)
+	board_state, next_moves = chess_puzzles.load(index=0)
+	print(next_moves)
 	chess_puzzles.display(board_state[0])

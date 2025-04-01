@@ -180,7 +180,7 @@ class Task:
 		"""
 		Returns whether the LLM's response is satisfactory and should be evaluated as correct.
 
-		:param response: the LLM's response to the observation of the of problem that `answer` solves'
+		:param response: the LLM's response to the observation of the problem that `answer` solves'
 		:param answer: ground truth answer
 		"""
 		raise NotImplementedError
