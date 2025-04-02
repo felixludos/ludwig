@@ -178,3 +178,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+#large dataset of chess
+ludwig/assets/lichess_db_puzzle.csv
+

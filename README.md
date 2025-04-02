@@ -20,5 +20,9 @@ Each setting should define multiple individual tasks (which generally share syst
 
 Common utilities, such as extracting/parsing/validating python code in an LLM response or querying LLMs for structured outputs (e.g. based on a given JSON schema) will be available soon.
 
+### Chess
+Read it here - [readme.md](ludwig/chess/readme.md)
+
+Download the full dataset - [lichess db](https://drive.google.com/file/d/1140o8aqMb2dOT2D9P7SoCSPmiXpLA9Sd/view?usp=sharing)
 
 
