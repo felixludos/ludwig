@@ -3,3 +3,11 @@ omnifig
 tqdm
 tabulate
 wandb
+
+# inference
+vllm
+openai
+
+# dev
+jupyter
+jupyterlab

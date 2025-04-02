@@ -1,0 +1,19 @@
+request_cpus = 16
+request_memory = 128GB
+request_gpus = 1
+# request_gpus = 2
+request_disk = 200GB
+requirements = (TARGET.CUDAGlobalMemoryMb > 50000) && (CUDADeviceName=="NVIDIA A100-SXM4-80GB")
+
+# todo: replace with your own path
+executable = /home/mmordig/autoformalization/code/ludwig/ludwig/scripts/inference_server/launch_vllm.sh
+arguments = vllm serve deepseek-ai/DeepSeek-R1-Distill-Llama-8B --enable-reasoning --reasoning-parser deepseek_r1
+getenv = True
+
+# joblog_dir = /home/mmordig/autoformalization/joblogs-inference
+log = $(joblog_dir)/run-$(ClusterId).log
+output = $(joblog_dir)/run-$(ClusterId).output
+error = $(joblog_dir)/run-$(ClusterId).error
+
+
+queue
