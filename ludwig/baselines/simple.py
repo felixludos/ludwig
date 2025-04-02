@@ -3,9 +3,9 @@ from .imports import *
 
 
 @fig.component('direct-prompting')
-class DirectPrompting(Subject):
+class DirectPrompting(Strategy):
 	"""
-	Direct prompting subject.
+	Direct prompting strategy.
 	"""
 
 	def __init__(self, template: str = '{task_context}\n\n{question}', **kwargs):
@@ -20,10 +20,13 @@ class DirectPrompting(Subject):
 		return 'direct-prompting'
 
 
+	def json(self):
+		return {
+			'template': self.template,
+		**super().json()}
+
+
 	def study(self, context: str, desc: str, spec: JSONOBJ) -> JSONOBJ:
-		"""
-		Prepare the subject with the task context and description.
-		"""
 		self.system_context = context
 		self.task_context = desc
 		return spec

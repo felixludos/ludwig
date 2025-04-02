@@ -1,19 +1,19 @@
 from .imports import *
-from ..abstract import AbstractTask, AbstractSubject, AbstractProtocol
-# from ..base import Task, Subject
+from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
+# from ..base import Task, Strategy
 
 
-@fig.script('eval', description='Evaluate a `task` on a `subject` (i.e. model)')
+@fig.script('eval', description='Evaluate a `task` on a `strategy` (i.e. model)')
 def eval_task(cfg: fig.Configuration):
 	"""
-	Evaluate a `subject` on a specific `task` (using a specific `protocol`).
+	Evaluate a `strategy` on a specific `task` (using a specific `protocol`).
 
 	Optionally saves results to a directory with `out-dir` as the root.
 
 	:param task: The task to evaluate.
 	:type task: AbstractTask
-	:param subject: The subject to evaluate (ie. the model).
-	:type subject: AbstractSubject
+	:param strategy: The strategy to evaluate (ie. the model).
+	:type strategy: AbstractStrategy
 	:param protocol: The protocol to use for evaluation.
 	:type protocol: AbstractProtocol
 	:return:

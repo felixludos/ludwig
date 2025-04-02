@@ -1,5 +1,5 @@
 from .imports import *
-from .abstract import AbstractTool, AbstractTask, AbstractSubject, AbstractProtocol
+from .abstract import AbstractTool, AbstractTask, AbstractStrategy, AbstractProtocol
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
 
 
@@ -16,7 +16,7 @@ class Task(fig.Configurable, AbstractTask):
 		return {}
 
 
-class Subject(fig.Configurable, AbstractSubject):
+class Strategy(fig.Configurable, AbstractStrategy):
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		pass
 

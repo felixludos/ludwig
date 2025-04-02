@@ -91,7 +91,7 @@ class AbstractTask:
 
 	def validation(self, N: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
 		"""
-		(optional) Generates `N` pairs of input and expected output for the subject to self-validate its formal system.
+		(optional) Generates `N` pairs of input and expected output for the strategy to self-validate its formal system.
 
 		:param seed: optional to ensure deterministic behavior
 		"""
@@ -117,12 +117,12 @@ class AbstractTask:
 		raise OptionalMethodNotImplemented
 
 	def description(self) -> str:
-		"""Task context including all the relevant details for the subject about what this task is about"""
+		"""Task context including all the relevant details for the strategy about what this task is about"""
 		raise NotImplementedError
 	
 	def specification(self) -> JSONOBJ:
 		"""
-		(optional) Returns the specification of the task, including all the relevant details for the subject about what
+		(optional) Returns the specification of the task, including all the relevant details for the strategy about what
 		this task is about.
 
 		This may include information like the input and output formats, and any other relevant details.
@@ -155,7 +155,7 @@ class AbstractTask:
 
 	def side_information(self, problem: PROBLEM) -> Optional[JSONOBJ]:
 		"""
-		(optional) Returns additional information about the problem to help the subject solve it.
+		(optional) Returns additional information about the problem to help the strategy solve it.
 
 		The information provided here should not be *necessary* to solve the problem, instead this may include
 		mildly informative annotations or classifications to simplify the reasoning process.
@@ -166,7 +166,7 @@ class AbstractTask:
 
 	def observe(self, problem: PROBLEM, *, seed: int = None) -> str:
 		"""
-		Verbalizes a specific problem for the subject, which defines the query context.
+		Verbalizes a specific problem for the strategy, which defines the query context.
 
 		:param problem: an *internal* representation of a specific problem
 		:param seed: optional to ensure deterministic behavior
@@ -200,22 +200,22 @@ class AbstractTask:
 		"""
 		(optional) Returns a numeric score for the correctness of the given `response` for deeper evaluation.
 
-		:param response: the subject's response to the observation of the of problem that `answer` solves
+		:param response: the strategy's response to the observation of the of problem that `answer` solves
 		:param answer: ground truth answer
 		"""
 		raise OptionalMethodNotImplemented
 
 	def correct(self, response: str, answer: ANSWER) -> bool:
 		"""
-		Returns whether the subject's response is satisfactory and should be evaluated as correct.
+		Returns whether the strategy's response is satisfactory and should be evaluated as correct.
 
-		:param response: the subject's response to the observation of the of problem that `answer` solves
+		:param response: the strategy's response to the observation of the of problem that `answer` solves
 		:param answer: ground truth answer
 		"""
 		raise NotImplementedError
 
 	def present(self) -> Any:
-		"""(optional) Returns any description or information for the subject"""
+		"""(optional) Returns any description or information for the strategy"""
 		raise OptionalMethodNotImplemented
 
 	def best_tool(self) -> AbstractTool:
@@ -255,17 +255,17 @@ class AbstractTask:
 
 
 
-class AbstractSubject:
+class AbstractStrategy:
 	@property
 	def name(self) -> str:
-		"""A unique and description name for this subject"""
+		"""A unique and description name for this strategy"""
 		raise NotImplementedError
 
 	def prepare(self, seed: int) -> None:
 		"""
-		(optional) Setup any necessary state for this subject
+		(optional) Setup any necessary state for this strategy
 
-		This is called before the subject is used, and can be used to initialize any state or configuration.
+		This is called before the strategy is used, and can be used to initialize any state or configuration.
 
 		:param seed: optional to ensure deterministic behavior
 		"""
@@ -278,7 +278,7 @@ class AbstractSubject:
 
 		:param question: the question to respond to
 		:param seed: optional to ensure deterministic behavior
-		:param side_information: optional additional information to help the subject solve the question
+		:param side_information: optional additional information to help the strategy solve the question
 		"""
 		raise NotImplementedError
 
@@ -293,19 +293,19 @@ class AbstractSubject:
 
 	def json(self) -> JSONOBJ:
 		"""
-		(optional) Returns the settings for the subject to be relevant for this subject.
+		(optional) Returns the settings for the strategy to be relevant for this strategy.
 
-		These settings should generally include all important hyperparameters and configuration for the subject.
+		These settings should generally include all important hyperparameters and configuration for the strategy.
 		Also, it is recommended to format them such that they can be published on wandb.
 		"""
 		raise OptionalMethodNotImplemented
 
 	def checkpoint(self, path: Optional[Path] = None) -> Optional[JSONOBJ]:
 		"""
-		(optional) Returns a checkpoint of the subject state or saves the checkpoint to the given path.
+		(optional) Returns a checkpoint of the strategy state or saves the checkpoint to the given path.
 
 		When a path is provided, the checkpoint should be saved to that path. Otherwise, it should return a dictionary
-		with all the relevant information to restore the subject state.
+		with all the relevant information to restore the strategy state.
 		"""
 		raise OptionalMethodNotImplemented
 

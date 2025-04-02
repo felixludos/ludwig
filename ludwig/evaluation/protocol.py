@@ -3,8 +3,8 @@ from .imports import *
 
 @fig.component('default-protocol')
 class DefaultProtocol(Protocol):
-	def __init__(self, subject: AbstractSubject, task: AbstractTask, *,
-				 seed: Optional[int] = None, name: str = '{task.name}_{subject.name}_{now:%y%m%d-%H%M%S}',
+	def __init__(self, strategy: AbstractStrategy, task: AbstractTask, *,
+				 seed: Optional[int] = None, name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 limit: int = None, **kwargs):
 		if seed is None: seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
@@ -18,7 +18,7 @@ class DefaultProtocol(Protocol):
 		self._use_generate = None
 		self.aggregates = None
 
-		self.subject = subject
+		self.strategy = strategy
 		self.task = task
 
 
@@ -29,10 +29,10 @@ class DefaultProtocol(Protocol):
 
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
-		self.subject.prepare(self._master_seed)
+		self.strategy.prepare(self._master_seed)
 
 		if self._name is None:
-			self._name = self._name_template.format(protocol=self, task=self.task, subject=self.subject,
+			self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
 													now=self._now, seed=self._master_seed)
 
 	def remaining_iterations(self) -> range:
@@ -48,7 +48,7 @@ class DefaultProtocol(Protocol):
 		tbl = [
 			('Protocol', self.name),
 			('Task', self.task.name),
-			('Subject', self.subject.name),
+			('Strategy', self.strategy.name),
 			('Random seed', self._master_seed),
 		]
 		return tabulate(tbl)
@@ -61,7 +61,7 @@ class DefaultProtocol(Protocol):
 
 		self._use_generate = self.task.total_questions is None
 
-		artifacts = self.subject.study(context, desc, spec)
+		artifacts = self.strategy.study(context, desc, spec)
 
 		self.aggregates = {
 			'correct': [],
@@ -82,7 +82,7 @@ class DefaultProtocol(Protocol):
 
 		question = self.task.observe(problem, seed=self._sample_seed)
 
-		response = self.subject.solve(question, seed=self._sample_seed, side_information=info)
+		response = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
 
 		correct = self.task.correct(response, answer)
 
@@ -130,7 +130,7 @@ class DefaultProtocol(Protocol):
 	def json(self) -> JSONOBJ:
 		return {
 			'task': self.task.json(),
-			'subject': self.subject.json(),
+			'strategy': self.strategy.json(),
 			'seed': self._master_seed,
 			'limit': self._limit,
 		**super().json()}
