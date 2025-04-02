@@ -2,8 +2,3 @@
 _meta.script_name: eval
 
 
-task._type: ttt/take-the-middle
-
-subject._type: direct-prompting
-
-

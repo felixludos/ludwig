@@ -3,6 +3,7 @@ omnifig
 tqdm
 tabulate
 wandb
+pytest
 
 # inference
 vllm
