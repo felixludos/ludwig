@@ -3,76 +3,81 @@ from ..abstract import AbstractTask, AbstractSubject, AbstractProtocol
 # from ..base import Task, Subject
 
 
-@fig.script('eval')
+@fig.script('eval', description='Evaluate a `task` on a `subject` (i.e. model)')
 def eval_task(cfg: fig.Configuration):
+	"""
+	Evaluate a `subject` on a specific `task` (using a specific `protocol`).
+
+	Optionally saves results to a directory with `out-dir` as the root.
+
+	:param task: The task to evaluate.
+	:type task: AbstractTask
+	:param subject: The subject to evaluate (ie. the model).
+	:type subject: AbstractSubject
+	:param protocol: The protocol to use for evaluation.
+	:type protocol: AbstractProtocol
+	:return:
+	"""
 
 	pbar: bool = cfg.pull('pbar', True)
-
-	seed: Optional[int] = cfg.pull('seed', None) # 2131131137
-	if seed is None:
-		seed = random.randint(0, 2**31 - 1)
-	random.seed(seed)
-	seeder = random.Random(seed)
 
 	out_root = cfg.pull('out-dir', None)
 	if out_root is not None:
 		out_root = Path(out_root)
 		out_root.mkdir(exist_ok=True)
 
+	cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 	protocol: AbstractProtocol = cfg.pull('protocol')
 
-	task: AbstractTask = cfg.pull('task')
-
-	subject: AbstractSubject = cfg.pull('subject')
-
-	limit: int = cfg.pulls('limit', 'n', default=None)
+	protocol.prepare()
 
 	out_dir = None
 	if out_root is not None:
-		out_name = cfg.pull('out-name', '{task.name}_{subject.name}_{now:%Y-%m-%d_%H-%M-%S}')
-		out_dir = out_root / out_name.format(task=task, subject=subject, now=now, seed=seed)
+		if protocol.name is None:
+			raise ValueError(f'Protocol must have a name: {protocol.name}')
+		out_dir = out_root / protocol.name
 		if out_dir.exists() and not cfg.pull('overwrite', False):
 			raise RuntimeError(f'Output directory {out_dir} already exists. Use --overwrite to overwrite it.')
 		out_dir.mkdir(exist_ok=True)
 
-	task.setup(seed)
+	desc = protocol.describe()
+	if desc is not None:
+		print(desc)
+		print()
+	if out_dir is not None:
+		print(f'Saving results to {out_dir}')
+		print()
 
-	subject.prepare(task)
+	artifacts = protocol.pre_loop()
 
-	print(f'Protocol: {protocol.name}')
-	print(f'Task: {task.name}')
-	print(f'Subject: {subject.name}')
-	print(f'Random seed: {seed}')
-	if limit is not None:
-		print(f'Limit: {limit}')
-	print()
-	print(f'Saving results to {out_dir}')
-
-	max_num = task.total_questions
-	N = max_num
-	if N is None:
-		if limit is None:
-			raise RuntimeError('Task has no total_questions and no limit was provided.')
-		N = limit
-
-	itr = range(N)
-	if pbar:
-		itr = tqdm(itr, desc='Questions', total=N)
-
-
-	subject.
-
-
+	itr = protocol.remaining_iterations()
+	if pbar: itr = tqdm(itr, desc=f'{protocol.name}')
 	for i in itr:
-		sample_seed = seeder.randint(0, 2**31 - 1)
+		sample = protocol.step(i)
+		if 'message' in sample:
+			print()
+			print(sample['message'])
+		if 'pbar' in sample:
+			assert pbar
+			itr.set_description(sample['pbar'])
 
-		problem, answer = task.generate(sample_seed) if max_num is None else task.load(i, seed=sample_seed)
+	summary = protocol.summary()
+	if summary is not None:
+		print(summary)
+		print()
 
-		info = task.side_information(problem)
+	out = protocol.post_loop()
+	return out
 
 
 
-		pass
+@fig.script('validate', description='Check what a `task` is missing and what it implements')
+def validate_task(cfg: fig.Configuration):
+	"""
+	Validate a `task` - checks what features the task implements and if something's missing
+	"""
 
-	pass
+	task: AbstractTask = cfg.pull('task')
+
+	raise NotImplementedError('todo')
 

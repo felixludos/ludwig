@@ -1,3 +1,4 @@
 from ..imports import *
-from ..base import ProtocolBase
+from ..abstract import AbstractTask, AbstractSubject
+from ..base import Protocol
 from tqdm import tqdm

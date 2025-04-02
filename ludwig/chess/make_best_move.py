@@ -1,6 +1,6 @@
 import re
 from ..imports import *
-from ..core import ParsingError
+from ..errors import ParsingError
 from .make_next_move import MakeNextMove
 
 

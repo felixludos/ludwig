@@ -3,7 +3,7 @@ from ..base import Task, LLM_Tool
 from ..errors import ParsingError
 
 
-
+@fig.component('ttt/take-the-middle')
 class TakeTheMiddle(Task):
 	@property
 	def name(self) -> str:
@@ -18,6 +18,9 @@ class TakeTheMiddle(Task):
 
 	def description(self) -> str:
 		return "We're playing tic-tac-toe."
+
+	def specification(self) -> JSONOBJ:
+		return {'answer': 'Yes/No'}
 
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], bool]:
 		# This is a placeholder implementation for demo purposes.

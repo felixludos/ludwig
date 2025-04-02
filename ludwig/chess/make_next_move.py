@@ -1,5 +1,5 @@
 from ..imports import *
-from ..core import Task, LLM_Tool, ParsingError
+from .. import Task, LLM_Tool, ParsingError
 import chess
 import pandas as pd
 import re

@@ -89,15 +89,15 @@ class AbstractTask:
 		"""
 		raise NotImplementedError
 
-	def validation(self, n: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
+	def validation(self, N: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
 		"""
-		(optional) Generates `n` pairs of input and expected output for the subject to self-validate its formal system.
+		(optional) Generates `N` pairs of input and expected output for the subject to self-validate its formal system.
 
 		:param seed: optional to ensure deterministic behavior
 		"""
 		raise OptionalMethodNotImplemented
 
-	def setup(self, seed: int) -> None:
+	def prepare(self, seed: int) -> None:
 		"""
 		(optional) Setup any necessary state for this task
 
@@ -105,9 +105,9 @@ class AbstractTask:
 
 		:param seed: optional to ensure deterministic behavior
 		"""
-		raise OptionalMethodNotImplemented
+		pass
 
-	def search_mode(self) -> Dict[str, JSONABLE]:
+	def search_mode(self) -> JSONOBJ:
 		"""
 		(optional) Returns the suggested (or optimal) settings for the search to be relevant for this task.
 
@@ -119,6 +119,15 @@ class AbstractTask:
 	def description(self) -> str:
 		"""Task context including all the relevant details for the subject about what this task is about"""
 		raise NotImplementedError
+	
+	def specification(self) -> JSONOBJ:
+		"""
+		(optional) Returns the specification of the task, including all the relevant details for the subject about what
+		this task is about.
+
+		This may include information like the input and output formats, and any other relevant details.
+		"""
+		raise OptionalMethodNotImplemented
 
 	def generate(self, seed: int) -> Tuple[PROBLEM, ANSWER]:
 		"""
@@ -129,6 +138,8 @@ class AbstractTask:
 
 		:param seed: optional to ensure deterministic behavior
 		"""
+		if self.total_questions is not None:
+			return self.load(seed % self.total_questions, seed=seed)
 		raise NotImplementedError
 
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[PROBLEM, ANSWER]:
@@ -142,7 +153,7 @@ class AbstractTask:
 		"""
 		raise NotImplementedError
 
-	def side_information(self, problem: PROBLEM) -> Optional[Dict[str, JSONABLE]]:
+	def side_information(self, problem: PROBLEM) -> Optional[JSONOBJ]:
 		"""
 		(optional) Returns additional information about the problem to help the subject solve it.
 
@@ -151,7 +162,7 @@ class AbstractTask:
 
 		:param problem: an *internal* representation of a specific problem
 		"""
-		raise OptionalMethodNotImplemented
+		pass
 
 	def observe(self, problem: PROBLEM, *, seed: int = None) -> str:
 		"""
@@ -215,6 +226,33 @@ class AbstractTask:
 		"""(optional) Returns a sequence of potentially or partially relevant tools that may help to solve this task."""
 		raise OptionalMethodNotImplemented
 
+	def json(self) -> JSONOBJ:
+		"""
+		(optional) Returns the settings for the task to be relevant for this task.
+
+		These settings should generally include all important hyperparameters and configuration settings for the task.
+		Also, it is recommended to format them such that they can be published on wandb.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def checkpoint(self, path: Optional[Path] = None) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns a checkpoint of the task state or saves the checkpoint to the given path.
+
+		When a path is provided, the checkpoint should be saved to that path. Otherwise, it should return a dictionary
+		with all the relevant information to restore the task state.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def load_checkpoint(self, *, path: Optional[Path] = None, data: Optional[JSONOBJ] = None) -> None:
+		"""
+		(optional) Loads the checkpoint from the given path or data.
+
+		If a path is provided, the checkpoint should be loaded from that path. Otherwise, it should load the state from
+		the given data.
+		"""
+		raise OptionalMethodNotImplemented
+
 
 
 class AbstractSubject:
@@ -223,16 +261,18 @@ class AbstractSubject:
 		"""A unique and description name for this subject"""
 		raise NotImplementedError
 
-	def prepare(self, task: AbstractTask) -> None:
+	def prepare(self, seed: int) -> None:
 		"""
-		Enables the given tools for this subject to use
+		(optional) Setup any necessary state for this subject
 
-		:param tools: the tools to enable
+		This is called before the subject is used, and can be used to initialize any state or configuration.
+
+		:param seed: optional to ensure deterministic behavior
 		"""
 		raise NotImplementedError
 
 	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[Dict[str, JSONABLE]] = None) -> str:
+			  side_information: Optional[JSONOBJ] = None) -> str:
 		"""
 		Generates a response to the given question
 
@@ -242,30 +282,120 @@ class AbstractSubject:
 		"""
 		raise NotImplementedError
 
+	def study(self, context: str, task_description: str, task_spec: JSONOBJ) -> Optional[JSONABLE]:
+		"""
+		(optional) Processes the given system and task context to prepare for a specific task
+
+		:param context: the system context for this task
+		:param task_description: the task context
+		"""
+		pass
+
+	def json(self) -> JSONOBJ:
+		"""
+		(optional) Returns the settings for the subject to be relevant for this subject.
+
+		These settings should generally include all important hyperparameters and configuration for the subject.
+		Also, it is recommended to format them such that they can be published on wandb.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def checkpoint(self, path: Optional[Path] = None) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns a checkpoint of the subject state or saves the checkpoint to the given path.
+
+		When a path is provided, the checkpoint should be saved to that path. Otherwise, it should return a dictionary
+		with all the relevant information to restore the subject state.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def load_checkpoint(self, *, path: Optional[Path] = None, data: Optional[JSONOBJ] = None) -> None:
+		"""
+		(optional) Loads the checkpoint from the given path or data.
+
+		If a path is provided, the checkpoint should be loaded from that path. Otherwise, it should load the state from
+		the given data.
+		"""
+		raise OptionalMethodNotImplemented
+
 
 
 class AbstractProtocol:
-	def register(self, task: AbstractTask, subject: AbstractSubject) -> None:
-		raise NotImplementedError
+	def prepare(self) -> Optional[JSONOBJ]:
+		"""(optional) Prepare all the necessary state for this protocol"""
+		raise OptionalMethodNotImplemented
+
+	def remaining_iterations(self) -> range:
+		"""(optional) Returns the number of iterations remaining in this protocol"""
+		raise OptionalMethodNotImplemented
 
 	@property
 	def name(self):
+		"""
+		Name of this experiment, should be unique
+		
+		Used to create a folder with the outputs
+		"""
 		raise NotImplementedError
 
-	def pre_loop(self) -> Optional[Dict[str, JSONABLE]]:
+	def pre_loop(self) -> Optional[JSONOBJ]:
+		"""Called before loop to setup any metrics"""
 		raise NotImplementedError
 
 	def describe(self) -> Optional[str]:
+		"""Report setup to stdout before starting the experiment"""
 		raise OptionalMethodNotImplemented
 
-	def step(self, index: int) -> Dict[str, JSONABLE]:
+	def step(self, index: int) -> JSONOBJ:
+		"""Called every iteration"""
 		raise NotImplementedError
+
+	def status(self) -> JSONOBJ:
+		"""
+		(optional) Report the current status of the protocol
+
+		This may be called at any time, and should report the current state of the protocol.
+		"""
+		raise OptionalMethodNotImplemented
 
 	def summary(self) -> str:
+		"""
+		Report summary statistics and results (so far)
+		
+		This may be called before the end of the experiment, so it should report metrics so far
+		"""
 		raise OptionalMethodNotImplemented
 
-	def post_loop(self) -> Optional[Dict[str, JSONABLE]]:
+	def post_loop(self) -> Optional[JSONOBJ]:
+		"""Clean up and return final results as a JSON object"""
 		raise NotImplementedError
+
+	def json(self) -> JSONOBJ:
+		"""
+		(optional) Returns the settings for the protocol to be relevant for this protocol.
+
+		These settings should generally include all important hyperparameters and configuration for the protocol.
+		Also, it is recommended to format them such that they can be published on wandb.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def checkpoint(self, path: Optional[Path] = None) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns a checkpoint of the protocol state or saves the checkpoint to the given path.
+
+		When a path is provided, the checkpoint should be saved to that path. Otherwise, it should return a dictionary
+		with all the relevant information to restore the protocol state.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def load_checkpoint(self, *, path: Optional[Path] = None, data: Optional[JSONOBJ] = None) -> None:
+		"""
+		(optional) Loads the checkpoint from the given path or data.
+
+		If a path is provided, the checkpoint should be loaded from that path. Otherwise, it should load the state from
+		the given data.
+		"""
+		raise OptionalMethodNotImplemented
 
 
 

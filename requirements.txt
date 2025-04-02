@@ -1,2 +1,5 @@
 omnibelt
 omnifig
+tqdm
+tabulate
+wandb
