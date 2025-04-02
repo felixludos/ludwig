@@ -1,2 +1,10 @@
 omnibelt
 omnifig
+
+# inference
+vllm
+openai
+
+# dev
+jupyter
+jupyterlab
