@@ -7,7 +7,7 @@ ANSWER = JSONABLE
 
 
 
-class LLM_Tool:
+class AbstractTool:
 	@property
 	def name(self) -> str:
 		"""A descriptive and ideally unique name for this tool"""
@@ -63,8 +63,7 @@ class LLM_Tool:
 
 
 
-
-class Task:
+class AbstractTask:
 	@property
 	def name(self) -> str:
 		"""A unique and description name for this task"""
@@ -92,7 +91,17 @@ class Task:
 
 	def validation(self, n: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
 		"""
-		(optional) Generates `n` pairs of input and expected output for the LLM to self-validate its formal system.
+		(optional) Generates `n` pairs of input and expected output for the subject to self-validate its formal system.
+
+		:param seed: optional to ensure deterministic behavior
+		"""
+		raise OptionalMethodNotImplemented
+
+	def setup(self, seed: int) -> None:
+		"""
+		(optional) Setup any necessary state for this task
+
+		This is called before the task is used, and can be used to initialize any state or configuration.
 
 		:param seed: optional to ensure deterministic behavior
 		"""
@@ -108,7 +117,7 @@ class Task:
 		raise OptionalMethodNotImplemented
 
 	def description(self) -> str:
-		"""Task context including all the relevant details for the LLM about what this task is about"""
+		"""Task context including all the relevant details for the subject about what this task is about"""
 		raise NotImplementedError
 
 	def generate(self, seed: int) -> Tuple[PROBLEM, ANSWER]:
@@ -120,8 +129,6 @@ class Task:
 
 		:param seed: optional to ensure deterministic behavior
 		"""
-		if self.total_questions is not None:
-			return self.load(seed % self.total_questions, seed=seed)
 		raise NotImplementedError
 
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[PROBLEM, ANSWER]:
@@ -135,9 +142,20 @@ class Task:
 		"""
 		raise NotImplementedError
 
+	def side_information(self, problem: PROBLEM) -> Optional[Dict[str, JSONABLE]]:
+		"""
+		(optional) Returns additional information about the problem to help the subject solve it.
+
+		The information provided here should not be *necessary* to solve the problem, instead this may include
+		mildly informative annotations or classifications to simplify the reasoning process.
+
+		:param problem: an *internal* representation of a specific problem
+		"""
+		raise OptionalMethodNotImplemented
+
 	def observe(self, problem: PROBLEM, *, seed: int = None) -> str:
 		"""
-		Verbalizes a specific problem for the LLM, which defines the query context.
+		Verbalizes a specific problem for the subject, which defines the query context.
 
 		:param problem: an *internal* representation of a specific problem
 		:param seed: optional to ensure deterministic behavior
@@ -171,34 +189,83 @@ class Task:
 		"""
 		(optional) Returns a numeric score for the correctness of the given `response` for deeper evaluation.
 
-		:param response: the LLM's response to the observation of the of problem that `answer` solves
+		:param response: the subject's response to the observation of the of problem that `answer` solves
 		:param answer: ground truth answer
 		"""
 		raise OptionalMethodNotImplemented
 
 	def correct(self, response: str, answer: ANSWER) -> bool:
 		"""
-		Returns whether the LLM's response is satisfactory and should be evaluated as correct.
+		Returns whether the subject's response is satisfactory and should be evaluated as correct.
 
-		:param response: the LLM's response to the observation of the of problem that `answer` solves'
+		:param response: the subject's response to the observation of the of problem that `answer` solves
 		:param answer: ground truth answer
 		"""
 		raise NotImplementedError
 
-	def best_tool(self) -> LLM_Tool:
+	def present(self) -> Any:
+		"""(optional) Returns any description or information for the subject"""
+		raise OptionalMethodNotImplemented
+
+	def best_tool(self) -> AbstractTool:
 		"""(optional) Returns the most relevant tool to solve this task."""
 		raise OptionalMethodNotImplemented
 
-	def relevant_solvers(self) -> Iterable[LLM_Tool]:
+	def relevant_solvers(self) -> Iterable[AbstractTool]:
 		"""(optional) Returns a sequence of potentially or partially relevant tools that may help to solve this task."""
 		raise OptionalMethodNotImplemented
 
 
 
+class AbstractSubject:
+	@property
+	def name(self) -> str:
+		"""A unique and description name for this subject"""
+		raise NotImplementedError
+
+	def prepare(self, task: AbstractTask) -> None:
+		"""
+		Enables the given tools for this subject to use
+
+		:param tools: the tools to enable
+		"""
+		raise NotImplementedError
+
+	def solve(self, question: str, *, seed: Optional[int] = None,
+			  side_information: Optional[Dict[str, JSONABLE]] = None) -> str:
+		"""
+		Generates a response to the given question
+
+		:param question: the question to respond to
+		:param seed: optional to ensure deterministic behavior
+		:param side_information: optional additional information to help the subject solve the question
+		"""
+		raise NotImplementedError
 
 
 
+class AbstractProtocol:
+	def register(self, task: AbstractTask, subject: AbstractSubject) -> None:
+		raise NotImplementedError
 
+	@property
+	def name(self):
+		raise NotImplementedError
+
+	def pre_loop(self) -> Optional[Dict[str, JSONABLE]]:
+		raise NotImplementedError
+
+	def describe(self) -> Optional[str]:
+		raise OptionalMethodNotImplemented
+
+	def step(self, index: int) -> Dict[str, JSONABLE]:
+		raise NotImplementedError
+
+	def summary(self) -> str:
+		raise OptionalMethodNotImplemented
+
+	def post_loop(self) -> Optional[Dict[str, JSONABLE]]:
+		raise NotImplementedError
 
 
 

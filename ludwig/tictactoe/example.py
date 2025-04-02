@@ -1,5 +1,6 @@
 from ..imports import *
-from ..core import Task, LLM_Tool, ParsingError
+from ..base import Task, LLM_Tool
+from ..errors import ParsingError
 
 
 
