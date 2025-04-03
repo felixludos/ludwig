@@ -1,4 +1,19 @@
 
 _meta.script_name: eval
 
+seed: 1000000009
+
+#_base: [demo]
+
+
+task._type: ttt/take-the-middle
+
+strategy._type: direct-prompting
+
+out-dir: local_data/
+
+addr: 8000
+client._type: vllm
+
+max-tokens: 512
 

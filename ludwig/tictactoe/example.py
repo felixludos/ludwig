@@ -1,10 +1,10 @@
 from ..imports import *
-from ..base import Task, LLM_Tool
+from ..base import TaskBase, ToolBase
 from ..errors import ParsingError
 
 
 @fig.component('ttt/take-the-middle')
-class TakeTheMiddle(Task):
+class TakeTheMiddle(TaskBase):
 	@property
 	def name(self) -> str:
 		return "TTT-TakeTheMiddle"

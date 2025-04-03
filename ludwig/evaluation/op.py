@@ -18,13 +18,14 @@ def eval_task(cfg: fig.Configuration):
 	:type protocol: AbstractProtocol
 	:return:
 	"""
-
-	pbar: bool = cfg.pull('pbar', True)
+	pbar: bool = cfg.pull('pbar', where_am_i() != 'cluster')
 
 	out_root = cfg.pull('out-dir', None)
 	if out_root is not None:
 		out_root = Path(out_root)
 		out_root.mkdir(exist_ok=True)
+
+	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 
 	cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 	protocol: AbstractProtocol = cfg.pull('protocol')
@@ -51,20 +52,35 @@ def eval_task(cfg: fig.Configuration):
 	artifacts = protocol.pre_loop()
 
 	itr = protocol.remaining_iterations()
+	num_digits = len(str(len(itr))) + 1
+	if out_dir is not None and ckpt_freq is not None:
+		ckptpath = out_dir / f'ckpt-{0:0{num_digits}}'
+		protocol.checkpoint(ckptpath)
+		if artifacts is not None:
+			with ckptpath.joinpath('artifacts.json').open('w') as f:
+				json.dump(artifacts, f)
+
 	if pbar: itr = tqdm(itr, desc=f'{protocol.name}')
 	for i in itr:
 		sample = protocol.step(i)
 		if 'message' in sample:
 			print()
 			print(sample['message'])
+			del sample['message']
 		if 'pbar' in sample:
 			assert pbar
 			itr.set_description(sample['pbar'])
+			del sample['pbar']
+		if out_dir is not None and ckpt_freq is not None and i > 0 and i % ckpt_freq == 0:
+			protocol.checkpoint(out_dir / f'ckpt-{i+1:0{num_digits}}')
 
 	summary = protocol.summary()
 	if summary is not None:
 		print(summary)
 		print()
+
+	if out_dir is not None:
+		protocol.checkpoint(out_dir)
 
 	out = protocol.post_loop()
 	return out

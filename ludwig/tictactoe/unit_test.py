@@ -1,6 +1,7 @@
 from .example import TakeTheMiddle
 
 
+
 def test_example_task():
 
 	task = TakeTheMiddle()

@@ -3,16 +3,24 @@ from .imports import *
 
 
 @fig.component('direct-prompting')
-class DirectPrompting(Strategy):
+class DirectPrompting(StrategyBase):
 	"""
 	Direct prompting strategy.
 	"""
 
-	def __init__(self, template: str = '{task_context}\n\n{question}', **kwargs):
+	def __init__(self, client: AbstractClient, template: str = '{task_context}\n\n{question}', **kwargs):
 		super().__init__(**kwargs)
+		self.client = client
 		self.template = template
 		self.system_context = None
 		self.task_context = None
+
+
+	def prepare(self, seed: Optional[int] = None) -> Any:
+		"""Prepare the strategy for use. This may include setting up any necessary resources or configurations."""
+		if not self.client.ping():
+			raise ValueError(f'Client {self.client.ident} is not ready to use.')
+		self.client.prepare()
 
 
 	@property
@@ -23,7 +31,12 @@ class DirectPrompting(Strategy):
 	def json(self):
 		return {
 			'template': self.template,
+			'client': self.client.json(),
 		**super().json()}
+
+
+	def status(self) -> Optional[JSONOBJ]:
+		return self.client.stats()
 
 
 	def study(self, context: str, desc: str, spec: JSONOBJ) -> JSONOBJ:
@@ -41,8 +54,7 @@ class DirectPrompting(Strategy):
 			question=question
 		)
 
-		# TODO: Use the prompt to generate a response
-		response = 'Yes'
+		response = self.client.get_response(prompt)
 
 		return response
 

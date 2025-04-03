@@ -1,12 +1,12 @@
 from ..imports import *
-from .. import Task, LLM_Tool, ParsingError
+from .. import TaskBase, ToolBase, ParsingError
 import chess
 import pandas as pd
 import re
 
 
 
-class MakeNextMove(Task):
+class MakeNextMove(TaskBase):
 	def __init__(self):
 		super().__init__()
 		self.dataset = None

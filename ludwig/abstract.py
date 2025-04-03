@@ -226,6 +226,14 @@ class AbstractTask:
 		"""(optional) Returns a sequence of potentially or partially relevant tools that may help to solve this task."""
 		raise OptionalMethodNotImplemented
 
+	def status(self) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns the current status of the strategy
+
+		This may be called at any time, and should report the current state of the strategy.
+		"""
+		raise OptionalMethodNotImplemented
+
 	def json(self) -> JSONOBJ:
 		"""
 		(optional) Returns the settings for the task to be relevant for this task.
@@ -290,6 +298,14 @@ class AbstractStrategy:
 		:param task_description: the task context
 		"""
 		pass
+
+	def status(self) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns the current status of the strategy
+
+		This may be called at any time, and should report the current state of the strategy.
+		"""
+		raise OptionalMethodNotImplemented
 
 	def json(self) -> JSONOBJ:
 		"""
