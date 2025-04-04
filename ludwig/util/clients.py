@@ -128,51 +128,29 @@ class MockEndpoint(ClientBase):
 
 
 
-@fig.component('vllm')
-class vllm_Client(ClientBase):
-	def __init__(self, addr: str, *, max_tokens: int = None, temperature: float = None, top_p: float = None,
-				 seed: int = None, **kwargs):
+class OpenaiClientBase(ClientBase):
+	def __init__(self, endpoint: Union[openai.OpenAI, str], *, max_tokens: int = None, seed: int = None,
+				 temperature: float = None, top_p: float = None, **kwargs):
+		if isinstance(endpoint, str):
+			endpoint = openai.OpenAI(api_key='EMPTY', base_url=endpoint)
 		super().__init__(**kwargs)
-		self.addr = self._to_full_addr(addr)
+		self.endpoint = endpoint
+
 		self.max_tokens = max_tokens
 		self.temperature = temperature
 		self.top_p = top_p
 		self.seed = seed
-		self._client = None
+
 		self._tokenizer = None
 		self.history = None
 		self._model_name = None
 		self._last_response = None
 
-	@staticmethod
-	def _to_full_addr(addr: str) -> str:
-		addr = str(addr)
-		if addr.startswith('http'):
-			if addr.endswith('v1/'):
-				return addr
-			elif addr.endswith('/'):
-				return f'{addr}v1'
-			elif addr.endswith('/v1'):
-				return addr
-			return f'{addr}/v1'
-		if ':' in addr:
-			return f'http://{addr}/v1'
-		assert addr.isdigit(), f'{addr} is not a valid port number'
-		return f'http://localhost:{addr}/v1'
-
 	@property
 	def ident(self) -> str:
-		return f'{self.addr}'
-
-	def _server_model_info(self) -> JSONOBJ:
-		try:
-			response = requests.get(f"{self.addr}/models")
-			response.raise_for_status()  # Raise an error for bad responses
-			model_info = response.json()
-			return model_info
-		except requests.RequestException as e:
-			print(f"Error fetching model info: {e}")
-			return {}
+		if self._model_name is None:
+			return f'{self.endpoint.base_url}'
+		return f'{self._model_name}'
 
 	def prepare(self) -> Self:
 		self.history = []
@@ -185,25 +163,10 @@ class vllm_Client(ClientBase):
 		self._tokenizer = tokenizer
 		self._last_response = None
 
-		self._model_name = self._server_model_info()['data'][0]['id']
-
-		self._client = openai.OpenAI(api_key='EMPTY', base_url=self.addr)
-
-		return self
-
-	def ping(self) -> bool:
-		try:
-			response = requests.get(f"{self.addr[:-3]}/ping")
-			response.raise_for_status()
-			return response.status_code == 200
-		except requests.RequestException as e:
-			print(f"Error pinging server: {e}")
-			return False
-
 	def json(self) -> JSONOBJ:
 		return {
-			'addr': self.addr,
-			'model-name': self._model_name,
+			'base_url': str(self.endpoint.base_url),
+			'model_name': self._model_name,
 			'max_tokens': self.max_tokens,
 			'temperature': self.temperature,
 			'top_p': self.top_p,
@@ -211,20 +174,21 @@ class vllm_Client(ClientBase):
 			**super().json()
 		}
 
-	def stats(self) -> JSONOBJ:
+	def stats(self, starting_from: int = 0) -> JSONOBJ:
 		def _metrics(seq: Sequence[float]):
 			return {'mean': sum(seq) / len(seq), 'min': min(seq), 'max': max(seq),}
 		data = {}
-		times = [h['end_time'] - h['start_time'] for h in self.history if 'end_time' in h]
+		times = [h['end_time'] - h['start_time'] for h in self.history[starting_from:] if 'end_time' in h]
 		if times:
-			tps = [h['output_tokens']/(h['end_time'] - h['start_time']) for h in self.history if 'end_time' in h]
+			tps = [h['output_tokens']/(h['end_time'] - h['start_time'])
+				   for h in self.history[starting_from:] if 'end_time' in h]
 			data['time'] = _metrics(times)
 			data['tok_per_sec'] = _metrics(tps)
 		return {
-			'input_tokens': sum(h['input_tokens'] for h in self.history),
-			'output_tokens': sum(h['output_tokens'] for h in self.history),
+			'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
+			'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
 			**data,
-			'requests': len(self.history),
+			'requests': len(self.history[starting_from:]),
 		}
 
 	def count_tokens(self, message: Union[str, List[Dict[str, str]]]) -> int:
@@ -249,10 +213,11 @@ class vllm_Client(ClientBase):
 		return None
 
 	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
-		return self._client.chat.completions.create(**data)
+		return self.endpoint.chat.completions.create(**data)
 
 	def _send_no_wait(self, data):
-		for chunk in self._client.chat.completions.create(**data, stream=True, stream_options={"include_usage": True}):
+		for chunk in self.endpoint.chat.completions.create(
+				**data, stream=True, stream_options={"include_usage": True}):
 			yield chunk
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
@@ -266,7 +231,10 @@ class vllm_Client(ClientBase):
 
 	def _record_send(self, data: JSONOBJ):
 		self._last_response = ''
-		self.history.append({'estimated_input_tokens': self.count_tokens(data['messages']), 'start_time': time.time()})
+		self.history.append({})
+		if self._tokenizer is not None:
+			self.history[-1]['estimated_input_tokens'] = self.count_tokens(data['messages'])
+		self.history[-1]['start_time'] = time.time()
 
 	def _record_response(self, data: JSONOBJ, resp: openai.ChatCompletion):
 		N_inp = resp.usage.prompt_tokens
@@ -278,7 +246,7 @@ class vllm_Client(ClientBase):
 		})
 		self._last_response = resp.choices[0].message.content
 
-	def _record_step(self, data: JSONOBJ, step: JSONOBJ):
+	def _record_step(self, data: JSONOBJ, step: openai.ChatCompletion):
 		if len(step.choices):
 			self._last_response += step.choices[0].delta.content
 		if step.usage is not None:
@@ -286,11 +254,70 @@ class vllm_Client(ClientBase):
 			self.history[-1]['output_tokens'] = step.usage.completion_tokens
 			self.history[-1]['end_time'] = time.time()
 
-	def __repr__(self):
-		return f'<{self.__class__.__name__} {self.ident}>'
+	def ping(self) -> bool:
+		return True # TODO: implement a ping method for OpenAI endpoints
 
 	def __str__(self):
 		return self.ident
+
+
+
+@fig.component('vllm')
+class vllm_Client(OpenaiClientBase):
+	def __init__(self, addr: Union[str, int], **kwargs):
+		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
+
+	@staticmethod
+	def _to_full_addr(addr: Union[str, int]) -> str:
+		addr = str(addr)
+		if addr.startswith('http'):
+			if addr.endswith('v1/'):
+				return addr
+			elif addr.endswith('/'):
+				return f'{addr}v1'
+			elif addr.endswith('/v1'):
+				return addr
+			return f'{addr}/v1'
+		if ':' in addr:
+			return f'http://{addr}/v1'
+		assert addr.isdigit(), f'{addr} is not a valid port number'
+		return f'http://localhost:{addr}/v1'
+
+	def _server_model_info(self) -> JSONOBJ:
+		try:
+			response = requests.get(str(self.endpoint.base_url.join('models')))
+			response.raise_for_status()  # Raise an error for bad responses
+			model_info = response.json()
+			return model_info
+		except requests.RequestException as e:
+			print(f"Error fetching model info: {e}")
+			return {}
+
+	def prepare(self) -> Self:
+		super().prepare()
+		info = self._server_model_info()
+		self._model_name = info['data'][0]['id']
+		return self
+
+	def ping(self) -> bool:
+		try:
+			url = self.endpoint.base_url
+			response = requests.get(f"{str(url).replace(url.path, '')}/ping")
+			response.raise_for_status()
+			return response.status_code == 200
+		except requests.RequestException as e:
+			print(f"Error pinging server: {e}")
+			return False
+
+
+
+@fig.component('azure')
+class OpenaiAzure_Client(OpenaiClientBase):
+	@fig.silent_config_args('api_key')
+	def __init__(self, model_name: str, *, api_base: str, api_key: str, api_version: str, **kwargs):
+		endpoint = openai.AzureOpenAI(azure_endpoint=api_base, api_key=api_key, api_version=api_version)
+		super().__init__(endpoint=endpoint, **kwargs)
+		self._model_name = model_name
 
 
 
@@ -317,78 +344,6 @@ class vllm_Client(ClientBase):
 # 		   finish_reason=None, index=0, logprobs=None)], created=1743711902,
 # 					model='microsoft/Phi-4-multimodal-instruct', object='chat.completion.chunk', service_tier=None,
 # 					system_fingerprint=None, usage=None)
-
-
-# @fig.component('azure')
-# class Azure_Client(ClientBase):
-# 	@fig.silent_config_args('api_key')
-# 	def __init__(self, deployment_name: str, *, api_base: str = None, api_key: str = '-', api_version: str = None,
-# 				 **kwargs):
-# 		super().__init__(**kwargs)
-# 		self._client = openai.AzureOpenAI(api_key=api_key, api_version=api_version, azure_endpoint=api_base)
-# 		self._deployment_name = deployment_name
-# 		self._tokenizer = None
-#
-# 	def prepare(self) -> Self:
-# 		self.history = []
-# 		try:
-# 			import tiktoken
-# 		except ImportError:
-# 			tokenizer = None
-# 		else:
-# 			tokenizer = tiktoken.get_encoding("cl100k_base")
-# 		self._tokenizer = tokenizer
-# 		return self
-#
-# 	def count_tokens(self, message: Union[str, List[Dict[str, str]]]) -> int:
-# 		if isinstance(message, str):
-# 			return len(self._tokenizer.encode(message))
-# 		return sum(len(self._tokenizer.encode(m['content'])) for m in message)
-#
-# 	def stats(self) -> JSONOBJ:
-# 		return {
-# 			'input_tokens': sum(h['input_tokens'] for h in self.history),
-# 			'output_tokens': sum(h['output_tokens'] for h in self.history),
-# 			'requests': len(self.history),
-# 		}
-#
-# 	def _record_send(self, data: JSONOBJ):
-# 		self.history.append({'estimated_input_tokens': self.count_tokens(data['messages'])})
-#
-# 	def _record_response(self, data: JSONOBJ, resp: JSONOBJ):
-# 		self.history[-1].update({
-#
-# 			'output_tokens': self.count_tokens(resp['response']),
-# 		})
-#
-# 	def _record_step(self, data: JSONOBJ, step: JSONOBJ):
-# 		if 'output_tokens' not in self.history[-1]:
-# 			self.history[-1]['output_tokens'] = 0
-# 		self.history[-1]['output_tokens'] += 1
-#
-# 	def wrap_chat(self, chat: List[Dict[str, str]]) -> JSONOBJ:
-# 		return {'messages': chat}
-#
-# 	def extract_response(self, data: JSONOBJ) -> str:
-# 		return data['choices'][0]['message']['content']
-#
-# 	def _send(self, data: JSONOBJ) -> JSONOBJ:
-# 		return self._client.chat.completions.create(**data)
-#
-# 	def _send_no_wait(self, data: JSONOBJ) -> Iterator[JSONOBJ]:
-# 		for resp in self._client.chat.completions.create(**data, stream=True):
-# 			if resp['choices'][0]['finish_reason'] == 'stop':
-# 				break
-# 			yield resp
-
-
-
-# @fig.component('openai')
-# class OpenAI_Client(ClientBase):
-# 	@fig.silent_config_args('api_key')
-# 	def __init__(self, *, api_base: str = None, api_key: str = '-', api_version: str = None, **kwargs):
-# 		raise NotImplementedError
-
 
 
 
