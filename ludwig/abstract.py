@@ -1,6 +1,6 @@
 from .imports import *
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
-
+from .util import AbstractClient
 
 PROBLEM = JSONABLE
 ANSWER = JSONABLE
@@ -92,6 +92,8 @@ class AbstractTask:
 	def validation(self, N: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
 		"""
 		(optional) Generates `N` pairs of input and expected output for the strategy to self-validate its formal system.
+
+		This can also be used for a few-shot setting.
 
 		:param seed: optional to ensure deterministic behavior
 		"""
@@ -269,6 +271,11 @@ class AbstractStrategy:
 		"""A unique and description name for this strategy"""
 		raise NotImplementedError
 
+	@property
+	def client(self) -> AbstractClient:
+		"""The client used to communicate with an LLM, accessible for logging"""
+		raise NotImplementedError
+
 	def prepare(self, seed: int) -> None:
 		"""
 		(optional) Setup any necessary state for this strategy
@@ -280,9 +287,11 @@ class AbstractStrategy:
 		raise NotImplementedError
 
 	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[JSONOBJ] = None) -> str:
+			  side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 		"""
-		Generates a response to the given question
+		Use strategy to find a solution to the given question
+
+		Additionally, returns any intermediate steps that are worth recording for logging.
 
 		:param question: the question to respond to
 		:param seed: optional to ensure deterministic behavior

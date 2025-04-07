@@ -16,7 +16,10 @@ class AbstractClient:
 	def json(self) -> JSONOBJ:
 		raise NotImplementedError
 
-	def stats(self) -> JSONOBJ:
+	def stats(self, starting_from: int = 0) -> JSONOBJ:
+		raise NotImplementedError
+
+	def past_requests(self) -> int:
 		raise NotImplementedError
 
 	def wrap_prompt(self, prompt: str) -> JSONOBJ:

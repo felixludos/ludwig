@@ -76,11 +76,14 @@ class MockEndpoint(ClientBase):
 	def ping(self) -> bool:
 		return True
 
-	def stats(self) -> JSONOBJ:
+	def past_requests(self) -> int:
+		return len(self.history)
+
+	def stats(self, starting_from: int = 0) -> JSONOBJ:
 		return {
-			'input_tokens': sum(h['input_tokens'] for h in self.history),
-			'output_tokens': sum(h['output_tokens'] for h in self.history),
-			'requests': len(self.history),
+			'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
+			'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
+			'requests': len(self.history[starting_from:]),
 		}
 
 	def _record_send(self, data: JSONOBJ):
@@ -173,6 +176,9 @@ class OpenaiClientBase(ClientBase):
 			'seed': self.seed,
 			**super().json()
 		}
+
+	def past_requests(self) -> int:
+		return len(self.history)
 
 	def stats(self, starting_from: int = 0) -> JSONOBJ:
 		def _metrics(seq: Sequence[float]):
