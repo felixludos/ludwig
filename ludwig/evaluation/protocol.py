@@ -1,12 +1,11 @@
 from .imports import *
 
 
-
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, strategy: AbstractStrategy, task: AbstractTask, *,
 				 seed: Optional[int] = None, name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
-				 limit: int = None, **kwargs):
+				 include_gt_info: bool = False, limit: int = None, **kwargs):
 		if seed is None: seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
 		self._name_template = name
@@ -16,16 +15,22 @@ class DefaultProtocol(ProtocolBase):
 		self._sample_seed = seed
 		self._now = datetime.now()
 		self._limit = limit
+		self._include_gt_info = include_gt_info
 		self._past_iterations = None
 		self._use_generate = None
 		self.aggregates = None
 
 		self.strategy = strategy
-		self.task = task
+		self._task = task
 
 	@property
 	def name(self) -> str:
 		return self._name
+
+	@property
+	def task(self) -> AbstractTask:
+		"""The task used in this protocol"""
+		return self._task
 
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
@@ -81,22 +86,37 @@ class DefaultProtocol(ProtocolBase):
 
 		question = self.task.observe(problem, seed=self._sample_seed)
 
-		response = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
+		log = {}
+		proc = {}
+		if self._include_gt_info:
+			proc['problem'] = problem
+		start_idx = self.strategy.client.past_requests()
+		start = time.time()
 
-		correct = self.task.correct(response, answer)
+		solution, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
+
+		log['time'] = time.time() - start
+
+		proc.update(steps)
+		log.update(self.strategy.client.stats(starting_from=start_idx))
+
+		correct = self.task.correct(solution, answer)
 
 		self.aggregates['correct' if correct else 'incorrect'].append(idx)
 
+		proc['solution'] = solution
+		proc['answer'] = answer
+		proc['correct'] = correct
+
+		sample = {}
+		if len(log):
+			sample['log'] = log
+		if len(proc):
+			# proc -> dataframe with columns: Key, Value
+			sample['table'] = proc
+
 		self._past_iterations += 1
-		return {
-			'seed': self._sample_seed,
-			'problem': problem,
-			'info': info,
-			'question': question,
-			'response': response,
-			'answer': answer,
-			'correct': correct,
-		}
+		return sample
 
 	def post_loop(self) -> Optional[JSONOBJ]:
 		"""Post-loop cleanup or finalization"""
@@ -112,8 +132,11 @@ class DefaultProtocol(ProtocolBase):
 			'sample-seed': self._sample_seed,
 			'past_iterations': self._past_iterations,
 			'remaining_iterations': len(self.remaining_iterations()),
+
 			'task': self.task.status(),
-			'strategy': self.strategy.status(),
+			# 'strategy': self.strategy.status(),
+			'client': self.strategy.client.stats(),
+
 			'total': N,
 			'correct': N_cor,
 			'incorrect': N_inc,

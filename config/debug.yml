@@ -17,3 +17,6 @@ client._type: vllm
 
 max-tokens: 512
 
+#template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+
+limit: 4

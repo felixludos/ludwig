@@ -4,6 +4,8 @@ from pathlib import Path
 from omnibelt import where_am_i
 import random
 import json
+import time
+import textwrap
 from datetime import datetime
 from tabulate import tabulate
 import omnifig as fig
