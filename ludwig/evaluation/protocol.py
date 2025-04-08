@@ -1,7 +1,6 @@
 from .imports import *
 
 
-
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, strategy: AbstractStrategy, task: AbstractTask, *,
@@ -22,11 +21,16 @@ class DefaultProtocol(ProtocolBase):
 		self.aggregates = None
 
 		self.strategy = strategy
-		self.task = task
+		self._task = task
 
 	@property
 	def name(self) -> str:
 		return self._name
+
+	@property
+	def task(self) -> AbstractTask:
+		"""The task used in this protocol"""
+		return self._task
 
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
@@ -82,27 +86,34 @@ class DefaultProtocol(ProtocolBase):
 
 		question = self.task.observe(problem, seed=self._sample_seed)
 
-		sample = {}
+		log = {}
+		proc = {}
+		if self._include_gt_info:
+			proc['problem'] = problem
 		start_idx = self.strategy.client.past_requests()
 		start = time.time()
 
 		solution, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
 
-		sample['time'] = time.time() - start
+		log['time'] = time.time() - start
 
-		sample.update(steps)
-		sample.update(self.strategy.client.stats(starting_from=start_idx))
+		proc.update(steps)
+		log.update(self.strategy.client.stats(starting_from=start_idx))
 
 		correct = self.task.correct(solution, answer)
 
 		self.aggregates['correct' if correct else 'incorrect'].append(idx)
 
-		if self._include_gt_info:
-			sample['problem'] = problem
-			sample['answer'] = answer
+		proc['solution'] = solution
+		proc['answer'] = answer
+		proc['correct'] = correct
 
-		sample['solution'] = solution
-		sample['correct'] = correct
+		sample = {}
+		if len(log):
+			sample['log'] = log
+		if len(proc):
+			# proc -> dataframe with columns: Key, Value
+			sample['table'] = proc
 
 		self._past_iterations += 1
 		return sample

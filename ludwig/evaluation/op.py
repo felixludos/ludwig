@@ -1,6 +1,12 @@
 from .imports import *
 from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
 # from ..base import Task, Strategy
+import pandas as pd
+
+try:
+	import wandb
+except ImportError:
+	wandb = None
 
 
 @fig.script('eval', description='Evaluate a `task` on a `strategy` (i.e. model)')
@@ -19,6 +25,13 @@ def eval_task(cfg: fig.Configuration):
 	:return:
 	"""
 	pbar: bool = cfg.pull('pbar', where_am_i() != 'cluster')
+
+	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
+	pause_after = None
+	if use_wandb and wandb is None:
+		raise ValueError('You need to install `wandb` to use `wandb`')
+	if use_wandb:
+		pause_after = cfg.pull('pause-after', None)
 
 	out_root = cfg.pull('out-dir', None)
 	if out_root is not None:
@@ -40,6 +53,14 @@ def eval_task(cfg: fig.Configuration):
 		if out_dir.exists() and not cfg.pull('overwrite', False):
 			raise RuntimeError(f'Output directory {out_dir} already exists. Use --overwrite to overwrite it.')
 		out_dir.mkdir(exist_ok=True)
+
+	wandb_run = None
+	check_confirmation = None
+	if use_wandb:
+		wandb_run = wandb.init(project=protocol.task.name, config=protocol.json(), dir=out_dir)
+		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
+		if pause_after:
+			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
 
 	desc = protocol.describe()
 	if desc is not None:
@@ -71,6 +92,19 @@ def eval_task(cfg: fig.Configuration):
 			assert pbar
 			itr.set_description(sample['pbar'])
 			del sample['pbar']
+		if wandb_run is not None and (pause_after is None or i <= pause_after):
+			if 'log' in sample:
+				wandb_run.log(sample['log'])
+			if 'table' in sample:
+				# columns = shutil.get_terminal_size(fallback=(60, 20)).columns
+				# tbl = {key: wrap_text(val, max(columns, 60)) for key, val in flatten(sample['table']).items()}
+				tbl = {key: str(val) for key, val in flatten(sample['table']).items()}
+				if isinstance(tbl, dict):
+					# convert dict[str,str] to dataframe
+					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
+				if isinstance(tbl, pd.DataFrame):
+					tbl = wandb.Table(dataframe=tbl)
+				wandb_run.log({'table': tbl})
 		if out_dir is not None and ckpt_freq is not None and i > 0 and i % ckpt_freq == 0:
 			protocol.checkpoint(out_dir / f'ckpt-{i+1:0{num_digits}}')
 
@@ -83,6 +117,10 @@ def eval_task(cfg: fig.Configuration):
 		protocol.checkpoint(out_dir)
 
 	out = protocol.post_loop()
+
+	if wandb_run is not None:
+		wandb_run.finish()
+
 	return out
 
 

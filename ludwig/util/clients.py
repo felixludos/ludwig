@@ -308,6 +308,7 @@ class vllm_Client(OpenaiClientBase):
 	def ping(self) -> bool:
 		try:
 			url = self.endpoint.base_url
+			print(f'Pinging endpoint {url}')
 			response = requests.get(f"{str(url).replace(url.path, '')}/ping")
 			response.raise_for_status()
 			return response.status_code == 200

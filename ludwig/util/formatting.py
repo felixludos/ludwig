@@ -13,3 +13,11 @@ def flatten(d, parent_key='', sep='.'):
     return items
 
 
+
+def wrap_text(data: str, width: int = 80) -> str:
+    """
+    Format data for display.
+    """
+    return '\n'.join(textwrap.wrap(str(data), width=width))
+
+

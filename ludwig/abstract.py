@@ -363,6 +363,11 @@ class AbstractProtocol:
 		"""
 		raise NotImplementedError
 
+	@property
+	def task(self) -> AbstractTask:
+		"""The task used in this protocol"""
+		raise NotImplementedError
+
 	def pre_loop(self) -> Optional[JSONOBJ]:
 		"""Called before loop to setup any metrics"""
 		raise NotImplementedError
