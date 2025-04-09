@@ -5,6 +5,8 @@ seed: 1000000009
 
 #_base: [demo]
 
+#use-wandb: no
+#limit: 4
 
 task._type: ttt/take-the-middle
 
@@ -15,8 +17,13 @@ out-dir: local_data/
 addr: 8000
 client._type: vllm
 
-max-tokens: 512
+max-tokens: 1024
+template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
 
-#template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+judge:
+#  _type: final-answer-judge
+  _type: client-judge
+  client._type: vllm
+  template: judge-binary
 
-limit: 4
+

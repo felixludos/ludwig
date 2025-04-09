@@ -3,7 +3,7 @@ from .imports import *
 
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
-	def __init__(self, strategy: AbstractStrategy, task: AbstractTask, *,
+	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
 				 seed: Optional[int] = None, name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 include_gt_info: bool = False, limit: int = None, **kwargs):
 		if seed is None: seed = random.randint(0, 2**31 - 1)
@@ -20,8 +20,9 @@ class DefaultProtocol(ProtocolBase):
 		self._use_generate = None
 		self.aggregates = None
 
-		self.strategy = strategy
 		self._task = task
+		self.strategy = strategy
+		self.judge = judge
 
 	@property
 	def name(self) -> str:
@@ -35,6 +36,7 @@ class DefaultProtocol(ProtocolBase):
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
 		self.strategy.prepare(self._master_seed)
+		self.judge.prepare(self.task.specification())
 
 		self._past_iterations = 0
 
@@ -55,13 +57,15 @@ class DefaultProtocol(ProtocolBase):
 			('Protocol', self.name),
 			('Task', self.task.name),
 			('Strategy', self.strategy.name),
+			('Judge', self.judge.name),
 			('Random seed', self._master_seed),
 		]
 		return tabulate(tbl)
 
 	def pre_loop(self) -> Optional[JSONOBJ]:
 		context = self.task.context()
-		desc = self.task.description()
+		base_desc = self.task.description()
+		desc = self.judge.format_description(base_desc)
 		spec = self.task.specification()
 
 		self._use_generate = self.task.total_questions is None
@@ -90,21 +94,22 @@ class DefaultProtocol(ProtocolBase):
 		proc = {}
 		if self._include_gt_info:
 			proc['problem'] = problem
-		start_idx = self.strategy.client.past_requests()
-		start = time.time()
 
-		solution, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
-
-		log['time'] = time.time() - start
-
+		response, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
+		if 'stats' in steps:
+			log.update(steps['stats'])
+			del steps['stats']
 		proc.update(steps)
-		log.update(self.strategy.client.stats(starting_from=start_idx))
+		proc['response'] = response
 
-		correct = self.task.correct(solution, answer)
+		correct, judgement = self.judge.judge(response, answer)
+		if 'stats' in judgement:
+			log['judge'] = judgement['stats']
+			del judgement['stats']
+		if judgement is not None:
+			proc.update(judgement)
 
 		self.aggregates['correct' if correct else 'incorrect'].append(idx)
-
-		proc['solution'] = solution
 		proc['answer'] = answer
 		proc['correct'] = correct
 
@@ -112,10 +117,14 @@ class DefaultProtocol(ProtocolBase):
 		if len(log):
 			sample['log'] = log
 		if len(proc):
-			# proc -> dataframe with columns: Key, Value
 			sample['table'] = proc
 
 		self._past_iterations += 1
+		N_cor = len(self.aggregates['correct'])
+		N_inc = len(self.aggregates['incorrect'])
+		N = N_cor + N_inc
+		acc = N_cor / N if N > 0 else 0
+		sample['score'] = acc
 		return sample
 
 	def post_loop(self) -> Optional[JSONOBJ]:
@@ -123,26 +132,33 @@ class DefaultProtocol(ProtocolBase):
 		return self.status()
 
 	def status(self) -> JSONOBJ:
-		N_cor = len(self.aggregates['correct'])
-		N_inc = len(self.aggregates['incorrect'])
-		N = N_cor + N_inc
-		acc = N_cor / N if N > 0 else 0
-		return {
+		info = {
 			'master-seed': self._master_seed,
 			'sample-seed': self._sample_seed,
 			'past_iterations': self._past_iterations,
 			'remaining_iterations': len(self.remaining_iterations()),
+		}
+		task_status = self.task.status()
+		if task_status is not None:
+			info['task'] = task_status
+		strategy_status = self.strategy.status()
+		if strategy_status is not None:
+			info['strategy'] = strategy_status
+		judge_status = self.judge.status()
+		if judge_status is not None:
+			info['judge'] = judge_status
 
-			'task': self.task.status(),
-			# 'strategy': self.strategy.status(),
-			'client': self.strategy.client.stats(),
-
+		N_cor = len(self.aggregates['correct'])
+		N_inc = len(self.aggregates['incorrect'])
+		N = N_cor + N_inc
+		acc = N_cor / N if N > 0 else 0
+		info.update({
 			'total': N,
 			'correct': N_cor,
 			'incorrect': N_inc,
 			'accuracy': acc,
-			# **self.aggregates,
-		}
+		})
+		return info
 
 	def summary(self) -> str:
 		data = flatten(self.status())
@@ -151,9 +167,17 @@ class DefaultProtocol(ProtocolBase):
 		return tabulate(tbl)
 
 	def json(self) -> JSONOBJ:
+		task_json = self.task.json()
+		task_json['name'] = self.task.name
+		strategy_json = self.strategy.json()
+		strategy_json['name'] = self.strategy.name
+		judge_json = self.judge.json()
+		judge_json['name'] = self.judge.name
 		return {
-			'task': self.task.json(),
-			'strategy': self.strategy.json(),
+			'task': task_json,
+			'strategy': strategy_json,
+			'client': self.strategy.client.json(),
+			'judge': judge_json,
 			'seed': self._master_seed,
 			'limit': self._limit,
 		**super().json()}

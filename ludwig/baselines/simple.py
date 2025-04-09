@@ -8,7 +8,9 @@ class DirectPrompting(StrategyBase):
 	Direct prompting strategy.
 	"""
 
-	def __init__(self, template: str = '{task_context}\n\n{question}', **kwargs):
+	def __init__(self, template: Union[PromptTemplate, str] = '{task_context}\n\n{question}', **kwargs):
+		if not isinstance(template, PromptTemplate):
+			template = PromptTemplate(template)
 		super().__init__(**kwargs)
 		self.template = template
 		self.system_context = None
@@ -16,14 +18,12 @@ class DirectPrompting(StrategyBase):
 
 
 	@property
-	def name(self):
-		return 'direct-prompting'
+	def name(self) -> str:
+		return f'direct-prompting-{self.template.ident}'
 
 
-	def json(self):
-		return {
-			'template': self.template,
-		**super().json()}
+	def json(self) -> JSONOBJ:
+		return {'template': self.template.json(), **super().json()}
 
 
 	def study(self, context: str, desc: str, spec: JSONOBJ) -> Optional[JSONABLE]:
@@ -31,10 +31,10 @@ class DirectPrompting(StrategyBase):
 		self.task_context = desc
 
 
-	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+	def _solve(self, question: str, *, seed: Optional[int] = None,
+			   side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 
-		prompt = self.template.format(
+		prompt = self.template.fill(
 			system_context=self.system_context,
 			task_context=self.task_context,
 			question=question

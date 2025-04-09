@@ -34,13 +34,13 @@ class AbstractClient:
 	def send(self, data: JSONOBJ) -> JSONOBJ:
 		raise NotImplementedError
 
-	def get_response(self, prompt: Union[str, List[Dict[str, str]]]) -> str:
+	def get_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> str:
 		raise NotImplementedError
 
 	def last_response(self) -> Optional[str]:
 		raise NotImplementedError
 
-	def stream_response(self, prompt: Union[str, List[Dict[str, str]]]) -> Iterator[str]:
+	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		raise NotImplementedError
 
 	def extract_response(self, data: JSONOBJ) -> str:
