@@ -1,5 +1,14 @@
 
+seed: 1000000009
+
+limit: 4
+
+use-wandb: no
 
 task._type: ttt/take-the-middle
 
 strategy._type: direct-prompting
+template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+client._type: mock
+
+judge._type: final-answer-judge
