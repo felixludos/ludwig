@@ -56,6 +56,9 @@ def eval_task(cfg: fig.Configuration):
 			raise RuntimeError(f'Output directory {out_dir} already exists. Use --overwrite to overwrite it.')
 		out_dir.mkdir(exist_ok=True)
 
+		with out_dir.joinpath('config.yaml').open('w') as f:
+			f.write(str(cfg))
+
 	wandb_run = None
 	check_confirmation = None
 	if use_wandb:
