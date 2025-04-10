@@ -1,0 +1,11 @@
+
+
+judge:
+  _type: client-judge
+
+  client:
+    _type: vllm
+    max-tokens: 4
+    temperature: 0
+
+  template: judge-binary
