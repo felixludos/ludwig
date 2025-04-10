@@ -1,0 +1,2 @@
+{c_sys}
+Your implementation should comprise of a single python function "expand" which given the state of the game (specify what state) representation should be used), it will return a list of all possible next states. Crucially, the function ‘expand’ should only take one input representing the current state, and output a list of states each of which could be passed into ‘expand’ without error. Return an empty list if there are no possible next states.

@@ -10,8 +10,7 @@ class DirectPromptingPlusParse(StrategyBase):
 	def __init__(self, client: AbstractClient, st_template:str,
 				 init_state_est_template: str, info_extractor_template:str, state_desc_template:str,
 				 response_template:str, **kwargs):
-		super().__init__(**kwargs)
-		self.client = client
+		super().__init__(client=client, **kwargs)
 		self.state_desc_template=state_desc_template
 		self.state_transition_template = st_template
 		self.response_template = response_template

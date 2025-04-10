@@ -1,0 +1,3 @@
+{c_sys}
+Describe the specification of the state representation that "expand" expects such that a person could, given a description of a state, represent it in the desired format to apply the ‘expand’ function.
+{desc_f}
