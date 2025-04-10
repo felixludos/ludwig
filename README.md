@@ -27,6 +27,8 @@ python main.py eval demo
 ```
 
 
+
+
 ## Defining Settings
 
 | Task                   | Type         | Priority | Sources | Design Tasks | Implement Tasks | Completed |
@@ -56,4 +58,5 @@ Download the full dataset - [lichess db](https://drive.google.com/file/d/1140o8a
 ## Define Strategies
 
 Strategies are any decision-making system that can solve tasks. See `AbstractStrategy` in [abstract.py](ludwig/abstract.py) for the expected API. And [`DirectPrompting`](ludwig/baselines/simple.py) for a simple example of a strategy that should directly prompt an LLM with a fixed pre-defined prompt template.
+
 

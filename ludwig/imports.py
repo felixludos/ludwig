@@ -1,5 +1,5 @@
 # Shared imports
-from typing import Any, Tuple, Sequence, Type, Union, Dict, List, Optional, Iterator, Iterable, Self
+from typing import Any, Tuple, Callable, TypeVar, Sequence, Type, Union, Dict, List, Optional, Iterator, Iterable, Self
 from pathlib import Path
 from omnibelt import where_am_i
 import random
