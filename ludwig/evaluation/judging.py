@@ -1,8 +1,7 @@
-from sympy.physics.units import temperature
-
 from .imports import *
 from ..errors import OptionalMethodNotImplemented, ParsingError
-from ..util import PromptTemplate
+from ..util import PromptTemplate, ClientStats
+
 
 
 @fig.component('client-judge')
@@ -34,6 +33,9 @@ class ClientJudge(JudgeBase):
 	def json(self) -> JSONOBJ:
 		return {'template': self._template.json(), 'client': self._client.json(), **super().json()}
 
+	def collect_stats(self, include_start: bool = False, **kwargs) -> ClientStats:
+		return ClientStats(self._client, include_start=include_start, **kwargs)
+
 	def status(self) -> JSONOBJ:
 		return {
 			'client': self._client.stats(),
@@ -41,22 +43,7 @@ class ClientJudge(JudgeBase):
 		}
 
 	def judge(self, response: str, answer: JSONABLE) -> Tuple[bool, JSONOBJ]:
-		start_idx = self._client.past_requests()
-		start = time.time()
 
-		correct, info = self._judge(response, answer)
-
-		end = time.time()
-		info['stats'] = {
-			'time': end - start,
-			**self._client.stats(starting_from=start_idx),
-		}
-		return correct, info
-
-	def _judge(self, response: str, answer: JSONABLE) -> Tuple[bool, JSONOBJ]:
-		"""
-		Top-level function to judge the response using the strategy, returning only the final answer.
-		"""
 		prompt = self._template.fill(
 			response=response,
 			answer=answer

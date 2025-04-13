@@ -1,11 +1,13 @@
 from .imports import *
 from .abstract import AbstractTool, AbstractTask, AbstractStrategy, AbstractProtocol, AbstractJudge
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
-from .util import Checkpointable, AbstractClient
+from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, EmptyStats
+
 
 
 class ToolBase(fig.Configurable, Checkpointable, AbstractTool):
 	pass
+
 
 
 class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
@@ -37,6 +39,9 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 	def json(self) -> JSONOBJ:
 		return {}
 
+	def collect_stats(self) -> AbstractStats:
+		return EmptyStats()
+
 	def status(self) -> Optional[JSONOBJ]:
 		return {
 			'failures': self._failures,
@@ -44,6 +49,7 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 			'hit_rate': self._successes / (self._successes + self._failures)
 							if self._successes + self._failures > 0 else None,
 		}
+
 
 
 class StrategyBase(fig.Configurable, Checkpointable, AbstractStrategy):
@@ -66,29 +72,11 @@ class StrategyBase(fig.Configurable, Checkpointable, AbstractStrategy):
 			'client': self.client.json(),
 		**super().json()}
 
+	def collect_stats(self, include_start: bool = False, **kwargs) -> ClientStats:
+		return ClientStats(self.client, include_start=include_start, **kwargs)
+
 	def status(self) -> Optional[JSONOBJ]:
 		return {'client': self.client.stats()}
-	
-	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
-		"""
-		Top-level function to solve the question using the strategy, returning only the final answer.
-		"""
-		starting_idx = self.client.past_requests()
-		start = time.time()
-
-		response, steps = self._solve(question, seed=seed, side_information=side_information)
-
-		end = time.time()
-		steps['stats'] = {
-			'time': end - start,
-			**self.client.stats(starting_from=starting_idx),
-		}
-		return response, steps
-
-	def _solve(self, question: str, *, seed: Optional[int] = None,
-			   side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
-		raise NotImplementedError("The solve method must be implemented in subclasses.")
 
 
 

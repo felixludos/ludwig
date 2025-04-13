@@ -81,6 +81,18 @@ def eval_task(cfg: fig.Configuration):
 		print()
 
 	artifacts = protocol.pre_loop()
+	if artifacts is not None:
+		if 'stats' in artifacts:
+			print(f'Pre-loop stats:')
+			print(tabulate(flatten(artifacts['stats'])))
+		if 'study' in artifacts:
+			tbl = {key: str(val) for key, val in flatten(artifacts['study']).items()}
+			if isinstance(tbl, dict):
+				# convert dict[str,str] to dataframe
+				tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
+			if isinstance(tbl, pd.DataFrame):
+				tbl = wandb.Table(dataframe=tbl)
+			wandb_run.log({f'study': tbl})
 
 	itr = protocol.remaining_iterations()
 	num_digits = len(str(len(itr))) + 1

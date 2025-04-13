@@ -324,6 +324,9 @@ class AbstractStrategy:
 		"""
 		raise OptionalMethodNotImplemented
 
+	def collect_stats(self) -> ContextManager:
+		raise OptionalMethodNotImplemented
+
 	def json(self) -> JSONOBJ:
 		"""
 		(optional) Returns the settings for the strategy to be relevant for this strategy.
@@ -375,6 +378,9 @@ class AbstractJudge:
 
 	def prepare(self, task_spec: JSONOBJ) -> None:
 		raise NotImplementedError
+
+	def collect_stats(self) -> ContextManager:
+		raise OptionalMethodNotImplemented
 
 	def status(self) -> Optional[JSONOBJ]:
 		"""

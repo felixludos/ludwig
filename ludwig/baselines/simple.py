@@ -31,8 +31,8 @@ class DirectPrompting(StrategyBase):
 		self.task_context = desc
 
 
-	def _solve(self, question: str, *, seed: Optional[int] = None,
-			   side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+	def solve(self, question: str, *, seed: Optional[int] = None,
+		   side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 
 		prompt = self.template.fill(
 			system_context=self.system_context,
@@ -40,7 +40,7 @@ class DirectPrompting(StrategyBase):
 			question=question
 		)
 
-		response = self.client.get_response(prompt)
+		response = self.client.get_response(prompt, seed=seed)
 
 		return response, {'prompt': prompt}
 

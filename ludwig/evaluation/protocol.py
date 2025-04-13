@@ -70,7 +70,14 @@ class DefaultProtocol(ProtocolBase):
 
 		self._use_generate = self.task.total_questions is None
 
-		artifacts = self.strategy.study(context, desc, spec)
+		artifacts = {}
+		with self.strategy.collect_stats() as stats:
+			study = self.strategy.study(context, desc, spec)
+
+		if study is not None:
+			artifacts['study'] = study
+		if len(stats):
+			artifacts['stats'] = stats
 
 		self.aggregates = {
 			'correct': [],
@@ -95,17 +102,17 @@ class DefaultProtocol(ProtocolBase):
 		if self._include_gt_info:
 			proc['problem'] = problem
 
-		response, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
-		if 'stats' in steps:
-			log.update(steps['stats'])
-			del steps['stats']
+		with self.strategy.collect_stats() as stats:
+			response, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
+		if len(stats):
+			log.update(stats)
 		proc.update(steps)
 		proc['response'] = response
 
-		correct, judgement = self.judge.judge(response, answer)
-		if 'stats' in judgement:
-			log['judge'] = judgement['stats']
-			del judgement['stats']
+		with self.judge.collect_stats() as judge_stats:
+			correct, judgement = self.judge.judge(response, answer)
+		if len(judge_stats):
+			log['judge'] = judge_stats
 		if judgement is not None:
 			proc.update(judgement)
 

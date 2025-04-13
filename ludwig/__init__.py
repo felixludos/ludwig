@@ -3,4 +3,5 @@ from .errors import ParsingError, ToolError, AmbiguousFormalizationError, Option
 from .base import TaskBase, ToolBase, StrategyBase, ProtocolBase
 from . import baselines
 from . import evaluation
+from . import dpp
 from .tictactoe import *

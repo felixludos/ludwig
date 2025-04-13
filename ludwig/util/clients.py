@@ -64,6 +64,14 @@ class ClientBase(fig.Configurable, AbstractClient):
 
 @fig.component('mock')
 class MockEndpoint(ClientBase):
+	def __init__(self, *, responses: List[str] = None, **kwargs):
+		if responses is None:
+			responses = []
+		super().__init__(**kwargs)
+		self.responses = list(reversed(responses))
+		self.history = []
+		self._last_response = None
+
 	def prepare(self) -> Self:
 		self.history = []
 		self._last_response = None
@@ -121,7 +129,8 @@ class MockEndpoint(ClientBase):
 	def _send(self, data: JSONOBJ) -> JSONOBJ:
 		assert 'chat' in data
 		chat = data['chat']
-		return {'response': f'This is the mock response to a chat with {len(chat)} messages.'}
+		return {'response': self.responses.pop() if len(self.responses)
+				else f'This is the mock response to a chat with {len(chat)} messages.'}
 
 	def _send_no_wait(self, data):
 		resp = self._send(data)

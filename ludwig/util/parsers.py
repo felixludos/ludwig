@@ -36,6 +36,12 @@ class PythonParser(AbstractParser):
 		self.safe = safe
 		self.raise_errors = raise_errors
 
+	def json(self) -> JSONOBJ:
+		return {
+			'safe': self.safe,
+			'raise_errors': self.raise_errors,
+		}
+
 	def prepare(self):
 		pass
 
