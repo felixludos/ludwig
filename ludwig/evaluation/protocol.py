@@ -1,18 +1,19 @@
 from .imports import *
 
 
+
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
 				 seed: Optional[int] = None, name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 include_gt_info: bool = False, limit: int = None, **kwargs):
-		if seed is None: seed = random.randint(0, 2**31 - 1)
+		if seed == 'sample': seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
 		self._name_template = name
 		self._name = None
 		self._master_seed = seed
 		random.seed(seed)
-		self._sample_seed = seed
+		# self._sample_seed = seed
 		self._now = datetime.now()
 		self._limit = limit
 		self._include_gt_info = include_gt_info
@@ -88,14 +89,15 @@ class DefaultProtocol(ProtocolBase):
 		return artifacts
 
 	def step(self, idx: int) -> JSONOBJ:
-		self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
+		# self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
+		seed = self._master_seed
 
-		problem, answer = self.task.generate(self._sample_seed) if self._use_generate \
-					 else self.task.load(idx, seed=self._sample_seed)
+		problem, answer = self.task.generate(seed) if self._use_generate \
+					 else self.task.load(idx, seed=seed)
 
 		info = self.task.side_information(problem)
 
-		question = self.task.observe(problem, seed=self._sample_seed)
+		question = self.task.observe(problem, seed=seed)
 
 		log = {}
 		proc = {}
@@ -103,7 +105,7 @@ class DefaultProtocol(ProtocolBase):
 			proc['problem'] = problem
 
 		with self.strategy.collect_stats() as stats:
-			response, steps = self.strategy.solve(question, seed=self._sample_seed, side_information=info)
+			response, steps = self.strategy.solve(question, seed=seed, side_information=info)
 		if len(stats):
 			log.update(stats)
 		proc.update(steps)
@@ -140,8 +142,8 @@ class DefaultProtocol(ProtocolBase):
 
 	def status(self) -> JSONOBJ:
 		info = {
-			'master-seed': self._master_seed,
-			'sample-seed': self._sample_seed,
+			'seed': self._master_seed,
+			# 'sample-seed': self._sample_seed,
 			'past_iterations': self._past_iterations,
 			'remaining_iterations': len(self.remaining_iterations()),
 		}
