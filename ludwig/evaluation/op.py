@@ -31,12 +31,14 @@ def eval_task(cfg: fig.Configuration):
 	if use_wandb and wandb is None:
 		raise ValueError('You need to install `wandb` to use `wandb`')
 	if use_wandb:
-		pause_after = cfg.pull('pause-after', None)
+		pause_after = cfg.pull('pause-after', 10)
 
 	out_root = cfg.pull('out-dir', None)
 	if out_root is not None:
 		out_root = Path(out_root)
 		out_root.mkdir(exist_ok=True)
+
+	log_samples = cfg.pull('log-samples', not use_wandb and out_root is not None)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 
@@ -54,6 +56,9 @@ def eval_task(cfg: fig.Configuration):
 			raise RuntimeError(f'Output directory {out_dir} already exists. Use --overwrite to overwrite it.')
 		out_dir.mkdir(exist_ok=True)
 
+		with out_dir.joinpath('config.yaml').open('w') as f:
+			f.write(str(cfg))
+
 	wandb_run = None
 	check_confirmation = None
 	if use_wandb:
@@ -61,6 +66,11 @@ def eval_task(cfg: fig.Configuration):
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
+
+	sample_logger = None
+	if log_samples:
+		assert out_dir is not None, f'log-samples requires out-dir to be set'
+		sample_logger = out_dir.joinpath('log.jsonl').open('w')
 
 	desc = protocol.describe()
 	if desc is not None:
@@ -81,7 +91,7 @@ def eval_task(cfg: fig.Configuration):
 			with ckptpath.joinpath('artifacts.json').open('w') as f:
 				json.dump(artifacts, f)
 
-	if pbar: itr = tqdm(itr, desc=f'{protocol.name}')
+	if pbar: itr = tqdm(itr, desc=f'[score]')
 	for i in itr:
 		sample = protocol.step(i)
 		if 'message' in sample:
@@ -92,9 +102,12 @@ def eval_task(cfg: fig.Configuration):
 			assert pbar
 			itr.set_description(sample['pbar'])
 			del sample['pbar']
+		elif 'score' in sample:
+			assert pbar
+			itr.set_description(f'{sample["score"]:.1%}')
 		if wandb_run is not None and (pause_after is None or i <= pause_after):
-			if 'log' in sample:
-				wandb_run.log(sample['log'])
+			# if 'log' in sample:
+			# 	wandb_run.log(flatten(sample['log']))
 			if 'table' in sample:
 				# columns = shutil.get_terminal_size(fallback=(60, 20)).columns
 				# tbl = {key: wrap_text(val, max(columns, 60)) for key, val in flatten(sample['table']).items()}
@@ -104,7 +117,10 @@ def eval_task(cfg: fig.Configuration):
 					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
 				if isinstance(tbl, pd.DataFrame):
 					tbl = wandb.Table(dataframe=tbl)
-				wandb_run.log({'table': tbl})
+				wandb_run.log({f'table{i}': tbl})
+		if sample_logger is not None:
+			sample_logger.write(json.dumps(sample) + '\n')
+			sample_logger.flush()
 		if out_dir is not None and ckpt_freq is not None and i > 0 and i % ckpt_freq == 0:
 			protocol.checkpoint(out_dir / f'ckpt-{i+1:0{num_digits}}')
 
@@ -113,12 +129,16 @@ def eval_task(cfg: fig.Configuration):
 		print(summary)
 		print()
 
+	if sample_logger is not None:
+		sample_logger.close()
+
 	if out_dir is not None:
 		protocol.checkpoint(out_dir)
 
 	out = protocol.post_loop()
 
 	if wandb_run is not None:
+		wandb.summary.update(flatten(out))
 		wandb_run.finish()
 
 	return out

@@ -18,11 +18,10 @@ class TakeTheMiddle(TaskBase):
 		return "Implement all the rules of tic-tac-toe."
 
 	def description(self) -> str:
-		return ("We're playing tic-tac-toe, and I have some questions. "
-				"Give your final answer in the form \"FINAL ANSWER: {yes/no}\".")
+		return "We're playing tic-tac-toe, and I have some questions."
 
 	def specification(self) -> JSONOBJ:
-		return {'answer': 'Yes/No'}
+		return {'answer': 'yes/no'}
 
 	_problem_data = [
 		['bottom left', 'top-center', 'middle left', 'top left', 'the remaining bottom corner'],
@@ -30,9 +29,9 @@ class TakeTheMiddle(TaskBase):
 		['the top right', 'left bottom', 'top middle', 'top left', 'the remaining bottom corner'],
 		['left bottom corner', 'the right bottom corner', 'left middle', 'top-left', 'the last open corner'],
 	]
-	_answer_data = [False, True, False, True]
+	_answer_data = ['no', 'yes', 'no', 'yes']
 
-	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], bool]:
+	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], str]:
 		# This is a placeholder implementation for demo purposes.
 		base_idx = index % len(self._problem_data)
 		rev_flags = index // len(self._problem_data)
@@ -50,30 +49,9 @@ class TakeTheMiddle(TaskBase):
 	def observe(self, problem: List[str], *, seed: int = None) -> str:
 		# This is a placeholder implementation for demo purposes.
 		template = ("Alice started with {0} and I played {1}. She took {2}, so I responded with {3}. "
-					"Now Alice played at {4}. I think I should play in the middle because it's a good spot in general. "
+					"Now Alice played at {4}. I think I should play in the center-middle "
+					"because it's a good spot in general. "
 					"Is that my best move?")
 		return template.format(*problem)
-
-	def correct(self, response: str, answer: bool) -> bool:
-		# This is a placeholder implementation for demo purposes.
-		clean = response.strip().lower()
-
-		# find "
-
-		match = re.search(r'\bFINAL\s+ANSWER\s*:\s*(yes|no)\b', clean, re.IGNORECASE)
-		if match:
-			final_answer = match.group(1).lower()
-
-			if final_answer == 'yes':
-				return answer
-			elif final_answer == 'no':
-				return not answer
-
-		if clean.startswith('yes'):
-			return answer
-		elif clean.startswith('no'):
-			return not answer
-		return False
-		raise ParsingError(response, 'Can\'t decide if the answer is "yes" or "no"')
 
 

@@ -207,7 +207,7 @@ class AbstractTask:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def correct(self, response: str, answer: ANSWER) -> bool:
+	def correct(self, response: str, answer: ANSWER) -> Tuple[bool, JSONOBJ]:
 		"""
 		Returns whether the strategy's response is satisfactory and should be evaluated as correct.
 
@@ -215,6 +215,14 @@ class AbstractTask:
 		:param answer: ground truth answer
 		"""
 		raise NotImplementedError
+
+	def validate_judge(self, judge: 'AbstractJudge') -> bool:
+		"""
+		(optional) Validates the given judge for this task
+
+		This should return True if the judge is appropriate for the task and can be used to evaluate the response.
+		"""
+		raise OptionalMethodNotImplemented
 
 	def present(self) -> Any:
 		"""(optional) Returns any description or information for the strategy"""
@@ -342,6 +350,49 @@ class AbstractStrategy:
 		the given data.
 		"""
 		raise OptionalMethodNotImplemented
+
+
+
+class AbstractJudge:
+	"""
+	Judges are used by protocols to interpret the response of the strategy and determine whether it is correct or not.
+	"""
+	@property
+	def name(self) -> str:
+		"""A unique and description name for this judge"""
+		raise NotImplementedError
+
+	def format_description(self, task_description: str) -> str:
+		"""
+		(optional) Format the task description for the strategy so the judge can understand responses better.
+
+		For example, the judge may request the answers to be formated in a specific way.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def judge(self, response: str, answer: JSONABLE) -> Tuple[bool, JSONOBJ]:
+		raise NotImplementedError
+
+	def prepare(self, task_spec: JSONOBJ) -> None:
+		raise NotImplementedError
+
+	def status(self) -> Optional[JSONOBJ]:
+		"""
+		(optional) Returns the current status of the judge
+
+		This may be called at any time, and should report the current state of the judge.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def json(self) -> JSONOBJ:
+		"""
+		(optional) Returns the settings for the judge to be relevant for this judge.
+
+		These settings should generally include all important hyperparameters and configuration for the judge.
+		Also, it is recommended to format them such that they can be published on wandb.
+		"""
+		raise OptionalMethodNotImplemented
+
 
 
 

@@ -1,0 +1,5 @@
+# Zero-shot Chain of Thought (based on direct prompting)
+
+_base: [s/dp]
+
+template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."

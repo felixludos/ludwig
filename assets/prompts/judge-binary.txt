@@ -1,0 +1,10 @@
+The following is a student's answer to a Yes/No question. Your task is to determine whether the student's answer is "yes" or "no" based on their response.
+
+Student's Response:
+```
+{response}
+```
+
+Think carefully about whether the student's response implies a "yes" or "no" answer. If the response is ambiguous or does not clearly indicate a "yes" or "no," you should answer "no."
+
+Answer only with "yes" or "no". Do not provide any additional information or explanation.

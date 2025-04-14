@@ -1,0 +1,5 @@
+{c_task}
+ {c_query}
+ But first, identify the state of the game using the following format:
+{desc_x}
+Describe the state of the game in the format that the ‘expand’ function expects so that we can apply search to help you answer the question subsequently. You don't need to answer the question yet, just specify the correct state for now.

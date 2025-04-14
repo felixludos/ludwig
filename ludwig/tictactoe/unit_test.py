@@ -1,10 +1,13 @@
 from .example import TakeTheMiddle
 
 
-
 def test_example_task():
+	from ..evaluation.judging import FinalAnswerJudge
 
 	task = TakeTheMiddle()
+	judge = FinalAnswerJudge()
+
+	judge.prepare(task.specification())
 
 	x, y = task.load(0)
 
@@ -12,10 +15,10 @@ def test_example_task():
 	print()
 	print(prompt)
 
-	response = 'no'
-	assert task.correct(response, y) == True
+	response = 'final answer: no'
+	assert judge.judge(response, 'no')[0] == True
 
-	response = 'yes'
-	assert task.correct(response, y) == False
+	response = 'final answer: yes'
+	assert judge.judge(response, 'no')[0] == False
 
 

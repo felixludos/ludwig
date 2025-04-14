@@ -4,19 +4,18 @@ _meta.script_name: eval
 seed: 1000000009
 
 #_base: [demo]
+#_base: [s/dp, ttt/take-the-middle, j/client]
+#_base: [s/zcot, ttt/take-the-middle, j/client]
+_base: [s/dp, ttt/take-the-middle, j/client]
 
-
-task._type: ttt/take-the-middle
-
-strategy._type: direct-prompting
+#use-wandb: no
 
 out-dir: local_data/
 
-addr: 8000
+addr: 8001
 client._type: vllm
 
-max-tokens: 512
+judge.addr: 8000
 
-#template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+max-tokens: 1024
 
-limit: 4

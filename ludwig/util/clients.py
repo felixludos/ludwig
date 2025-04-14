@@ -133,7 +133,7 @@ class MockEndpoint(ClientBase):
 
 class OpenaiClientBase(ClientBase):
 	def __init__(self, endpoint: Union[openai.OpenAI, str], *, max_tokens: int = None, seed: int = None,
-				 temperature: float = None, top_p: float = None, **kwargs):
+				 temperature: float = None, top_p: float = None, grammar: Union[str, JSONOBJ] = None, **kwargs):
 		if isinstance(endpoint, str):
 			endpoint = openai.OpenAI(api_key='EMPTY', base_url=endpoint)
 		super().__init__(**kwargs)
@@ -143,6 +143,7 @@ class OpenaiClientBase(ClientBase):
 		self.temperature = temperature
 		self.top_p = top_p
 		self.seed = seed
+		self.grammar = grammar
 
 		self._tokenizer = None
 		self.history = None
@@ -167,7 +168,7 @@ class OpenaiClientBase(ClientBase):
 		self._last_response = None
 
 	def json(self) -> JSONOBJ:
-		return {
+		info = {
 			'base_url': str(self.endpoint.base_url),
 			'model_name': self._model_name,
 			'max_tokens': self.max_tokens,
@@ -176,12 +177,17 @@ class OpenaiClientBase(ClientBase):
 			'seed': self.seed,
 			**super().json()
 		}
+		if self.grammar is not None:
+			info['grammar'] = self.grammar
+		return info
 
 	def past_requests(self) -> int:
 		return len(self.history)
 
 	def stats(self, starting_from: int = 0) -> JSONOBJ:
 		def _metrics(seq: Sequence[float]):
+			if len(seq) == 1:
+				return seq[0]
 			return {'mean': sum(seq) / len(seq), 'min': min(seq), 'max': max(seq),}
 		data = {}
 		times = [h['end_time'] - h['start_time'] for h in self.history[starting_from:] if 'end_time' in h]
@@ -204,10 +210,27 @@ class OpenaiClientBase(ClientBase):
 			return len(self._tokenizer.encode(message))
 		return sum(len(self._tokenizer.encode(m['content'])) for m in message)
 
+	@staticmethod
+	def _parse_grammar(grammar: Union[str, JSONOBJ]):
+		if isinstance(grammar, str):
+			grammars = {'yes/no': {"guided_choice": ["yes", "no"]},
+						'pos/neg': {"guided_choice": ["positive", "negative"]},
+						'mcq4': {"guided_choice": ["A", "B", "C", "D"]}}
+			if grammar not in grammars:
+				raise ValueError(f'Unknown grammar: {grammar}')
+			return grammars[grammar]
+		# TODO: check if grammar is valid
+		return grammar
+
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
 		args = {'messages': chat, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
+		if self.grammar is not None:
+			args['extra_body'] = self.grammar
 		args.update(params)
+		if 'grammar' in args:
+			args['extra_body'] = self._parse_grammar(args['grammar'])
+			del args['grammar']
 		return args
 
 	def extract_response(self, data: JSONOBJ) -> str:
@@ -325,6 +348,24 @@ class OpenaiAzure_Client(OpenaiClientBase):
 		endpoint = openai.AzureOpenAI(azure_endpoint=api_base, api_key=api_key, api_version=api_version)
 		super().__init__(endpoint=endpoint, **kwargs)
 		self._model_name = model_name
+
+
+
+class Local_vllm_Client(ClientBase):
+	def __init__(self, model_name: str, *, max_tokens: int = None, seed: int = None,
+				 temperature: float = None, top_p: float = None, **kwargs):
+		super().__init__(**kwargs)
+		raise NotImplementedError(f'todo')
+		self._model_name = model_name
+		self.max_tokens = max_tokens
+		self.temperature = temperature
+		self.top_p = top_p
+		self.seed = seed
+
+		self._tokenizer = None
+		self.history = None
+		self._model_name = None
+		self._last_response = None
 
 
 
