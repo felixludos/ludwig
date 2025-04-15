@@ -30,10 +30,10 @@ class MakeNextMove(TaskBase):
 			import os
 
 		print(os.getcwd())
-		csv_file = '../assets/lichess_db_puzzle.csv'
+		csv_file = './assets/lichess_db_puzzle.csv'
 		if not os.path.exists(csv_file):
 			print('WARNING: Full database bnot found using truncated version')
-		csv_file = '../assets/truncated_lichess_db_puzzle.csv'
+		csv_file = './assets/truncated_lichess_db_puzzle.csv'
 
 		self.dataset = pd.read_csv(csv_file, header=None)
 		self.data_len = len(self.dataset)
