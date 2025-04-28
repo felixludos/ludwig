@@ -13,7 +13,7 @@ class DefaultProtocol(ProtocolBase):
 		self._name = None
 		self._master_seed = seed
 		random.seed(seed)
-		# self._sample_seed = seed
+		self._sample_seed = seed
 		self._now = datetime.now()
 		self._limit = limit
 		self._include_gt_info = include_gt_info
@@ -58,6 +58,7 @@ class DefaultProtocol(ProtocolBase):
 			('Protocol', self.name),
 			('Task', self.task.name),
 			('Strategy', self.strategy.name),
+			('Model', self.strategy.model_name),
 			('Judge', self.judge.name),
 			('Random seed', self._master_seed),
 		]
@@ -89,23 +90,24 @@ class DefaultProtocol(ProtocolBase):
 		return artifacts
 
 	def step(self, idx: int) -> JSONOBJ:
-		# self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
-		seed = self._master_seed
-
-		problem, answer = self.task.generate(seed) if self._use_generate \
-					 else self.task.load(idx, seed=seed)
+		log = {}
+		proc = {}
+		if self._use_generate:
+			self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
+			problem, answer = self.task.generate(self._sample_seed)
+			proc['sample_seed'] = self._sample_seed
+		else:
+			problem, answer = self.task.load(idx, seed=self._master_seed)
 
 		info = self.task.side_information(problem)
 
-		question = self.task.observe(problem, seed=seed)
+		question = self.task.observe(problem, seed=self._master_seed)
 
-		log = {}
-		proc = {}
 		if self._include_gt_info:
 			proc['problem'] = problem
 
 		with self.strategy.collect_stats() as stats:
-			response, steps = self.strategy.solve(question, seed=seed, side_information=info)
+			response, steps = self.strategy.solve(question, side_information=info)
 		if len(stats):
 			log.update(stats)
 		proc.update(steps)
@@ -185,7 +187,7 @@ class DefaultProtocol(ProtocolBase):
 		return {
 			'task': task_json,
 			'strategy': strategy_json,
-			'client': self.strategy.client.json(),
+			'model': self.strategy.model_name,
 			'judge': judge_json,
 			'seed': self._master_seed,
 			'limit': self._limit,

@@ -1,4 +1,4 @@
 {c_task} The overall goal is to answer this question:
 {c_query} When applying a search algorithm to this problem, the search has resulted in this log of information after traversing the state space:
-{trajectory}
+{report}
 Given this information, what is your answer to the question? Answer concisely, no yapping.

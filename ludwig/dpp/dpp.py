@@ -1,10 +1,11 @@
 from .imports import *
 from ..util import PromptTemplate, PythonParser, AbstractParser, AbstractSearch, hash_str
-from ..util.search import NaiveSearch
+from ..util.search import GenericSearch
+from ..errors import ExceededRetriesError
 
 
 @fig.component('dpp')
-class DirectPromptingPlusParse(StrategyBase):
+class DirectPromptingPlusParse(ClientStrategy):
 	"""
 	Direct prompting strategy.
 	"""
@@ -12,11 +13,12 @@ class DirectPromptingPlusParse(StrategyBase):
 				 expand_template: str = 'dpp/expand-fn', extract_template: str = 'dpp/extract-fn',
 				 representation_template: str = 'dpp/design-rep', select_template: Optional[str] = None,# 'dpp/select-fn',
 				 state_estimation_template: str = 'dpp/state-estimation', response_template: str = 'dpp/response',
-				 **kwargs):
+				 retry_error_template: str = 'dpp/retry-error', retry_missing_template: str = 'dpp/retry-missing',
+				 examples_template: str = 'dpp/examples', max_retries: int = 3, num_validation: int = 3, **kwargs):
 		if parser is None:
 			parser = PythonParser()
 		if searcher is None:
-			searcher = NaiveSearch()
+			searcher = GenericSearch(markovian=True)
 		if not isinstance(expand_template, PromptTemplate):
 			expand_template = PromptTemplate(expand_template)
 		if not isinstance(extract_template, PromptTemplate):
@@ -29,12 +31,20 @@ class DirectPromptingPlusParse(StrategyBase):
 			state_estimation_template = PromptTemplate(state_estimation_template)
 		if not isinstance(response_template, PromptTemplate):
 			response_template = PromptTemplate(response_template)
+		if not isinstance(retry_error_template, PromptTemplate):
+			retry_error_template = PromptTemplate(retry_error_template)
+		if not isinstance(retry_missing_template, PromptTemplate):
+			retry_missing_template = PromptTemplate(retry_missing_template)
+		if not isinstance(examples_template, PromptTemplate):
+			examples_template = PromptTemplate(examples_template)
 		super().__init__(**kwargs)
 		self.parser = parser
 		self.searcher = searcher
-		self.namespace = {}
+		self.max_retries = max_retries
+		self.num_validation = num_validation
 		self.representation = None
-		self.blocks = None
+		self.expand_code = None
+		self.expand_fn = None
 
 		self.expand_template = expand_template
 		self.extract_template = extract_template
@@ -42,20 +52,25 @@ class DirectPromptingPlusParse(StrategyBase):
 		self.select_template = select_template
 		self.state_estimation_template = state_estimation_template
 		self.response_template = response_template
+		self.retry_error_template = retry_error_template
+		self.retry_missing_template = retry_missing_template
+		self.examples_template = examples_template
 		self._template_code = hash_str(''.join([
 			self.expand_template.code,
 			self.extract_template.code,
 			self.representation_template.code,
 			self.select_template.code if self.select_template else '',
 			self.state_estimation_template.code,
-			self.response_template.code
+			self.response_template.code,
+			self.retry_error_template.code,
+			self.retry_missing_template.code,
+			self.examples_template.code,
 		]))
 
 		self.system_context = None
 		self.task_context = None
 		self.nl_description_state_transition = None
 		self.trajectory = []
-
 
 	@property
 	def name(self):
@@ -74,126 +89,190 @@ class DirectPromptingPlusParse(StrategyBase):
 			'select_template': self.select_template.json() if self.select_template else None,
 			'state_estimation_template': self.state_estimation_template.json(),
 			'response_template': self.response_template.json(),
+			'retry_error_template': self.retry_error_template.json(),
+			'retry_missing_template': self.retry_missing_template.json(),
+			'examples_template': self.examples_template.json(),
+			'max_retries': self.max_retries,
 			**super().json()
 		}
 
 	def _checkpoint_data(self) -> JSONOBJ:
 		return {
-			'blocks': self.blocks,
+			'expand_code': self.expand_code,
 			'code': self._template_code,
+			'examples': self.examples,
 			'representation': self.representation,
 			**super()._checkpoint_data()
 		}
 
 	def _load_checkpoint_data(self, checkpoint_data: JSONOBJ, *, unsafe: bool = False) -> None:
 		super()._load_checkpoint_data(checkpoint_data)
-		self.blocks = checkpoint_data['blocks']
+		self.expand_code = checkpoint_data['expand_code']
+		if self.expand_code is not None:
+			self.expand_fn = self.parser.realize(self.expand_code)['local_vars']['expand']
 		self.representation = checkpoint_data['representation']
 
+	def _find_py_obj(self, prompt: str, target: str = None) -> Tuple[str, int, Dict[str, Any]]:
+		retries = 0
+		for chat in self.client.multi_turn(prompt, max_retries=self.max_retries):
+			assert chat[-1]['role'] == 'assistant', f'Expected assistant response, got {chat[-1]["role"]}'
+			response = chat[-1]['content']
+
+			code_blocks = self.parser.parse(response)
+
+			for i, code in enumerate(code_blocks):
+				item = self.parser.realize(code)
+
+				if (target is None and len(item.get('local_vars', []))) or (target in item.get('local_vars', {})):
+					if target is not None and callable(item['local_vars'].get(target)):
+						item['local_vars'][target].__globals__.update(item['local_vars'])
+					return response, retries, item
+				elif i+1 == len(code_blocks):
+					template = self.retry_error_template if 'error' in item else self.retry_missing_template
+					chat.append({'role': 'user', 'content': template.fill(target=target, **item)})
+
+			retries += 1
+
+		raise ExceededRetriesError(f'{target}')
+
+	def _validate_fn(self, fn: Callable, num: int, content: Dict[str, Any]):
+		missing = 0
+		failed = []
+		for i in range(num):
+			inkey, outkey = f'input_state{i+1}', f'output_state{i+1}'
+			if inkey in content and outkey in content:
+				inp, out = content[inkey], content[outkey]
+				try:
+					if fn(inp) != out:
+						failed.append((inp, out, None))
+				except Exception as e:
+					failed.append((inp, out, e))
+			else:
+				missing += 1
+
+		return missing, failed
+
 	def study(self, context: str, desc: str, spec: JSONOBJ) -> JSONOBJ:
-		expand_prompt = self.expand_template.fill(
-			c_sys=context,
-			c_task=desc
-		)
-		expand_response = self.client.get_response(expand_prompt)
+		self.task_context = desc
+		self.system_context = context
 
-		self.blocks = self.parser.parse(expand_response)
-		self.namespace = self.parser.realize(self.blocks)
+		expand_prompt, expand_response = None, None
+		expand_retries = None
+		if self.expand_code is None:
+			expand_prompt = self.expand_template.fill(
+				c_sys=context,
+				c_task=desc
+			)
+			expand_response, expand_retries, expand_item = self._find_py_obj(expand_prompt, 'expand')
+			self.expand_fn = expand_item['local_vars']['expand']
+			self.expand_code = expand_item['code']
 
-		rep_prompt = self.representation_template.fill(
-			expand_prompt=expand_prompt,
-			expand_response=expand_response,
-			artifacts=self.blocks,
+		elif self.expand_fn is None:
+			assert self.expand_code is not None, 'expand_code must be set if expand_fn is not None'
+			self.expand_fn = self.parser.realize(self.expand_code)['local_vars']['expand']
+
+		rep_prompt = None
+		if self.representation is None:
+			rep_prompt = self.representation_template.fill(
+				expand_prompt=expand_prompt,
+				expand_response=expand_response,
+				expand_code=self.expand_code,
+				c_sys=context,
+				c_task=desc
+			)
+			self.representation = self.client.get_response(rep_prompt)
+
+		examples_prompt = self.examples_template.fill(
 			c_sys=context,
-			c_task=desc
+			c_task=desc,
+			num=self.num_validation,
+			target='expand',
+			representation=self.representation,
+			code=self.expand_code,
 		)
-		self.representation = self.client.get_response(rep_prompt)
+		examples_response, examples_retries, examples_item = self._find_py_obj(examples_prompt,
+																			   f'output_state{self.num_validation}')
+
+		examples_missing, examples_failed = self._validate_fn(self.expand_fn, self.num_validation, examples_item)
 
 		return {
 			'expand_prompt': expand_prompt,
 			'expand_response': expand_response,
+			'expand_code': self.expand_code,
+			'expand_retries': expand_retries,
 			'representation_prompt': rep_prompt,
 			'representation_response': self.representation,
-			'blocks': len(self.blocks),
+			'examples_prompt': examples_prompt,
+			'examples_response': examples_response,
+			'examples_code': examples_item['code'],
+			'examples_retries': examples_retries,
 		}
 
-	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[JSONOBJ] = None) -> str:
+	def solve(self, question: str, *, side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 
-		self.get_state_transition()
-		state_desc_prompt = self.state_desc_template.format(
-			desc_f=self.nl_description_state_transition,
-			c_sys=self.system_context
-		)
-		desc_x = self.client.get_response(state_desc_prompt)
-
-		if side_information and "max_iterations" in side_information:
-			self.max_iterations = side_information["max_iterations"]
-
-		# Handling only one question so no for loop
-		initial_sate_est_prompt = self.init_state_est_prompt.format(
-			desc_x = desc_x,
-			c_task = self.task_context,
-			c_query = question
-		)
-		x_i = self.parse_state(self.client.get_response(initial_sate_est_prompt))
-		self.get_info_extractor(
-			desc_x=desc_x,
+		state_prompt = self.state_estimation_template.fill(
+			c_sys=self.system_context,
 			c_task=self.task_context,
-			c_query=question
+			desc_x=self.representation,
+			c_query=question,
 		)
-		self.initialize_search(x_i)
-		for iter in range(self.max_iterations):
-			x_js = self.namespace['expand'](x_i)
-			y_i = self.namespace['evaluate'](self.trajectory)
-			if y_i is None:
-				break
-			x_i = self.choose_to_expand(x_js) # return None if the search has finished
-			if x_i is None:
-				break
+		state_response, state_retries, state_item = self._find_py_obj(state_prompt, 'state')
+		state = state_item['local_vars']['state']
+		state_code = state_item['code']
 
-		response_prompt = self.response_template.format(
+		extract_prompt = self.extract_template.fill(
+			c_sys=self.system_context,
+			c_task=self.task_context,
+			desc_x=self.representation,
+			c_query=question,
+		)
+		extract_response, extract_retries, extract_item = self._find_py_obj(extract_prompt, 'extract')
+		extract_fn = extract_item['local_vars']['extract']
+		extract_code = extract_item['code']
+
+		try:
+			ex_out = self.expand_fn(state)
+		except:
+			print(f'state: {state}')
+			print('**'*20)
+			print(self.expand_code)
+			print('**'*20)
+			print(extract_code)
+			print('**'*20)
+			raise
+
+		try:
+			ev_out = extract_fn([state])
+		except:
+			print(f'state: {state}')
+			print('**'*20)
+			print(self.expand_code)
+			print('**'*20)
+			print(extract_code)
+			print('**'*20)
+			raise
+
+		results = list(self.searcher.run(state, expand_fn=self.expand_fn, extract_fn=extract_fn))
+		report = '\n'.join(results)
+
+		response_prompt = self.response_template.fill(
 			c_task=self.task_context,
 			c_query=question,
-			trajectory=self.trajectory
+			report=report,
 		)
 		response = self.client.get_response(response_prompt)
-		return response
 
-	def parse_state_transition_function(self, desc_f) -> str:
-		"""Extract the python implementation of state transition function given an LLM response"""
-		raise NotImplementedError('Base class implementation called please override this function')
+		return response, {
+			'state_prompt': state_prompt,
+			'state_response': state_response,
+			'state_code': state_code,
+			'state_retries': state_retries,
 
-	def parse_info_extractor_function(self, desc_g) -> str:
-		"""Extract the python implementation of information extractor function g"""
-		raise NotImplementedError('Base class implementation called please override this function')
+			'extract_prompt': extract_prompt,
+			'extract_response': extract_response,
+			'extract_code': extract_code,
+			'extract_retries': extract_retries,
 
-	def parse_state(self, desc_x:str) -> str:
-		raise NotImplementedError('Base class implementation called please override this function')
-
-	def choose_to_expand(self, x_js):
-		""" implement BFS or DFS or some sort of heuristic supported search algo
-		This is the \mathcal{C} function"""
-		raise NotImplementedError('Base class implementation called please override this function')
-
-	def get_state_transition(self):
-		prompt = self.state_transition_template.format(c_sys=self.system_context)
-		self.nl_description_state_transition = self.client.get_response(prompt)
-		f = self.parse_state_transition_function(self.nl_description_state_transition)
-		exec(f, self.namespace)
-
-	def get_info_extractor(self, desc_x, c_task, c_query):
-		prompt = self.nl_info_extractor_prompt.format(
-			desc_x=desc_x,
-			c_task=c_task,
-			c_query=c_query
-		)
-		nl_info_extractor = self.client.get_response(prompt)
-		g = self.parse_info_extractor_function(nl_info_extractor)
-		exec(g, self.namespace)
-
-	def initialize_search(self, start_node):
-		"""
-        Set the start node and prepare to begin searching.
-        """
-		raise NotImplementedError('Base class implementation called please override this function')
+			'report': report,
+			'response_prompt': response_prompt,
+		}

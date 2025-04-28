@@ -52,14 +52,14 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 
 
 
-class StrategyBase(fig.Configurable, Checkpointable, AbstractStrategy):
+class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
 	def __init__(self, client: AbstractClient, **kwargs):
 		super().__init__(**kwargs)
-		self._client = client
+		self.client = client
 
 	@property
-	def client(self) -> AbstractClient:
-		return self._client
+	def model_name(self) -> str:
+		return self.client.ident
 
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		"""Prepare the strategy for use. This may include setting up any necessary resources or configurations."""

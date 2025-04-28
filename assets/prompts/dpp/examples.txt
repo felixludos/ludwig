@@ -1,0 +1,7 @@
+Suggest a {num} example states as well as the expected output to validate the behavior of the `{target}` function. Name the examples: `input_state1`, `output_state1`, `input_state2`, `output_state2`, and so on, so that I can test `{target}` using `{target}(input_state1) == output_state1` and so on.
+Here is the implementation of the `{target}` function:
+```python
+{code}
+```
+And here is the specification of the state representation for `{target}`:
+{representation}

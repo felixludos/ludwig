@@ -280,8 +280,8 @@ class AbstractStrategy:
 		raise NotImplementedError
 
 	@property
-	def client(self) -> AbstractClient:
-		"""The client used to communicate with an LLM, accessible for logging"""
+	def model_name(self) -> str:
+		"""A unique and description name for this strategy"""
 		raise NotImplementedError
 
 	def prepare(self, seed: int) -> None:
@@ -294,8 +294,7 @@ class AbstractStrategy:
 		"""
 		raise NotImplementedError
 
-	def solve(self, question: str, *, seed: Optional[int] = None,
-			  side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+	def solve(self, question: str, *, side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 		"""
 		Use strategy to find a solution to the given question
 

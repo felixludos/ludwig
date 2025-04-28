@@ -34,6 +34,11 @@ class AbstractClient:
 	def send(self, data: JSONOBJ) -> JSONOBJ:
 		raise NotImplementedError
 
+	def multi_turn(self, chat: Union[str, List[Dict[str, str]]], *, max_retries: int = None,
+				   user_role: str = 'user', assistant_role: str = 'assistant',
+				   **params) -> Iterator[List[Dict[str, str]]]:
+		raise NotImplementedError
+
 	def get_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> str:
 		raise NotImplementedError
 

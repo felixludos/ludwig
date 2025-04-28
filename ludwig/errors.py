@@ -21,3 +21,17 @@ class AmbiguousFormalizationError(Exception):
 class ToolError(Exception):
 	"""Raised when a tool fails to execute or returns an error."""
 	pass
+
+
+class ExceededBudgetError(Exception):
+	"""Raised when the maximum budget is exceeded."""
+	def __init__(self, message: str):
+		super().__init__(message)
+		self.message = message
+
+
+class ExceededRetriesError(ExceededBudgetError):
+	"""Raised when the maximum number of retries is exceeded."""
+	def __init__(self, message: str):
+		super().__init__(message)
+		self.message = message

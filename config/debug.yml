@@ -9,14 +9,16 @@ seed: 1000000009
 #_base: [s/dp, ttt/take-the-middle, j/client]
 _base: [s/dpp, ttt/take-the-middle, j/client]
 
-#use-wandb: no
+use-wandb: no
 
 out-dir: local_data/
 
-addr: 8001
-client._type: vllm
+addr: 8000
 
-judge.addr: 8000
+client._type: vllm
+#client.addr: 8001
+
+#judge.addr: 8000
 
 max-tokens: 1024
 

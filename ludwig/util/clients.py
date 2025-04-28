@@ -5,6 +5,10 @@ from .abstract import AbstractClient
 
 
 class ClientBase(fig.Configurable, AbstractClient):
+	@property
+	def model_name(self) -> str: # fallback
+		return self.ident
+
 	def wrap_prompt(self, prompt: str, **params) -> JSONOBJ:
 		return self.wrap_chat([{'role': 'user', 'content': prompt}], **params)
 
@@ -18,6 +22,22 @@ class ClientBase(fig.Configurable, AbstractClient):
 
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
 		raise NotImplementedError
+
+	def multi_turn(self, chat: Union[str, List[Dict[str, str]]], *, max_retries: int = None,
+				   user_role: str = 'user', assistant_role: str = 'assistant',
+				   **params) -> Iterator[List[Dict[str, str]]]:
+		if isinstance(chat, str):
+			chat = [{'role': user_role, 'content': chat}]
+
+		i = 0
+		while max_retries is None or i <= max_retries:
+			response = self.get_response(chat, **params)
+			chat.append({'role': assistant_role, 'content': response})
+			n = len(chat)
+			yield chat
+			assert len(chat) > n, f'No new prompt included'
+			i += 1
+
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		if isinstance(prompt, str):

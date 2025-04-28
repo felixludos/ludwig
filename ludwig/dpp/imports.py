@@ -1,3 +1,3 @@
 from ..imports import *
-from ..base import StrategyBase
+from ..base import ClientStrategy
 from ..util import AbstractClient

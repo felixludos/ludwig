@@ -3,7 +3,7 @@ from .imports import *
 
 
 @fig.component('direct-prompting')
-class DirectPrompting(StrategyBase):
+class DirectPrompting(ClientStrategy):
 	"""
 	Direct prompting strategy.
 	"""
@@ -19,7 +19,7 @@ class DirectPrompting(StrategyBase):
 
 	@property
 	def name(self) -> str:
-		return f'direct-prompting-{self.template.ident}'
+		return f'dp-{self.template.ident}'
 
 
 	def json(self) -> JSONOBJ:
@@ -31,8 +31,7 @@ class DirectPrompting(StrategyBase):
 		self.task_context = desc
 
 
-	def solve(self, question: str, *, seed: Optional[int] = None,
-		   side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+	def solve(self, question: str, *, side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
 
 		prompt = self.template.fill(
 			system_context=self.system_context,
@@ -40,7 +39,7 @@ class DirectPrompting(StrategyBase):
 			question=question
 		)
 
-		response = self.client.get_response(prompt, seed=seed)
+		response = self.client.get_response(prompt)
 
 		return response, {'prompt': prompt}
 

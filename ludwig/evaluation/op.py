@@ -84,8 +84,8 @@ def eval_task(cfg: fig.Configuration):
 	if artifacts is not None:
 		if 'stats' in artifacts:
 			print(f'Pre-loop stats:')
-			print(tabulate(flatten(artifacts['stats'])))
-		if 'study' in artifacts:
+			print(tabulate(flatten(artifacts['stats']).items()))
+		if use_wandb and 'study' in artifacts:
 			tbl = {key: str(val) for key, val in flatten(artifacts['study']).items()}
 			if isinstance(tbl, dict):
 				# convert dict[str,str] to dataframe
