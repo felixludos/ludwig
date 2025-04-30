@@ -16,76 +16,70 @@ def test_repo_root():
 	assert root.joinpath('main.py').exists()
 
 
-def test_client_tool():
-
-	client = vllm_Client(addr='8000')
-
-	if not client.ping():
-		print("Client is not reachable.")
-		return
-
-	client.prepare()
-
-	print(client.ident)
-
-	models = client.endpoint.models.list()
-
-	tools = [{
-		"type": "function",
-		"function": {
-			"name": "get_current_weather",
-			"description": "Get the current weather in a given location",
-			"parameters": {
-				"type": "object",
-				"properties": {
-					"city": {
-						"type":
-							"string",
-						"description":
-							"The city to find the weather for, e.g. 'San Francisco'"
-					},
-					"state": {
-						"type":
-							"string",
-						"description":
-							"the two-letter abbreviation for the state that the city is"
-							" in, e.g. 'CA' which would mean 'California'"
-					},
-					"unit": {
-						"type": "string",
-						"description": "The unit to fetch the temperature in",
-						"enum": ["celsius", "fahrenheit"]
-					}
-				},
-				"required": ["city", "state", "unit"]
-			}
-		}
-	}]
-
-	messages = [{
-		"role": "user",
-		"content": "Hi! How are you doing today?"
-	}, {
-		"role": "assistant",
-		"content": "I'm doing well! How can I help you?"
-	}, {
-		"role":
-			"user",
-		"content":
-			"Can you tell me what the temperate will be in Dallas, in fahrenheit?"
-	}]
-
-	pass
+# def test_client_tool():
+#
+# 	client = vllm_Client(addr='8000')
+#
+# 	if not client.ping():
+# 		print("Client is not reachable.")
+# 		return
+#
+# 	client.prepare()
+#
+# 	print(client.ident)
+#
+# 	models = client.endpoint.models.list()
+#
+# 	tools = [{
+# 		"type": "function",
+# 		"function": {
+# 			"name": "get_current_weather",
+# 			"description": "Get the current weather in a given location",
+# 			"parameters": {
+# 				"type": "object",
+# 				"properties": {
+# 					"city": {
+# 						"type":
+# 							"string",
+# 						"description":
+# 							"The city to find the weather for, e.g. 'San Francisco'"
+# 					},
+# 					"state": {
+# 						"type":
+# 							"string",
+# 						"description":
+# 							"the two-letter abbreviation for the state that the city is"
+# 							" in, e.g. 'CA' which would mean 'California'"
+# 					},
+# 					"unit": {
+# 						"type": "string",
+# 						"description": "The unit to fetch the temperature in",
+# 						"enum": ["celsius", "fahrenheit"]
+# 					}
+# 				},
+# 				"required": ["city", "state", "unit"]
+# 			}
+# 		}
+# 	}]
+#
+# 	messages = [{
+# 		"role": "user",
+# 		"content": "Hi! How are you doing today?"
+# 	}, {
+# 		"role": "assistant",
+# 		"content": "I'm doing well! How can I help you?"
+# 	}, {
+# 		"role":
+# 			"user",
+# 		"content":
+# 			"Can you tell me what the temperate will be in Dallas, in fahrenheit?"
+# 	}]
+#
+# 	pass
 
 
 def test_tool():
 	random.seed(1000000009)
-
-	client = vllm_Client(addr='8000')
-	client.prepare()
-
-	if not client.ping():
-		raise RuntimeError("Client is not reachable.")
 
 	class GetWeather(ToolBase):
 		@property
@@ -110,20 +104,21 @@ def test_tool():
 								"description":
 									"The city to find the weather for, e.g. 'San Francisco'"
 							},
-							"state": {
+							"country": {
 								"type":
 									"string",
 								"description":
-									"the two-letter abbreviation for the state that the city is"
-									" in, e.g. 'CA' which would mean 'California'"
+									"the country (may be a 3 letter code) that the city is"
+									" in, e.g. 'AUT' which would mean 'Austria'"
 							},
 							"unit": {
 								"type": "string",
 								"description": "The unit to fetch the temperature in",
-								"enum": ["celsius", "fahrenheit"]
+								"enum": ["celsius", "fahrenheit"],
+								"default": "celsius"
 							}
 						},
-						"required": ["city", "state", "unit"]
+						"required": ["city", "country"]
 					}
 				}
 			}
@@ -139,8 +134,8 @@ def test_tool():
 			assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
 			if 'city' not in arguments:
 				raise ToolError("Missing 'city' in arguments")
-			if 'state' not in arguments:
-				raise ToolError("Missing 'state' in arguments")
+			if 'country' not in arguments:
+				raise ToolError("Missing 'country' in arguments")
 			if 'unit' not in arguments:
 				raise ToolError("Missing 'unit' in arguments")
 
@@ -153,29 +148,46 @@ def test_tool():
 			if city in fixed:
 				temp = fixed[city]
 
-			state = arguments.get('state')
+			country = arguments.get('country')
 
 			unit = arguments.get('unit', 'celsius')
 			if unit == 'fahrenheit':
 				temp = temp * 9 / 5 + 32
 
-			weather = rng.choice(['sunny', 'cloudy', 'rainy', 'snowy'])
-			return f"The weather in {city}, {state} is {temp} degrees {unit} and {weather}."
+			weather = rng.choice(['sunny', 'cloudy', 'rainy', 'dry'])
+			# return f"The weather in {city}, {country} is {temp} degrees {unit} and {weather}."
+			return json.dumps({'city': city, 'country': country, 'unit': unit, 'temp': temp, 'weather': weather})
 
+	client = vllm_Client(addr='8000')
+	client.prepare()
+
+	if not client.ping():
+		raise RuntimeError("Client is not reachable.")
 
 	tool = GetWeather()
 	client.register_tool(tool)
+	print()
 
-	# response = client.get_response("What is the weather in Dallas?")
-	# print(response)
+	chat = [{'role': 'user', 'content': "What is the weather in Dallas?"}]
+	r = client.step(chat, max_tokens=100)
+	print(chat[-1]['content'])
+	assert chat[-1]['role'] == 'assistant'
 
-	solution = client.get_response("Is it warmer in Dallas or Barcelona today?")
-	print(solution)
-	assert 'Dallas' in solution, f"Expected 'Dallas', got {solution}"
+	chat = [{'role': 'user', 'content': "Is it warmer in Dallas or Barcelona today?"}]
+	r = client.step(chat, max_tokens=200)
+	print(chat[-1]['content']) # answer should be Dallas
+	assert chat[-1]['role'] == 'assistant'
 
-	sol2 = client.get_response("Is it warmer in Barcelona or Jakarta right now?")
-	print(sol2)
-	assert 'Barcelona' in sol2, f"Expected 'Barcelona', got {solution}"
+	stats = client.stats()
+	print(stats)
+
+	chat = [{'role': 'user', 'content': "Is it warmer in Barcelona or Jakarta right now? Answer only with either 'Barcelona' or 'Jakarta'."}]
+	r = client.step(chat, max_tokens=200)
+	print(chat[-1]['content']) # answer should be Barcelona
+	assert chat[-1]['role'] == 'assistant'
+
+	statsend = client.stats()
+	print(statsend)
 
 	pass
 

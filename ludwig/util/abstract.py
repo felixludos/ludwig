@@ -44,6 +44,9 @@ class AbstractClient:
 	def get_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> str:
 		raise NotImplementedError
 
+	def step(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+		raise NotImplementedError
+
 	def last_response(self) -> Optional[str]:
 		raise NotImplementedError
 

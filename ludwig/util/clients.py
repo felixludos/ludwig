@@ -236,19 +236,26 @@ class OpenaiClientBase(ClientBase):
 				   for h in self.history[starting_from:] if 'end_time' in h]
 			data['time'] = _metrics(times)
 			data['tok_per_sec'] = _metrics(tps)
-		return {
+		summary = {
 			'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
 			'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
 			**data,
 			'requests': len(self.history[starting_from:]),
 		}
+		if any('tool_calls' in h for h in self.history[starting_from:]):
+			tool_calls = Counter()
+			for h in self.history[starting_from:]:
+				if 'tool_calls' in h:
+					tool_calls.update(h['tool_calls'])
+			summary['tool_calls'] = dict(tool_calls)
+		return summary
 
 	def count_tokens(self, message: Union[str, List[Dict[str, str]]]) -> int:
 		if self._tokenizer is None:
 			return 0
 		if isinstance(message, str):
 			return len(self._tokenizer.encode(message))
-		return sum(len(self._tokenizer.encode(m.get('content',''))) for m in message)
+		return sum(len(self._tokenizer.encode(m['content'])) for m in message if 'content' in m)
 
 	@staticmethod
 	def _parse_grammar(grammar: Union[str, JSONOBJ]):
@@ -283,12 +290,27 @@ class OpenaiClientBase(ClientBase):
 			return self._last_response
 		return None
 
+	def step(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+		if isinstance(chat, str):
+			chat = [{'role': 'user', 'content': chat}]
+		data = self.wrap_chat(chat, **params)
+		resp = self.send(data)
+		assert len(resp.choices) == 1, f'Expected 1 choice, got {len(resp.choices)}'
+		chat.append({'role': 'assistant', 'content': resp.choices[0].message.content})
+		return resp
+
+	def _find_tool_role(self) -> str:
+		# if 'llama' in self._model_name.lower():
+		# 	return 'ipython'
+		return 'tool'
+
 	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		resp = super().send(data)
 
 		if len(self.tools) and len(resp.choices) == 1 and resp.choices[0].message.tool_calls:
+			tool_role = self._find_tool_role()
 			chat = data['messages']
-			chat.append({'role': 'assistant', 'tool_calls': resp.choices[0].message.tool_calls})
+			# chat.append({'role': 'assistant', 'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]})
 			for tool_call in resp.choices[0].message.tool_calls:
 				info = tool_call.function
 				assert info.name in self.tools, f'Tool {info.name} not registered'
@@ -300,7 +322,8 @@ class OpenaiClientBase(ClientBase):
 					result = tool.call(arguments)
 				except ToolError as e:
 					result = f'{e.__class__.__name__}: {e}'
-				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
+				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
+				chat.append({'role': tool_role, 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
 
 			including_tools = data.copy()
 			including_tools['messages'] = chat
@@ -338,12 +361,16 @@ class OpenaiClientBase(ClientBase):
 	def _record_response(self, data: JSONOBJ, resp: openai.ChatCompletion):
 		N_inp = resp.usage.prompt_tokens
 		N_out = resp.usage.completion_tokens
-		self.history[-1].update({
+		stats = {
 			'input_tokens': N_inp,
 			'output_tokens': N_out,
 			'end_time': time.time(),
-		})
+		}
+		if len(resp.choices[0].message.tool_calls):
+			stats['tool_calls'] = dict(Counter(call.function.name for call in resp.choices[0].message.tool_calls))
+
 		self._last_response = resp.choices[0].message.content
+		self.history[-1].update(stats)
 
 	def _record_step(self, data: JSONOBJ, step: openai.ChatCompletion):
 		if len(step.choices):
