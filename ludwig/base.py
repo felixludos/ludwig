@@ -5,11 +5,6 @@ from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, Em
 
 
 
-class ToolBase(fig.Configurable, Checkpointable, AbstractTool):
-	pass
-
-
-
 class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		pass

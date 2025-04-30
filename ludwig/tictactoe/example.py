@@ -1,5 +1,6 @@
 from ..imports import *
-from ..base import TaskBase, ToolBase
+from ..base import TaskBase
+from ..util import ToolBase
 from ..errors import ParsingError
 import re
 

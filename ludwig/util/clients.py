@@ -5,9 +5,19 @@ from .abstract import AbstractClient
 
 
 class ClientBase(fig.Configurable, AbstractClient):
+	def __init__(self,  **kwargs):
+		super().__init__(**kwargs)
+		self.tools = {}
+
 	@property
 	def model_name(self) -> str: # fallback
 		return self.ident
+
+	def register_tool(self, tool: AbstractTool) -> Self:
+		if tool.name in self.tools:
+			raise ValueError(f'Tool {tool.name} already registered')
+		self.tools[tool.name] = tool
+		return self
 
 	def wrap_prompt(self, prompt: str, **params) -> JSONOBJ:
 		return self.wrap_chat([{'role': 'user', 'content': prompt}], **params)
@@ -37,7 +47,6 @@ class ClientBase(fig.Configurable, AbstractClient):
 			yield chat
 			assert len(chat) > n, f'No new prompt included'
 			i += 1
-
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		if isinstance(prompt, str):
@@ -208,6 +217,8 @@ class OpenaiClientBase(ClientBase):
 		}
 		if self.grammar is not None:
 			info['grammar'] = self.grammar
+		if self.tools:
+			info['tools'] = [tool.json() for tool in self.tools.values()]
 		return info
 
 	def past_requests(self) -> int:
@@ -237,7 +248,7 @@ class OpenaiClientBase(ClientBase):
 			return 0
 		if isinstance(message, str):
 			return len(self._tokenizer.encode(message))
-		return sum(len(self._tokenizer.encode(m['content'])) for m in message)
+		return sum(len(self._tokenizer.encode(m.get('content',''))) for m in message)
 
 	@staticmethod
 	def _parse_grammar(grammar: Union[str, JSONOBJ]):
@@ -254,6 +265,8 @@ class OpenaiClientBase(ClientBase):
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
 		args = {'messages': chat, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
+		if self.tools:
+			args['tools'] = [tool.schema() for tool in self.tools.values()]
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar
 		args.update(params)
@@ -270,6 +283,31 @@ class OpenaiClientBase(ClientBase):
 			return self._last_response
 		return None
 
+	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
+		resp = super().send(data)
+
+		if len(self.tools) and len(resp.choices) == 1 and resp.choices[0].message.tool_calls:
+			chat = data['messages']
+			chat.append({'role': 'assistant', 'tool_calls': resp.choices[0].message.tool_calls})
+			for tool_call in resp.choices[0].message.tool_calls:
+				info = tool_call.function
+				assert info.name in self.tools, f'Tool {info.name} not registered'
+				tool = self.tools[info.name]
+				arguments = info.arguments
+				if isinstance(arguments, str):
+					arguments = json.loads(arguments)
+				try:
+					result = tool.call(arguments)
+				except ToolError as e:
+					result = f'{e.__class__.__name__}: {e}'
+				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
+
+			including_tools = data.copy()
+			including_tools['messages'] = chat
+			return self.send(including_tools)
+
+		return resp
+
 	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		return self.endpoint.chat.completions.create(**data)
 
@@ -279,6 +317,9 @@ class OpenaiClientBase(ClientBase):
 			yield chunk
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
+		if self.tools:
+			# see: https://docs.vllm.ai/en/v0.6.3.post1/getting_started/examples/openai_chat_completion_client_with_tools.html
+			raise NotImplementedError
 		if isinstance(prompt, str):
 			prompt = self.wrap_prompt(prompt, **params)
 		else:
@@ -353,6 +394,8 @@ class vllm_Client(OpenaiClientBase):
 
 	def prepare(self) -> Self:
 		super().prepare()
+		# info = self.endpoint.models.list()
+		# self._model_name = info.data[0].id
 		info = self._server_model_info()
 		self._model_name = info['data'][0]['id']
 		return self

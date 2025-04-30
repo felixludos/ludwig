@@ -1,6 +1,5 @@
 from .imports import *
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
-from .util import AbstractClient
 
 PROBLEM = JSONABLE
 ANSWER = JSONABLE
@@ -30,6 +29,12 @@ class AbstractTool:
 		"""
 		raise NotImplementedError
 
+	def schema(self, style: str = None) -> JSONOBJ:
+		"""
+		(optional) Returns the schema of the tool to be sent to the client.
+		"""
+		raise OptionalMethodNotImplemented
+
 	def describe_representation(self) -> str:
 		"""
 		(optional) Description of the input specification to successfully run this tool.
@@ -51,7 +56,7 @@ class AbstractTool:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def call(self, arguments: str, *, seed: Optional[int] = None) -> str:
+	def call(self, arguments: JSONABLE, *, seed: Optional[int] = None) -> str:
 		"""
 		Calls the tool with the given arguments and returns the result as a string.
 
@@ -89,7 +94,7 @@ class AbstractTask:
 		"""
 		raise NotImplementedError
 
-	def validation(self, N: int, *, seed: Optional[int] = None) -> Iterator[Tuple[str, str]]:
+	def validation(self, N: int, *, seed: Optional[int] = None) -> Iterator[Tuple[PROBLEM, ANSWER]]:
 		"""
 		(optional) Generates `N` pairs of input and expected output for the strategy to self-validate its formal system.
 
@@ -228,7 +233,7 @@ class AbstractTask:
 		"""(optional) Returns any description or information for the strategy"""
 		raise OptionalMethodNotImplemented
 
-	def best_tool(self) -> AbstractTool:
+	def best_solver(self) -> AbstractTool:
 		"""(optional) Returns the most relevant tool to solve this task."""
 		raise OptionalMethodNotImplemented
 
