@@ -56,7 +56,7 @@ def test_value_tool():
 	tool = StateValue(rep_type='str', val_type='expectimax')
 	state = ' '*9
 	value = tool.call({'state': state})
-	assert 0 < value < 1, f'Expected 0 < {value} < 1, got {value}'
+	assert 0 < value < 1, f'Expected 0 < {value} < 1, got {value}' # should be about 0.297
 
 	state = 'X'*9
 	try:
