@@ -5,9 +5,19 @@ from .abstract import AbstractClient
 
 
 class ClientBase(fig.Configurable, AbstractClient):
-	def __init__(self,  **kwargs):
+	def __init__(self, tools: Union[Dict[str, AbstractTool], Iterable[AbstractTool]] = None, **kwargs):
+		if tools is None:
+			tools = []
+		elif isinstance(tools, dict):
+			tools = tools.values()
 		super().__init__(**kwargs)
-		self.tools = {}
+		self.tools = {t.name: t for t in tools}
+
+	def json(self) -> JSONOBJ:
+		data = super().json()
+		if self.tools:
+			data['tools'] = [tool.json() for tool in self.tools.values()]
+		return data
 
 	@property
 	def model_name(self) -> str: # fallback
@@ -321,7 +331,7 @@ class OpenaiClientBase(ClientBase):
 				try:
 					result = tool.call(arguments)
 				except ToolError as e:
-					result = f'{e.__class__.__name__}: {e}'
+					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
 				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
 				chat.append({'role': tool_role, 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
 
@@ -366,7 +376,7 @@ class OpenaiClientBase(ClientBase):
 			'output_tokens': N_out,
 			'end_time': time.time(),
 		}
-		if len(resp.choices[0].message.tool_calls):
+		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
 			stats['tool_calls'] = dict(Counter(call.function.name for call in resp.choices[0].message.tool_calls))
 
 		self._last_response = resp.choices[0].message.content

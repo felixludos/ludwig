@@ -5,4 +5,4 @@ from .clients import AbstractClient, vllm_Client
 from .parsers import PythonParser, AbstractParser
 from .stats import AbstractStats, ClientStats, EmptyStats
 from .search import AbstractSearch
-from .tools import ToolBase
+from .tools import ToolBase, ToolError

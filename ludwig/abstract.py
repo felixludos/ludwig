@@ -29,6 +29,9 @@ class AbstractTool:
 		"""
 		raise NotImplementedError
 
+	def json(self) -> JSONOBJ:
+		raise NotImplementedError
+
 	def schema(self, style: str = None) -> JSONOBJ:
 		"""
 		(optional) Returns the schema of the tool to be sent to the client.
@@ -231,14 +234,6 @@ class AbstractTask:
 
 	def present(self) -> Any:
 		"""(optional) Returns any description or information for the strategy"""
-		raise OptionalMethodNotImplemented
-
-	def best_solver(self) -> AbstractTool:
-		"""(optional) Returns the most relevant tool to solve this task."""
-		raise OptionalMethodNotImplemented
-
-	def relevant_solvers(self) -> Iterable[AbstractTool]:
-		"""(optional) Returns a sequence of potentially or partially relevant tools that may help to solve this task."""
 		raise OptionalMethodNotImplemented
 
 	def status(self) -> Optional[JSONOBJ]:

@@ -2,7 +2,7 @@ import random
 
 from .imports import *
 from .files import repo_root
-from .clients import vllm_Client
+from .clients import vllm_Client, OpenaiAzure_Client
 from .search import GenericSearch
 from .parsers import PythonParser
 from .tools import ToolBase, ToolError
@@ -15,67 +15,6 @@ def test_repo_root():
 	assert root.joinpath('ludwig').exists()
 	assert root.joinpath('main.py').exists()
 
-
-# def test_client_tool():
-#
-# 	client = vllm_Client(addr='8000')
-#
-# 	if not client.ping():
-# 		print("Client is not reachable.")
-# 		return
-#
-# 	client.prepare()
-#
-# 	print(client.ident)
-#
-# 	models = client.endpoint.models.list()
-#
-# 	tools = [{
-# 		"type": "function",
-# 		"function": {
-# 			"name": "get_current_weather",
-# 			"description": "Get the current weather in a given location",
-# 			"parameters": {
-# 				"type": "object",
-# 				"properties": {
-# 					"city": {
-# 						"type":
-# 							"string",
-# 						"description":
-# 							"The city to find the weather for, e.g. 'San Francisco'"
-# 					},
-# 					"state": {
-# 						"type":
-# 							"string",
-# 						"description":
-# 							"the two-letter abbreviation for the state that the city is"
-# 							" in, e.g. 'CA' which would mean 'California'"
-# 					},
-# 					"unit": {
-# 						"type": "string",
-# 						"description": "The unit to fetch the temperature in",
-# 						"enum": ["celsius", "fahrenheit"]
-# 					}
-# 				},
-# 				"required": ["city", "state", "unit"]
-# 			}
-# 		}
-# 	}]
-#
-# 	messages = [{
-# 		"role": "user",
-# 		"content": "Hi! How are you doing today?"
-# 	}, {
-# 		"role": "assistant",
-# 		"content": "I'm doing well! How can I help you?"
-# 	}, {
-# 		"role":
-# 			"user",
-# 		"content":
-# 			"Can you tell me what the temperate will be in Dallas, in fahrenheit?"
-# 	}]
-#
-# 	pass
 
 
 def test_tool():
@@ -158,14 +97,14 @@ def test_tool():
 			# return f"The weather in {city}, {country} is {temp} degrees {unit} and {weather}."
 			return json.dumps({'city': city, 'country': country, 'unit': unit, 'temp': temp, 'weather': weather})
 
-	client = vllm_Client(addr='8000')
+	client = vllm_Client(addr='8000', tools=[GetWeather()])
 	client.prepare()
+
+	data = client.json()
+	print(data)
 
 	if not client.ping():
 		raise RuntimeError("Client is not reachable.")
-
-	tool = GetWeather()
-	client.register_tool(tool)
 	print()
 
 	chat = [{'role': 'user', 'content': "What is the weather in Dallas?"}]
@@ -189,8 +128,25 @@ def test_tool():
 	statsend = client.stats()
 	print(statsend)
 
-	pass
 
+def test_azure_client():
+
+	path = repo_root().joinpath('config', 'secrets', 'azure.yml')
+
+	import yaml
+	with path.open('r') as f:
+		azure_config = yaml.safe_load(f)
+
+	client = OpenaiAzure_Client(model_name=azure_config['model-name'], api_base=azure_config['api-base'],
+								api_key=azure_config['api-key'], api_version=azure_config['api-version'])
+	client.prepare()
+
+	response = client.get_response("hi", max_tokens=1, temperature=0.)
+	assert response == 'Hello'
+	print(response)
+
+	stats = client.stats()
+	print(stats)
 
 
 def test_vllm_client():

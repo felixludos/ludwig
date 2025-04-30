@@ -4,7 +4,8 @@ from .files import Checkpointable
 
 
 class ToolBase(fig.Configurable, Checkpointable, AbstractTool):
-	pass
+	def json(self) -> JSONOBJ:
+		return self.schema()
 
 
 
