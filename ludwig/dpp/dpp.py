@@ -114,9 +114,9 @@ class DirectPromptingPlusParse(ClientStrategy):
 
 	def _find_py_obj(self, prompt: str, target: str = None) -> Tuple[str, int, Dict[str, Any]]:
 		retries = 0
-		for chat in self.client.multi_turn(prompt, max_retries=self.max_retries):
-			assert chat[-1]['role'] == 'assistant', f'Expected assistant response, got {chat[-1]["role"]}'
-			response = chat[-1]['content']
+		chat = self.client.begin_chat(prompt)
+		for resp in self.client.multi_turn(chat, max_retries=self.max_retries):
+			response = self.client.extract_response(resp)
 
 			code_blocks = self.parser.parse(response)
 

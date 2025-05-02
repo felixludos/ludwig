@@ -1,0 +1,15 @@
+Judge whether the student’s reply implies **yes** or **no** to the original yes/no question.
+
+```
+Q: {question}
+
+Student:
+{response}
+```
+
+**Output (one word only)**
+- `yes` - reply leans toward yes more than no
+- `no` - reply leans toward no more than yes
+
+Do **not** solve the question yourself - only interpret the student’s reply.
+/nothink

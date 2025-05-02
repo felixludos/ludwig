@@ -2,7 +2,7 @@ import random
 
 from .imports import *
 from .files import repo_root
-from .clients import vllm_Client, OpenaiAzure_Client
+from .clients import vllm_Client, OpenaiAzure_Client, Tool_Client
 from .search import GenericSearch
 from .parsers import PythonParser
 from .tools import ToolBase, ToolError
@@ -75,8 +75,6 @@ def test_tool():
 				raise ToolError("Missing 'city' in arguments")
 			if 'country' not in arguments:
 				raise ToolError("Missing 'country' in arguments")
-			if 'unit' not in arguments:
-				raise ToolError("Missing 'unit' in arguments")
 
 			rng = random.Random(seed)
 
@@ -97,7 +95,10 @@ def test_tool():
 			# return f"The weather in {city}, {country} is {temp} degrees {unit} and {weather}."
 			return json.dumps({'city': city, 'country': country, 'unit': unit, 'temp': temp, 'weather': weather})
 
-	client = vllm_Client(addr='8000', tools=[GetWeather()])
+	class Client(Tool_Client, vllm_Client):
+		pass
+
+	client = Client(addr='8000', tools=[GetWeather()])
 	client.prepare()
 
 	data = client.json()
@@ -108,20 +109,21 @@ def test_tool():
 	print()
 
 	chat = [{'role': 'user', 'content': "What is the weather in Dallas?"}]
-	r = client.step(chat, max_tokens=100)
+	r = client.step(chat, max_tokens=512)
 	print(chat[-1]['content'])
 	assert chat[-1]['role'] == 'assistant'
 
 	chat = [{'role': 'user', 'content': "Is it warmer in Dallas or Barcelona today?"}]
-	r = client.step(chat, max_tokens=200)
+	r = client.step(chat, max_tokens=512)
 	print(chat[-1]['content']) # answer should be Dallas
 	assert chat[-1]['role'] == 'assistant'
 
 	stats = client.stats()
 	print(stats)
 
-	chat = [{'role': 'user', 'content': "Is it warmer in Barcelona or Jakarta right now? Answer only with either 'Barcelona' or 'Jakarta'."}]
-	r = client.step(chat, max_tokens=200)
+	chat = [{'role': 'user', 'content': "Is it warmer in Barcelona or Jakarta right now? "
+										"Answer only with either 'Barcelona' or 'Jakarta'."}]
+	r = client.step(chat, max_tokens=512)
 	print(chat[-1]['content']) # answer should be Barcelona
 	assert chat[-1]['role'] == 'assistant'
 

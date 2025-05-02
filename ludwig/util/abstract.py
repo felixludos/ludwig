@@ -24,6 +24,9 @@ class AbstractClient:
 	def wrap_prompt(self, prompt: str) -> JSONOBJ:
 		raise NotImplementedError
 
+	def begin_chat(self, prompt: str, *, role: str = 'user') -> List[Dict[str, str]]:
+		raise NotImplementedError
+
 	def wrap_chat(self, chat: List[Dict[str, str]]) -> JSONOBJ:
 		raise NotImplementedError
 
@@ -31,9 +34,6 @@ class AbstractClient:
 		raise NotImplementedError
 
 	def send(self, data: JSONOBJ) -> JSONOBJ:
-		raise NotImplementedError
-
-	def register_tool(self, tool: AbstractTool) -> None:
 		raise NotImplementedError
 
 	def multi_turn(self, chat: Union[str, List[Dict[str, str]]], *, max_retries: int = None,

@@ -1,10 +1,16 @@
-The following is a student's answer to a Yes/No question. Your task is to determine whether the student's answer is "yes" or "no" based on their response.
+Judge whether the student’s reply implies **yes** or **no** to the original yes/no question.
 
-Student's Response:
 ```
+Q: {question}
+
+Student:
 {response}
 ```
 
-Think carefully about whether the student's response implies a "yes" or "no" answer. If the response is ambiguous or does not clearly indicate a "yes" or "no," you should answer "no."
+**Output (one word only)**
+- `yes` - reply leans toward yes more than no
+- `no` - reply leans toward no more than yes
+- `unknown` - reply gives **no clue at all** (use **very** sparingly)
 
-Answer only with "yes" or "no". Do not provide any additional information or explanation.
+Only use `unknown` if the student either doesn't answer the question at all, or if it is *impossible* to tell if they are leaning toward yes or no. Otherwise, use `yes` or `no` using your best judgment of what the student is trying to say.
+Do **not** solve the question yourself - only interpret the student’s reply.

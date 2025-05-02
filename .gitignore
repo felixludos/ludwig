@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+requests/
 .vscode/
 .idea/
 local_data/

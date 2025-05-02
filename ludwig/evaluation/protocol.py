@@ -74,7 +74,10 @@ class DefaultProtocol(ProtocolBase):
 
 		artifacts = {}
 		with self.strategy.collect_stats() as stats:
-			study = self.strategy.study(context, desc, spec)
+			try:
+				study = self.strategy.study(context, desc, spec)
+			except StrategyFailure as e:
+				study = {'error': type(e).__name__, 'error_message': str(e), 'traceback': traceback.format_exc()}
 
 		if study is not None:
 			artifacts['study'] = study
@@ -106,21 +109,33 @@ class DefaultProtocol(ProtocolBase):
 		if self._include_gt_info:
 			proc['problem'] = problem
 
+		failed = False
 		with self.strategy.collect_stats() as stats:
-			response, steps = self.strategy.solve(question, side_information=info)
+			try:
+				response, steps = self.strategy.solve(question, side_information=info)
+			except StrategyFailure as e:
+				response = str(e) if type(e) == StrategyFailure else f'{e.__class__.__name__}: {e}'
+				steps = {'error': type(e).__name__, 'error_message': str(e), 'traceback': traceback.format_exc()}
+				failed = True
 		if len(stats):
 			log.update(stats)
 		proc.update(steps)
 		proc['response'] = response
 
-		with self.judge.collect_stats() as judge_stats:
-			correct, judgement = self.judge.judge(response, answer)
-		if len(judge_stats):
-			log['judge'] = judge_stats
-		if judgement is not None:
-			proc.update(judgement)
+		if failed:
+			correct = False
+		else:
+			with self.judge.collect_stats() as judge_stats:
+				correct, judgement = self.judge.judge(response, answer, question)
+			if len(judge_stats):
+				log['judge'] = judge_stats
+			if judgement is not None:
+				proc.update(judgement)
 
-		self.aggregates['correct' if correct else 'incorrect'].append(idx)
+		if correct is None:
+			pass
+		else:
+			self.aggregates['correct' if correct else 'incorrect'].append(idx)
 		proc['answer'] = answer
 		proc['correct'] = correct
 

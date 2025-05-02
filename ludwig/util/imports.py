@@ -1,6 +1,6 @@
 from ..imports import *
 from ..abstract import AbstractTool
-from ..errors import ExceededRetriesError, ToolError
+from ..errors import ExceededRetriesError, ToolError, BudgetExceededError
 import hashlib
 import inspect
 import pickle

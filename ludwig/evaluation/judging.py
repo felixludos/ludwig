@@ -1,6 +1,64 @@
+import textwrap
+
 from .imports import *
 from ..errors import OptionalMethodNotImplemented, ParsingError
-from ..util import PromptTemplate, ClientStats
+from ..util import PromptTemplate, ClientStats, TimeStats
+
+
+
+@fig.component('manual-judge')
+class ManualJudge(JudgeBase):
+	def __init__(self, find_decision: bool = True, line_width: int = 80, **kwargs):
+		super().__init__(**kwargs)
+		self._find_decision = find_decision
+		self._linewidth = line_width
+		self._answer_spec = None
+
+	@property
+	def name(self) -> str:
+		return f'manual{"-decision" if self._find_decision else ""}'
+
+	def collect_stats(self, include_start: bool = False, **kwargs) -> TimeStats:
+		return TimeStats(include_start=include_start, **kwargs)
+
+	def prepare(self, task_spec: JSONOBJ) -> None:
+		super().prepare(task_spec)
+		assert 'answer' in task_spec, 'Task specification must contain an answer specification'
+		if task_spec['answer'] == 'yes/no':
+			self._answer_spec = 'yes/no'
+		elif self._find_decision:
+			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]}')
+
+	def json(self) -> JSONOBJ:
+		return {'find_decision': self._find_decision, **super().json()}
+
+	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
+
+		if self._linewidth is not None:
+			question = '\n'.join([textwrap.fill(line, width=self._linewidth) for line in question.split('\n')])
+			response = '\n'.join([textwrap.fill(line, width=self._linewidth) for line in response.split('\n')])
+
+		lines = [
+			f'\nQuestion: {colorize(question, "green")}',
+			f'Response: {colorize(response, "blue")}',
+		]
+
+		if self._find_decision:
+			lines.append(f'Response answer (1="yes", 0="no", ""=None) ')
+		else:
+			lines.append(f'Correct Answer: {colorize(answer, "yellow")}')
+			lines.append(f'Is the response correct? (1="yes", 0="no", ""=None) ')
+
+		result = input('\n\n'.join(lines))
+		verdict = None
+		if len(result):
+			verdict = result.strip().startswith('1')
+
+		if self._find_decision:
+			decision = 'yes' if verdict else 'no'
+			return answer == decision, {'decision': decision}
+		else:
+			return verdict, {'decision': None}
 
 
 
@@ -26,7 +84,7 @@ class ClientJudge(JudgeBase):
 
 		assert 'answer' in task_spec, 'Task specification must contain an answer specification'
 		if task_spec['answer'] == 'yes/no':
-			self._grammar = 'yes/no'
+			self._grammar = 'yes/no/unknown'
 		else:
 			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]}')
 
@@ -42,17 +100,21 @@ class ClientJudge(JudgeBase):
 			**super().status(),
 		}
 
-	def judge(self, response: str, answer: JSONABLE) -> Tuple[bool, JSONOBJ]:
+	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
 
 		prompt = self._template.fill(
+			question=question,
 			response=response,
 			answer=answer
 		)
 
-		verdict = self._client.get_response(prompt, temperature=0, max_tokens=5, grammar=self._grammar)
+		resp = self._client.send(self._client.wrap_prompt(prompt, temperature=0, max_tokens=5, grammar=self._grammar))
+		verdict = self._client.extract_response(resp)
+		if verdict is None and 'reasoning_content' in resp.choices[0].message.model_extra:
+			verdict = resp.choices[0].message.model_extra['reasoning_content']
 
 		words = verdict.strip().lower().split()
-		if not len(words) or words[0].lower() not in {'yes', 'no'}:
+		if not len(words) or words[0].lower() not in {'yes', 'no', 'unknown'}:
 			self._failures += 1
 			return False, {'raw': verdict, 'decision': None}
 
@@ -77,7 +139,7 @@ class FinalAnswerJudge(JudgeBase):
 
 	# _final_answer_regex = r'\bFINAL\s+ANSWER\s*:\s*(yes|no)\b'
 	_final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(yes|no)\**\b'
-	def judge(self, response: str, answer: str) -> Tuple[bool, JSONOBJ]:
+	def judge(self, response: str, answer: str, question: str = None) -> Tuple[bool, JSONOBJ]:
 
 		clean = response.strip().lower()
 

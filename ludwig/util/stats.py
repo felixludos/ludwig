@@ -21,21 +21,36 @@ class EmptyStats(AbstractStats):
 
 
 
-class ClientStats(AbstractStats):
-	def __init__(self, client: AbstractClient, *, include_start: bool = False):
-		self.client = client
+class TimeStats(AbstractStats):
+	def __init__(self, *, include_start: bool = False):
 		self.include_start = include_start
-		self.starting_idx = None
 		self.stats = {}
 
 	def __enter__(self) -> JSONOBJ:
 		self.stats['start'] = time.time()
-		self.starting_idx = self.client.past_requests()
 		return self.stats
 
 	def __exit__(self, exc_type, exc_val, exc_tb):
-		self.stats['time'] = time.time() - self.stats['start']
-		if not self.include_start:
-			del self.stats['start']
-		self.stats.update(self.client.stats(starting_from=self.starting_idx))
+		if exc_type is None:
+			self.stats['time'] = time.time() - self.stats['start']
+			if not self.include_start:
+				del self.stats['start']
 
+
+
+class ClientStats(TimeStats):
+	def __init__(self, client: AbstractClient, **kwargs):
+		super().__init__(**kwargs)
+		self.client = client
+		self.starting_idx = None
+
+	def __enter__(self) -> JSONOBJ:
+		out = super().__enter__()
+		self.starting_idx = self.client.past_requests()
+		return out
+
+	def __exit__(self, exc_type, exc_val, exc_tb):
+		out = super().__exit__(exc_type, exc_val, exc_tb)
+		if exc_type is None:
+			self.stats.update(self.client.stats(starting_from=self.starting_idx))
+		return out

@@ -372,7 +372,7 @@ class AbstractJudge:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def judge(self, response: str, answer: JSONABLE) -> Tuple[bool, JSONOBJ]:
+	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
 		raise NotImplementedError
 
 	def prepare(self, task_spec: JSONOBJ) -> None:

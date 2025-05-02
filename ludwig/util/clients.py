@@ -2,35 +2,26 @@ import openai
 
 from .imports import *
 from .abstract import AbstractClient
+from .files import repo_root, hash_str
 
 
 class ClientBase(fig.Configurable, AbstractClient):
-	def __init__(self, tools: Union[Dict[str, AbstractTool], Iterable[AbstractTool]] = None, **kwargs):
-		if tools is None:
-			tools = []
-		elif isinstance(tools, dict):
-			tools = tools.values()
+	def __init__(self, raise_length_limit: bool = True, **kwargs):
 		super().__init__(**kwargs)
-		self.tools = {t.name: t for t in tools}
-
-	def json(self) -> JSONOBJ:
-		data = super().json()
-		if self.tools:
-			data['tools'] = [tool.json() for tool in self.tools.values()]
-		return data
+		self._raise_length_limit = raise_length_limit
+		self._model_name = None
+		self.history = None
+		self._last_response = None
 
 	@property
 	def model_name(self) -> str: # fallback
 		return self.ident
 
-	def register_tool(self, tool: AbstractTool) -> Self:
-		if tool.name in self.tools:
-			raise ValueError(f'Tool {tool.name} already registered')
-		self.tools[tool.name] = tool
-		return self
+	def begin_chat(self, prompt: str, *, role: str = 'user') -> List[Dict[str, str]]:
+		return [{'role': role, 'content': prompt}]
 
 	def wrap_prompt(self, prompt: str, **params) -> JSONOBJ:
-		return self.wrap_chat([{'role': 'user', 'content': prompt}], **params)
+		return self.wrap_chat(self.begin_chat(prompt), **params)
 
 	def get_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> str:
 		if isinstance(prompt, str):
@@ -43,20 +34,48 @@ class ClientBase(fig.Configurable, AbstractClient):
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
 		raise NotImplementedError
 
-	def multi_turn(self, chat: Union[str, List[Dict[str, str]]], *, max_retries: int = None,
-				   user_role: str = 'user', assistant_role: str = 'assistant',
+	def multi_turn(self, chat: List[Dict[str, str]], *, max_retries: int = None,
 				   **params) -> Iterator[List[Dict[str, str]]]:
-		if isinstance(chat, str):
-			chat = [{'role': user_role, 'content': chat}]
+		"""
+		Input should be something like [{'role': 'user', 'content': '[prompt]'}]
+		:param chat:
+		:param max_retries:
+		:param params:
+		:return:
+		"""
+		assert isinstance(chat, list), f'Expected a list of messages, got {type(chat)}'
 
 		i = 0
 		while max_retries is None or i <= max_retries:
-			response = self.get_response(chat, **params)
-			chat.append({'role': assistant_role, 'content': response})
+			resp = self.step(chat, **params)
 			n = len(chat)
-			yield chat
-			assert len(chat) > n, f'No new prompt included'
+			yield resp
+			assert len(chat) > n, f'No new prompt provided'
 			i += 1
+
+	def step(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+		if isinstance(chat, str):
+			chat = self.begin_chat(chat)
+
+		data = self.wrap_chat(chat, **params)
+		resp = self.send(data)
+
+		assert len(resp.choices) == 1, f'Expected 1 choice, got {len(resp.choices)}'
+
+		if self._raise_length_limit and resp.choices[0].finish_reason == 'length':
+			raise BudgetExceededError(f'Response length limit reached {resp.usage.completion_tokens} tokens '
+									  f'(try increasing `max_tokens`)')
+
+		role = resp.choices[0].message.role
+		if resp.choices[0].message.content is not None:
+			chat.append({'role': role, 'content': resp.choices[0].message.content})
+			if resp.choices[0].message.model_extra is not None \
+				and 'reasoning_content' in resp.choices[0].message.model_extra:
+				chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
+		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
+			chat.append({'role': role, 'tool_calls': [json.loads(t.json())
+													  for t in resp.choices[0].message.tool_calls]})
+		return resp
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		if isinstance(prompt, str):
@@ -194,9 +213,6 @@ class OpenaiClientBase(ClientBase):
 		self.grammar = grammar
 
 		self._tokenizer = None
-		self.history = None
-		self._model_name = None
-		self._last_response = None
 
 	@property
 	def ident(self) -> str:
@@ -227,8 +243,6 @@ class OpenaiClientBase(ClientBase):
 		}
 		if self.grammar is not None:
 			info['grammar'] = self.grammar
-		if self.tools:
-			info['tools'] = [tool.json() for tool in self.tools.values()]
 		return info
 
 	def past_requests(self) -> int:
@@ -252,12 +266,6 @@ class OpenaiClientBase(ClientBase):
 			**data,
 			'requests': len(self.history[starting_from:]),
 		}
-		if any('tool_calls' in h for h in self.history[starting_from:]):
-			tool_calls = Counter()
-			for h in self.history[starting_from:]:
-				if 'tool_calls' in h:
-					tool_calls.update(h['tool_calls'])
-			summary['tool_calls'] = dict(tool_calls)
 		return summary
 
 	def count_tokens(self, message: Union[str, List[Dict[str, str]]]) -> int:
@@ -271,6 +279,7 @@ class OpenaiClientBase(ClientBase):
 	def _parse_grammar(grammar: Union[str, JSONOBJ]):
 		if isinstance(grammar, str):
 			grammars = {'yes/no': {"guided_choice": ["yes", "no"]},
+						'yes/no/unknown': {"guided_choice": ["yes", "no", "unknown"]},
 						'pos/neg': {"guided_choice": ["positive", "negative"]},
 						'mcq4': {"guided_choice": ["A", "B", "C", "D"]}}
 			if grammar not in grammars:
@@ -279,11 +288,11 @@ class OpenaiClientBase(ClientBase):
 		# TODO: check if grammar is valid
 		return grammar
 
+	_valid_chat_keys = {'role', 'content', 'name', 'function_call', 'tool_calls', 'tool_call_id'}
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
-		args = {'messages': chat, 'model': self._model_name, 'max_tokens': self.max_tokens,
+		messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
+		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
-		if self.tools:
-			args['tools'] = [tool.schema() for tool in self.tools.values()]
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar
 		args.update(params)
@@ -300,47 +309,6 @@ class OpenaiClientBase(ClientBase):
 			return self._last_response
 		return None
 
-	def step(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
-		if isinstance(chat, str):
-			chat = [{'role': 'user', 'content': chat}]
-		data = self.wrap_chat(chat, **params)
-		resp = self.send(data)
-		assert len(resp.choices) == 1, f'Expected 1 choice, got {len(resp.choices)}'
-		chat.append({'role': 'assistant', 'content': resp.choices[0].message.content})
-		return resp
-
-	def _find_tool_role(self) -> str:
-		# if 'llama' in self._model_name.lower():
-		# 	return 'ipython'
-		return 'tool'
-
-	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
-		resp = super().send(data)
-
-		if len(self.tools) and len(resp.choices) == 1 and resp.choices[0].message.tool_calls:
-			tool_role = self._find_tool_role()
-			chat = data['messages']
-			# chat.append({'role': 'assistant', 'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]})
-			for tool_call in resp.choices[0].message.tool_calls:
-				info = tool_call.function
-				assert info.name in self.tools, f'Tool {info.name} not registered'
-				tool = self.tools[info.name]
-				arguments = info.arguments
-				if isinstance(arguments, str):
-					arguments = json.loads(arguments)
-				try:
-					result = tool.call(arguments)
-				except ToolError as e:
-					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
-				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
-				chat.append({'role': tool_role, 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
-
-			including_tools = data.copy()
-			including_tools['messages'] = chat
-			return self.send(including_tools)
-
-		return resp
-
 	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		return self.endpoint.chat.completions.create(**data)
 
@@ -350,9 +318,6 @@ class OpenaiClientBase(ClientBase):
 			yield chunk
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
-		if self.tools:
-			# see: https://docs.vllm.ai/en/v0.6.3.post1/getting_started/examples/openai_chat_completion_client_with_tools.html
-			raise NotImplementedError
 		if isinstance(prompt, str):
 			prompt = self.wrap_prompt(prompt, **params)
 		else:
@@ -376,9 +341,6 @@ class OpenaiClientBase(ClientBase):
 			'output_tokens': N_out,
 			'end_time': time.time(),
 		}
-		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
-			stats['tool_calls'] = dict(Counter(call.function.name for call in resp.choices[0].message.tool_calls))
-
 		self._last_response = resp.choices[0].message.content
 		self.history[-1].update(stats)
 
@@ -457,6 +419,149 @@ class OpenaiAzure_Client(OpenaiClientBase):
 		endpoint = openai.AzureOpenAI(azure_endpoint=api_base, api_key=api_key, api_version=api_version)
 		super().__init__(endpoint=endpoint, **kwargs)
 		self._model_name = model_name
+
+
+
+@fig.modifier('logged')
+class Logged(ClientBase):
+	_default_request_log_root = repo_root().joinpath('requests')
+	def __init__(self, log_request: str = '{str(n).zfill(4)}_request', log_response: str = '{str(n).zfill(4)}_response',
+				 log_dir: str = '{"azure" if "azure" in client.__class__.__name__.lower() else "vllm"}'
+								'_{now.strftime("%y%m%d-%H%M%S")}', log_root: Path = _default_request_log_root,
+				 no_log: bool = False, **kwargs):
+		log_root = Path(log_root)
+		super().__init__(**kwargs)
+		self._active = not no_log
+		self._log_request_fmt = log_request
+		self._log_response_fmt = log_response
+		self._log_root = log_root
+		self._log_dir_fmt = log_dir
+		self._log_dir = None
+		self._codes = {}
+		self._num_requests = 0
+		now = datetime.now()
+		self._timestamp = now.strftime('%y%m%d-%H%M%S')
+
+	def prepare(self) -> Self:
+		out = super().prepare()
+		if self._active:
+			self._log_dir = self._log_root / pformat(self._log_dir_fmt, client=self, now=datetime.now())
+			self._log_dir.mkdir(parents=False, exist_ok=False)
+			json.dump(self.json(), self._log_dir.joinpath('client.json').open('w'), indent=2)
+		return out
+
+	def _log_request(self, payload: str):
+		n = self._num_requests
+		path = self._log_dir / pformat(self._log_request_fmt, client=self, now=datetime.now(), n=n, str=str)
+		# path = self._log_dir / self._log_request_fmt.format(client=self, now=datetime.now(), n=n, str=str)
+		if path.suffix != '.json':
+			path = path.with_suffix('.json')
+		path.write_text(payload, encoding='utf-8')
+		self._codes[hash(payload)] = self._num_requests
+		self._num_requests += 1
+
+	def _record_send(self, data: JSONOBJ):
+		if self._active:
+			payload = json.dumps(data, indent=2)
+			self._log_request(payload)
+		return super()._record_send(data)
+
+	def _record_response(self, data: JSONOBJ, resp: JSONOBJ):
+		if self._active:
+			payload = json.dumps(data, indent=2)
+			if hash(payload) not in self._codes:
+				self._log_request(payload)
+			n = self._codes.pop(hash(payload))
+			path = self._log_dir / pformat(self._log_response_fmt, client=self, now=datetime.now(), n=n, str=str)
+			if path.suffix != '.json':
+				path = path.with_suffix('.json')
+			# path = self._log_dir / self._log_response_fmt.format(client=self, now=datetime.now(), n=n, str=str)
+			resp_data = resp.json()
+			path.write_text(resp_data, encoding='utf-8')
+		return super()._record_response(data, resp)
+
+
+
+
+
+class Tool_Client(ClientBase):
+	def __init__(self, tools: Union[Dict[str, AbstractTool], Iterable[AbstractTool]] = None, **kwargs):
+		if tools is None:
+			tools = []
+		elif isinstance(tools, dict):
+			tools = tools.values()
+		super().__init__(**kwargs)
+		self.tools = {t.name: t for t in tools}
+
+	def _record_response(self, data: JSONOBJ, resp: openai.ChatCompletion):
+		super()._record_response(data, resp)
+		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
+			self.history[-1]['tool_calls'] = dict(Counter(call.function.name for call in resp.choices[0].message.tool_calls))
+
+	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
+		if self.tools:
+			# see: https://docs.vllm.ai/en/v0.6.3.post1/getting_started/examples/openai_chat_completion_client_with_tools.html
+			raise NotImplementedError
+		return super().stream_response(prompt, **params)
+
+	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+		args = super().wrap_chat(chat, **params)
+		if self.tools:
+			args['tools'] = [tool.schema() for tool in self.tools.values()]
+		return args
+
+	def stats(self, starting_from: int = 0) -> JSONOBJ:
+		summary = super().stats(starting_from=starting_from)
+		if any('tool_calls' in h for h in self.history[starting_from:]):
+			tool_calls = Counter()
+			for h in self.history[starting_from:]:
+				if 'tool_calls' in h:
+					tool_calls.update(h['tool_calls'])
+			summary['tool_calls'] = dict(tool_calls)
+		return summary
+
+	def json(self) -> JSONOBJ:
+		data = super().json()
+		if self.tools:
+			data['tools'] = [tool.json() for tool in self.tools.values()]
+		return data
+
+	def register_tools(self, *tools: AbstractTool) -> Self:
+		for tool in tools:
+			self.tools[tool.name] = tool
+		return self
+
+	def json(self) -> JSONOBJ:
+		info = super().json()
+		if self.tools:
+			info['tools'] = [tool.json() for tool in self.tools.values()]
+		return info
+
+	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
+		resp = super().send(data)
+
+		if len(self.tools) and len(resp.choices) == 1 and resp.choices[0].message.tool_calls:
+			chat = data['messages']
+			# chat.append({'role': 'assistant', 'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]})
+			for tool_call in resp.choices[0].message.tool_calls:
+				info = tool_call.function
+				assert info.name in self.tools, f'Tool {info.name} not registered'
+				tool = self.tools[info.name]
+				arguments = info.arguments
+				if isinstance(arguments, str):
+					arguments = json.loads(arguments)
+				try:
+					result = tool.call(arguments)
+				except ToolError as e:
+					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
+				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
+				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
+
+			including_tools = data.copy()
+			including_tools['messages'] = chat
+			return self.send(including_tools)
+
+		return resp
 
 
 

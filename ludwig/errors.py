@@ -5,7 +5,16 @@ class OptionalMethodNotImplemented(NotImplementedError):
 	pass
 
 
-class ParsingError(ValueError):
+class StrategyFailure(Exception):
+	"""Generic error that protocols should suppress and just interpret as a failed sample."""
+	pass
+
+
+class BudgetExceededError(StrategyFailure):
+	"""Raised when the maximum budget is exceeded."""
+
+
+class ParsingError(StrategyFailure):
 	"""Raised when the LLM's response cannot be parsed into a valid answer."""
 	def __init__(self, response: str, message: str):
 		super().__init__(f'{message}: {response!r}')
@@ -13,17 +22,17 @@ class ParsingError(ValueError):
 		self.message = message
 
 
-class AmbiguousFormalizationError(Exception):
+class AmbiguousFormalizationError(StrategyFailure):
 	"""Raised when the LLM's response cannot be parsed into a valid call to a tool."""
 	pass
 
 
-class ToolError(Exception):
+class ToolError(StrategyFailure):
 	"""Raised when a tool fails to execute or returns an error."""
 	pass
 
 
-class ExceededBudgetError(Exception):
+class ExceededBudgetError(StrategyFailure):
 	"""Raised when the maximum budget is exceeded."""
 	def __init__(self, message: str):
 		super().__init__(message)

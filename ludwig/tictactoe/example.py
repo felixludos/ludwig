@@ -171,8 +171,13 @@ class StateValue(TTT_Tool):
 		return 'state_value'
 
 	def description(self) -> str:
-		return ('Evaluate the state of the tic-tac-toe board (assuming "X" always goes first). '
-				'Where 1 is a win for "X", -1 is a win for "O", and 0 is a draw.')
+		# return ('Evaluate the state of the tic-tac-toe board (assuming "X" always goes first). '
+		# 		'Where positive means the board state favors "X", negative means the board state favors "O", '
+		# 		'and 0 is a draw.')
+		return ('Evaluate the state of the tic-tac-toe board. '
+				'Where, assuming best play, 1 means "X" can win (or has won), -1 means "O" can win (or has won), '
+				'and 0 means the game will result in a draw (or it is a draw already).')
+
 
 	def schema(self, style: str = None) -> JSONOBJ:
 		return {
@@ -184,8 +189,13 @@ class StateValue(TTT_Tool):
 					"type": "object",
 					"properties": {
 						"state": self._representation_schema(),
+						"current_player": {
+							"type": "string",
+							"description": "The current player, either 'X' or 'O'.",
+							"enum": ["X", "O"],
+						}
 					},
-					"required": ["state"]
+					"required": ["state", "current_player"]
 				}
 			}
 		}
@@ -194,19 +204,32 @@ class StateValue(TTT_Tool):
 		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
 		if 'state' not in arguments:
 			raise ToolError("Missing 'state' in arguments")
-
+		if 'current_player' not in arguments:
+			raise ToolError("Missing 'current_player' in arguments")
 		state = arguments['state']
+		current_player = arguments['current_player']
+		if current_player not in ['X', 'O']:
+			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
 
 		error = self.validate(state)
 		if error:
 			raise ToolError(error)
 
 		code = self.decode(state)
+		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')
+								  or code.count('X') > code.count('O')) else 'O'
+
+		if starting_player == 'O':
+			code = code.replace('X', '_').replace('O', 'X').replace('_', 'O')
 
 		if code not in self.state_values:
 			raise ToolError(f"Invalid or impossible state: {state}")
 
-		return self.state_values[code]
+		value = self.state_values[code]
+		if starting_player == 'O':
+			value = -value
+
+		return str(value)
 
 
 @fig.component('ttt/tool/next')
@@ -224,7 +247,8 @@ class NextMove(TTT_Tool):
 		return 'next_moves'
 
 	def description(self) -> str:
-		return 'Get all possible next moves for the given tic-tac-toe board state (assuming "X" always goes first).'
+		return ('Get all possible next moves for the given tic-tac-toe board state.'
+				'Returns an empty list if the game is over.')
 
 	def schema(self, style: str = None) -> JSONOBJ:
 		return {
@@ -236,8 +260,13 @@ class NextMove(TTT_Tool):
 					"type": "object",
 					"properties": {
 						"state": self._representation_schema(),
+						"current_player": {
+							"type": "string",
+							"description": "The current player, either 'X' or 'O'.",
+							"enum": ["X", "O"],
+						}
 					},
-					"required": ["state"]
+					"required": ["state", "current_player"]
 				}
 			}
 		}
@@ -275,19 +304,31 @@ class NextMove(TTT_Tool):
 		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
 		if 'state' not in arguments:
 			raise ToolError("Missing 'state' in arguments")
+		if 'current_player' not in arguments:
+			raise ToolError("Missing 'current_player' in arguments")
 		state = arguments['state']
+		current_player = arguments['current_player']
+		if current_player not in ['X', 'O']:
+			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
 
 		error = self.validate(state)
 		if error:
 			raise ToolError(error)
 
 		code = self.decode(state)
+		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')
+								  or code.count('X') > code.count('O')) else 'O'
+
+		if starting_player == 'O':
+			code = code.replace('X', '_').replace('O', 'X').replace('_', 'O')
 		if code not in self.possible_states:
 			raise ToolError(f"Invalid or impossible state: {state}")
 
 		next_codes = self.generate_next_states(code)
-		next_states = [self.encode(state) for state in next_codes]
+		if starting_player == 'O':
+			next_codes = [state.replace('X', '_').replace('O', 'X').replace('_', 'O') for state in next_codes]
 
+		next_states = [self.encode(state) for state in next_codes]
 		return json.dumps(next_states)
 
 

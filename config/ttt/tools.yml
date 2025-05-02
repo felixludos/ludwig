@@ -1,0 +1,7 @@
+
+rep-type: nested
+
+tools:
+  - _type: ttt/tool/value
+  - _type: ttt/tool/next
+
