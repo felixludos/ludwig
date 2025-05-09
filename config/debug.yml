@@ -11,26 +11,31 @@ seed: 1000000009
 #_base: [s/dpp, ttt/take-the-middle, j/client]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/manual]
-_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+_base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
 
-#template: "{task_context}\n\n{question}\n/nothink"
-judge.template: judge-binary-nothink
+#judge.template: judge-binary-nothink
+#judge.style: boxed
 
 use-wandb: no
 
 out-dir: local_data/
 
-addr: 8000
-
+addr: http://wagner.is.localnet:8000
 #client.addr: 8001
 #judge.addr: 8000
 
-client._type: vllm
+#template: "{task_context}\n\n{question}\n/nothink"
+
 client._mod.logged: yes
 
 
 #max-tokens: 1024
-max-tokens: 4096
+#max-tokens: 4096 # needed for qwen3-8b due to reasoning
+max-tokens: 1024
 
 temperature: 0.6
 top-p: 0.95

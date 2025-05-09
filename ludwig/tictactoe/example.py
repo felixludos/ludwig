@@ -124,7 +124,7 @@ class TTT_Tool(ToolBase):
 			}
 		elif self.rep_type == 'list':
 			return {
-				"type": "list",
+				"type": "array",
 				"description": "The state of the tic-tac-toe board as a list of 9 characters.",
 				"items": {
 					"type": "string",
@@ -134,12 +134,12 @@ class TTT_Tool(ToolBase):
 			}
 		elif self.rep_type == 'nested':
 			return {
-				"type": "list",
+				"type": "array",
 				"description":
 					"The state of the tic-tac-toe board, represented as a list of 3 lists "
 					"each corresponding to a row of the board from top to bottom. ",
 				"items": {
-					"type": "list",
+					"type": "array",
 					"description": "A row of the tic-tac-toe board with 3 cells "
 								   "corresponding to the columns.",
 					"items": {

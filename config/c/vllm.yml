@@ -1,0 +1,5 @@
+
+client._type: vllm
+#client._mod.logged: yes
+
+#client.addr: 8000

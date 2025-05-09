@@ -1,6 +1,7 @@
 import textwrap
 
 from .imports import *
+from ..abstract import DECISION
 from ..errors import OptionalMethodNotImplemented, ParsingError
 from ..util import PromptTemplate, ClientStats, TimeStats
 
@@ -8,15 +9,14 @@ from ..util import PromptTemplate, ClientStats, TimeStats
 
 @fig.component('manual-judge')
 class ManualJudge(JudgeBase):
-	def __init__(self, find_decision: bool = True, line_width: int = 80, **kwargs):
+	def __init__(self, line_width: int = 80, **kwargs):
 		super().__init__(**kwargs)
-		self._find_decision = find_decision
 		self._linewidth = line_width
 		self._answer_spec = None
 
 	@property
 	def name(self) -> str:
-		return f'manual{"-decision" if self._find_decision else ""}'
+		return f'manual'
 
 	def collect_stats(self, include_start: bool = False, **kwargs) -> TimeStats:
 		return TimeStats(include_start=include_start, **kwargs)
@@ -26,14 +26,10 @@ class ManualJudge(JudgeBase):
 		assert 'answer' in task_spec, 'Task specification must contain an answer specification'
 		if task_spec['answer'] == 'yes/no':
 			self._answer_spec = 'yes/no'
-		elif self._find_decision:
+		else:
 			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]}')
 
-	def json(self) -> JSONOBJ:
-		return {'find_decision': self._find_decision, **super().json()}
-
-	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
-
+	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
 		if self._linewidth is not None:
 			question = '\n'.join([textwrap.fill(line, width=self._linewidth) for line in question.split('\n')])
 			response = '\n'.join([textwrap.fill(line, width=self._linewidth) for line in response.split('\n')])
@@ -43,22 +39,16 @@ class ManualJudge(JudgeBase):
 			f'Response: {colorize(response, "blue")}',
 		]
 
-		if self._find_decision:
-			lines.append(f'Response answer (1="yes", 0="no", ""=None) ')
-		else:
-			lines.append(f'Correct Answer: {colorize(answer, "yellow")}')
-			lines.append(f'Is the response correct? (1="yes", 0="no", ""=None) ')
+		lines.append(f'Response answer (1="yes", 0="no", ""=None) ')
 
 		result = input('\n\n'.join(lines))
 		verdict = None
 		if len(result):
 			verdict = result.strip().startswith('1')
 
-		if self._find_decision:
-			decision = 'yes' if verdict else 'no'
-			return answer == decision, {'decision': decision}
-		else:
-			return verdict, {'decision': None}
+		decision = 'yes' if verdict else 'no'
+
+		return decision, None
 
 
 
@@ -100,19 +90,16 @@ class ClientJudge(JudgeBase):
 			**super().status(),
 		}
 
-	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
+	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
 
 		prompt = self._template.fill(
 			question=question,
-			response=response,
-			answer=answer
+			response=response
 		)
 
 		resp = self._client.send(self._client.wrap_prompt(prompt, temperature=0, max_tokens=5, grammar=self._grammar))
-		verdict = self._client.extract_response(resp)
-		if verdict is None and 'reasoning_content' in resp.choices[0].message.model_extra:
-			verdict = resp.choices[0].message.model_extra['reasoning_content']
 
+		verdict = self._client.extract_response(resp)
 		words = verdict.strip().lower().split()
 		if not len(words) or words[0].lower() not in {'yes', 'no', 'unknown'}:
 			self._failures += 1
@@ -120,34 +107,58 @@ class ClientJudge(JudgeBase):
 
 		decision = words[0].lower()
 		self._successes += 1
-		return answer == decision, {'decision': decision}
+		if decision == 'unknown':
+			return None, None
+		return decision, None
 
 
 
-@fig.component('final-answer-judge')
-class FinalAnswerJudge(JudgeBase):
+@fig.component('format-judge')
+class FormatJudge(JudgeBase):
+	"""
+	Appends a request to answer in a specific format at the end of the task description and then extracts
+	the answer from the response with regex.
+	"""
+	def __init__(self, style: str = 'final-answer', **kwargs):
+		super().__init__(**kwargs)
+		self._style = style
+		self._options = None
+
+	_answer_styles = {
+		'final-answer': 'Give your final answer in the form: "FINAL ANSWER: {{{options}}}".',
+		'boxed': 'Give your final answer in the form: "\\boxed{{{{options}}}}".',
+	}
+	_answer_regex = {
+		'final-answer': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b',
+		'boxed': r'(?ix)\\boxed\s*\{{\s*({options})\s*}}',
+	}
+
 	@property
 	def name(self) -> str:
-		return 'final-answer-judge'
+		return f'format-judge-{self._style}'
 
 	def prepare(self, task_spec: JSONOBJ) -> None:
 		super().prepare(task_spec)
-		assert task_spec['answer'] == 'yes/no', f'Unknown answer type: {task_spec["answer"]}'
+		if '/' not in task_spec['answer']:
+			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]} (only fixed choices are supported)')
+		self._options = task_spec['answer'].split('/')
 
 	def format_description(self, task_description: str) -> str:
-		return f'{task_description}\nGive your final answer in the form "FINAL ANSWER: {{yes/no}}".'
+		lines = [task_description, self._answer_styles[self._style].format(options='/'.join(self._options))]
+		return '\n'.join(lines)
 
 	# _final_answer_regex = r'\bFINAL\s+ANSWER\s*:\s*(yes|no)\b'
-	_final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(yes|no)\**\b'
-	def judge(self, response: str, answer: str, question: str = None) -> Tuple[bool, JSONOBJ]:
-
+	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(yes|no)\**\b'
+	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b'
+	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
 		clean = response.strip().lower()
 
-		match = re.search(self._final_answer_regex, clean, re.IGNORECASE)
+		pattern = self._answer_regex[self._style].format(options='|'.join(self._options))
+		match = re.search(pattern, clean, re.IGNORECASE)
 		if match:
 			decision = match.group(1).lower().strip()
 			self._successes += 1
-			return answer == decision, {'decision': decision}
+			return decision, None
 
 		self._failures += 1
 		# if clean.startswith('yes'):
@@ -156,7 +167,7 @@ class FinalAnswerJudge(JudgeBase):
 		# 	return not answer, {'solution': 'no'}
 		# return False, {'solution': None}
 		# raise ParsingError(response, 'Can\'t decide if the answer is "yes" or "no"')
-		return False, {'decision': None}
+		return None, None
 
 
 

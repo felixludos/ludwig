@@ -3,7 +3,7 @@ from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizat
 
 PROBLEM = JSONABLE
 ANSWER = JSONABLE
-
+DECISION = JSONABLE
 
 
 class AbstractTool:
@@ -215,6 +215,13 @@ class AbstractTask:
 		"""
 		raise OptionalMethodNotImplemented
 
+	def act(self, problem: PROBLEM, action: ANSWER, info: Optional[JSONOBJ] = None) -> Optional[JSONOBJ]:
+		"""
+		(optional) For interactive tasks, this method allows the strategy to act on the problem and response.
+		"""
+		raise OptionalMethodNotImplemented
+
+
 	def correct(self, response: str, answer: ANSWER) -> Tuple[bool, JSONOBJ]:
 		"""
 		Returns whether the strategy's response is satisfactory and should be evaluated as correct.
@@ -372,7 +379,16 @@ class AbstractJudge:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def judge(self, response: str, answer: JSONABLE, question: str = None) -> Tuple[bool, JSONOBJ]:
+	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
+		"""
+		(optional) Interprets the response of the strategy and returns a decision and any additional information.
+
+		This is used to help the judge understand the response better, and may include information like the
+		intermediate steps taken to reach the answer.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def judge(self, decision: DECISION, answer: JSONABLE, info: Optional[JSONOBJ] = None) -> bool:
 		raise NotImplementedError
 
 	def prepare(self, task_spec: JSONOBJ) -> None:

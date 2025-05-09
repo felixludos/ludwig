@@ -132,6 +132,7 @@ def test_tool():
 
 
 def test_azure_client():
+	raise Exception('skipped')
 
 	path = repo_root().joinpath('config', 'secrets', 'azure.yml')
 

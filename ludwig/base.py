@@ -1,5 +1,5 @@
 from .imports import *
-from .abstract import AbstractTool, AbstractTask, AbstractStrategy, AbstractProtocol, AbstractJudge
+from .abstract import AbstractTool, AbstractTask, AbstractStrategy, AbstractProtocol, AbstractJudge, PROBLEM, ANSWER
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
 from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, EmptyStats
 
@@ -11,6 +11,12 @@ class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 
 	def status(self) -> Optional[JSONOBJ]:
 		return None
+
+	def act(self, problem: PROBLEM, action: ANSWER, info: Optional[JSONOBJ] = None) -> Optional[JSONOBJ]:
+		"""
+		Act on the problem and response. This is a placeholder method and should be overridden in subclasses.
+		"""
+		pass
 
 	def json(self) -> JSONOBJ:
 		return {}
@@ -30,6 +36,9 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 
 	def format_description(self, task_description: str) -> str:
 		return task_description
+
+	def judge(self, decision: JSONABLE, answer: JSONABLE, info: Optional[JSONOBJ] = None) -> bool:
+		return decision == answer
 
 	def json(self) -> JSONOBJ:
 		return {}

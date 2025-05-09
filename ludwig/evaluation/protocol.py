@@ -123,19 +123,23 @@ class DefaultProtocol(ProtocolBase):
 		proc['response'] = response
 
 		if failed:
-			correct = False
+			decision = None
+			correct = None
+		elif self.judge is None:
+			decision = response
+			correct = decision == answer
 		else:
 			with self.judge.collect_stats() as judge_stats:
-				correct, judgement = self.judge.judge(response, answer, question)
+				decision, judgement = self.judge.interpret(question, response)
+				correct = self.judge.judge(decision, answer, judgement)
 			if len(judge_stats):
 				log['judge'] = judge_stats
 			if judgement is not None:
 				proc.update(judgement)
 
-		if correct is None:
-			pass
-		else:
+		if correct is not None:
 			self.aggregates['correct' if correct else 'incorrect'].append(idx)
+		proc['decision'] = decision
 		proc['answer'] = answer
 		proc['correct'] = correct
 

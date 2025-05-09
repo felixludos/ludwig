@@ -21,6 +21,11 @@ class ToolUse(DirectPrompting):
 		self._tool_stats = {}
 		self._max_turns = max_turns
 
+	def prepare(self, seed: Optional[int] = None) -> Any:
+		super().prepare(seed)
+		if not len(self.tools):
+			raise ValueError('No tools provided for tool use strategy')
+
 	@property
 	def name(self) -> str:
 		return f'tool-use-{self.template.ident}-{self._tool_code[:4]}'
@@ -61,7 +66,7 @@ class ToolUse(DirectPrompting):
 						result = tool.call(arguments)
 					except ToolError as e:
 						result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
-					chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
+					chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, })#'name': info.name})
 					tool_calls.append({'name': info.name, 'arguments': arguments, 'result': result})
 
 			elif resp.choices[0].message.content is None:

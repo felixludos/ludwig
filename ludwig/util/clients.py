@@ -302,7 +302,10 @@ class OpenaiClientBase(ClientBase):
 		return args
 
 	def extract_response(self, data: JSONOBJ) -> str:
-		return data.choices[0].message.content
+		content = data.choices[0].message.content
+		if content is None and 'reasoning_content' in data.choices[0].message.model_extra:
+			return data.choices[0].message.model_extra['reasoning_content']
+		return content
 
 	def last_response(self) -> Optional[str]:
 		if self._last_response is not None:
