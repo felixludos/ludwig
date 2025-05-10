@@ -286,6 +286,8 @@ class OpenaiClientBase(ClientBase):
 				raise ValueError(f'Unknown grammar: {grammar}')
 			return grammars[grammar]
 		# TODO: check if grammar is valid
+		if isinstance(grammar, dict):
+			return {'guided_json': grammar}
 		return grammar
 
 	_valid_chat_keys = {'role', 'content', 'name', 'function_call', 'tool_calls', 'tool_call_id'}
@@ -412,6 +414,22 @@ class vllm_Client(OpenaiClientBase):
 		except requests.RequestException as e:
 			print(f"Error pinging server: {e}")
 			return False
+
+
+
+@fig.component('openai')
+class Openai_Client(OpenaiClientBase):
+	@fig.silent_config_args('api_key')
+	def __init__(self, model_name: str = None, *, api_key: str, **kwargs):
+		super().__init__(endpoint=openai.OpenAI(api_key=api_key), **kwargs)
+		self._model_name = model_name
+
+	def available_models(self) -> JSONOBJ:
+		"""
+		Returns a list of available models from the OpenAI API.
+		"""
+		response = self.endpoint.models.list()
+		return response.to_dict()['data']
 
 
 

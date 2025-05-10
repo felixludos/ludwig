@@ -2,7 +2,7 @@ import random
 
 from .imports import *
 from .files import repo_root
-from .clients import vllm_Client, OpenaiAzure_Client, Tool_Client
+from .clients import vllm_Client, OpenaiAzure_Client, Openai_Client, Tool_Client
 from .search import GenericSearch
 from .parsers import PythonParser
 from .tools import ToolBase, ToolError
@@ -150,6 +150,20 @@ def test_azure_client():
 
 	stats = client.stats()
 	print(stats)
+
+
+def test_openai_client():
+
+	path = repo_root().joinpath('config', 'secrets', 'openai.yml')
+	import yaml
+	with path.open('r') as f:
+		openai_config = yaml.safe_load(f)
+	client = Openai_Client(api_key=openai_config['api-key'], model_name='gpt-3.5-turbo')
+
+	models = client.available_models()
+
+	print(len(models))
+
 
 
 def test_vllm_client():

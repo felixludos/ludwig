@@ -8,11 +8,15 @@ class DirectPrompting(ClientStrategy):
 	Direct prompting strategy.
 	"""
 
-	def __init__(self, template: Union[PromptTemplate, str] = '{task_context}\n\n{question}', **kwargs):
+	def __init__(self, template: Union[PromptTemplate, str] = '{task_context}\n\n{question}',
+				 params: Optional[JSONOBJ] = None, **kwargs):
 		if not isinstance(template, PromptTemplate):
 			template = PromptTemplate(template)
+		if params is None:
+			params = {}
 		super().__init__(**kwargs)
 		self.template = template
+		self.params = params
 		self.system_context = None
 		self.task_context = None
 
@@ -39,7 +43,7 @@ class DirectPrompting(ClientStrategy):
 			question=question
 		)
 
-		response = self.client.get_response(prompt)
+		response = self.client.get_response(prompt, **self.params)
 
 		return response, {'prompt': prompt}
 

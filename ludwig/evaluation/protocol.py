@@ -103,6 +103,8 @@ class DefaultProtocol(ProtocolBase):
 			problem, answer = self.task.load(idx, seed=self._master_seed)
 
 		info = self.task.side_information(problem)
+		if info is not None:
+			proc.update(info)
 
 		question = self.task.observe(problem, seed=self._master_seed)
 

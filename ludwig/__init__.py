@@ -5,3 +5,4 @@ from . import baselines
 from . import evaluation
 from . import dpp
 from .tictactoe import *
+from . import recsys
