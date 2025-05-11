@@ -254,15 +254,15 @@ class OpenaiClientBase(ClientBase):
 				return seq[0]
 			return {'mean': sum(seq) / len(seq), 'min': min(seq), 'max': max(seq),}
 		data = {}
-		times = [h['end_time'] - h['start_time'] for h in self.history[starting_from:] if 'end_time' in h]
+		times = [h.get('end_time',0) - h.get('start_time',0) for h in self.history[starting_from:] if 'end_time' in h]
 		if times:
 			tps = [h['output_tokens']/(h['end_time'] - h['start_time'])
 				   for h in self.history[starting_from:] if 'end_time' in h]
 			data['time'] = _metrics(times)
 			data['tok_per_sec'] = _metrics(tps)
 		summary = {
-			'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
-			'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
+			'input_tokens': sum(h.get('input_tokens',0) for h in self.history[starting_from:]),
+			'output_tokens': sum(h.get('output_tokens',0) for h in self.history[starting_from:]),
 			**data,
 			'requests': len(self.history[starting_from:]),
 		}
@@ -276,19 +276,9 @@ class OpenaiClientBase(ClientBase):
 		return sum(len(self._tokenizer.encode(m['content'])) for m in message if 'content' in m)
 
 	@staticmethod
-	def _parse_grammar(grammar: Union[str, JSONOBJ]):
-		if isinstance(grammar, str):
-			grammars = {'yes/no': {"guided_choice": ["yes", "no"]},
-						'yes/no/unknown': {"guided_choice": ["yes", "no", "unknown"]},
-						'pos/neg': {"guided_choice": ["positive", "negative"]},
-						'mcq4': {"guided_choice": ["A", "B", "C", "D"]}}
-			if grammar not in grammars:
-				raise ValueError(f'Unknown grammar: {grammar}')
-			return grammars[grammar]
-		# TODO: check if grammar is valid
-		if isinstance(grammar, dict):
-			return {'guided_json': grammar}
-		return grammar
+	def _include_grammar(args: JSONOBJ):
+		if 'grammar' in args:
+			raise NotImplementedError
 
 	_valid_chat_keys = {'role', 'content', 'name', 'function_call', 'tool_calls', 'tool_call_id'}
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
@@ -298,9 +288,7 @@ class OpenaiClientBase(ClientBase):
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar
 		args.update(params)
-		if 'grammar' in args:
-			args['extra_body'] = self._parse_grammar(args['grammar'])
-			del args['grammar']
+		self._include_grammar(args)
 		return args
 
 	def extract_response(self, data: JSONOBJ) -> str:
@@ -415,6 +403,24 @@ class vllm_Client(OpenaiClientBase):
 			print(f"Error pinging server: {e}")
 			return False
 
+	@staticmethod
+	def _include_grammar(args: JSONOBJ):
+		if 'grammar' in args:
+			grammar = args['grammar']
+			if isinstance(grammar, str):
+				grammars = {'yes/no': {"guided_choice": ["yes", "no"]},
+							'yes/no/unknown': {"guided_choice": ["yes", "no", "unknown"]},
+							'pos/neg': {"guided_choice": ["positive", "negative"]},
+							'mcq4': {"guided_choice": ["A", "B", "C", "D"]}}
+				if grammar not in grammars:
+					raise ValueError(f'Unknown grammar: {grammar}')
+				grammar = grammars[grammar]
+			# TODO: check if grammar is valid
+			if isinstance(grammar, dict):
+				grammar =  {'guided_json': grammar}
+			args['extra_body'] = grammar
+			del args['grammar']
+
 
 
 @fig.component('openai')
@@ -432,6 +438,26 @@ class Openai_Client(OpenaiClientBase):
 		return response.to_dict()['data']
 
 
+	@staticmethod
+	def _include_grammar(args: JSONOBJ):
+		if 'grammar' in args:
+			grammar = args['grammar']
+			if isinstance(grammar, str):
+				raise NotImplementedError
+				grammars = {'yes/no': {"guided_choice": ["yes", "no"]},
+							'yes/no/unknown': {"guided_choice": ["yes", "no", "unknown"]},
+							'pos/neg': {"guided_choice": ["positive", "negative"]},
+							'mcq4': {"guided_choice": ["A", "B", "C", "D"]}}
+				if grammar not in grammars:
+					raise ValueError(f'Unknown grammar: {grammar}')
+				grammar = grammars[grammar]
+			# TODO: check if grammar is valid
+			if isinstance(grammar, dict):
+				args['response_format'] = {'json_schema': {"name": "my_schema", "strict": True, "schema": grammar},
+										   'type': 'json_schema'}
+			del args['grammar']
+
+
 
 @fig.component('azure')
 class OpenaiAzure_Client(OpenaiClientBase):
@@ -440,7 +466,6 @@ class OpenaiAzure_Client(OpenaiClientBase):
 		endpoint = openai.AzureOpenAI(azure_endpoint=api_base, api_key=api_key, api_version=api_version)
 		super().__init__(endpoint=endpoint, **kwargs)
 		self._model_name = model_name
-
 
 
 @fig.modifier('logged')

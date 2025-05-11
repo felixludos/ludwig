@@ -85,7 +85,7 @@ class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
 
 
 class ProtocolBase(fig.Configurable, Checkpointable, AbstractProtocol):
-	def prepare(self) -> Any:
+	def prepare(self, root: Path = None) -> Any:
 		pass
 
 

@@ -16,6 +16,7 @@ seed: 1000000009
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 _base: [1step, c/vllm]
+#_base: [1step, c/openai]
 
 #judge.template: judge-binary-nothink
 
@@ -23,6 +24,15 @@ _base: [1step, c/vllm]
 #protocol.name: "{task.domain}_{judge.format_type}_{judge.pred_type}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}"
 
 use-wandb: no
+
+#resume: food_1step-json-prob_profile-responses-behavior_250511-133413
+
+limit: 4
+#resume: food_1step-json-prob_update2_250511-211320
+
+domain: food
+clues: [profile, responses, behavior]
+clues: [update2]
 
 #zero-based: no
 #indexed: yes
@@ -45,9 +55,8 @@ max-tokens: 4096 # needed for qwen3-8b due to reasoning
 #temperature: 0.6
 #top-p: 0.95
 
-pred-type: binary
+#pred-type: binary
 
-limit: 2
 
 #strategy.params.grammar: <>schema
 

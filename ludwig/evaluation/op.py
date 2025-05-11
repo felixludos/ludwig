@@ -53,21 +53,14 @@ def eval_task(cfg: fig.Configuration):
 	log_samples = cfg.pull('log-samples', (not use_wandb or log_table is not None) and out_root is not None)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
+	error_ckpt = cfg.pull('err-ckpt', True)
 
 	cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 	protocol: AbstractProtocol = cfg.pull('protocol')
 
-	protocol.prepare()
+	out_dir = protocol.prepare(out_root)
 
-	out_dir = None
-	if out_root is not None:
-		if protocol.name is None:
-			raise ValueError(f'Protocol must have a name: {protocol.name}')
-		out_dir = out_root / protocol.name
-		if out_dir.exists() and not cfg.pull('overwrite', False):
-			raise RuntimeError(f'Output directory {out_dir} already exists. Use --overwrite to overwrite it.')
-		out_dir.mkdir(exist_ok=True)
-
+	if out_dir is not None:
 		with out_dir.joinpath('config.yaml').open('w') as f:
 			f.write(str(cfg))
 
@@ -86,15 +79,13 @@ def eval_task(cfg: fig.Configuration):
 	sample_logger = None
 	if log_samples:
 		assert out_dir is not None, f'log-samples requires out-dir to be set'
-		sample_logger = out_dir.joinpath('log.jsonl').open('w')
+		sample_logger = out_dir.joinpath('log.jsonl').open('a')
 
 	desc = protocol.describe()
 	if desc is not None:
 		print(desc)
 		print()
 	if out_dir is not None:
-		with out_dir.joinpath('protocol_settings.json').open('w') as f:
-			json.dump(protocol.json(), f)
 		print(f'Saving results to {out_dir}')
 		print()
 
@@ -123,7 +114,12 @@ def eval_task(cfg: fig.Configuration):
 
 	if pbar: itr = tqdm(itr, desc=f'[score]')
 	for i in itr:
-		sample = protocol.step(i)
+		try:
+			sample = protocol.step(i)
+		except:
+			if out_dir is not None and error_ckpt:
+				protocol.checkpoint(out_dir / f'error{i}')
+			raise
 		if 'message' in sample:
 			print()
 			print(sample['message'])

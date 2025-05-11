@@ -12,7 +12,7 @@ protocol.name: "{task.domain}_{judge.name}_{'-'.join(task.clues)}_{now.strftime(
 temperature: 0.6
 top-p: 0.95
 
-domain: travel
+#domain: travel
 
 #clues: [behavior]
 #clues: [profile, responses, behavior]

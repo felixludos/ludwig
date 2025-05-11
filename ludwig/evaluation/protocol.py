@@ -5,13 +5,14 @@ from .imports import *
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
-				 seed: Optional[int] = None,
+				 seed: Optional[int] = None, resume: str = None,
 				 # name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 name: str = '{task.name}_{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
 				 include_gt_info: bool = False, limit: int = None, **kwargs):
 		if seed == 'sample': seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
 		self._name_template = name
+		self.resume = resume
 		self._name = None
 		self._master_seed = seed
 		random.seed(seed)
@@ -39,20 +40,85 @@ class DefaultProtocol(ProtocolBase):
 		"""The task used in this protocol"""
 		return self._task
 
-	def prepare(self) -> None:
+	def prepare(self, root: Path = None, overwrite: bool = False) -> None:
 		self.task.prepare(self._master_seed)
 		self.strategy.prepare(self._master_seed)
 		if self.judge is not None:
 			self.judge.prepare(self.task.specification())
 
-		self._past_iterations = 0
-		self._past_failures = 0
+		path = None
+		if self.resume is not None:
+			assert root is not None, f'root must be provided to resume'
+			path = root.joinpath(self.resume)
+			if not path.exists():
+				raise FileNotFoundError(f'Checkpoint path does not exist: {path}')
+			self._name = self.resume
+
+			log_path = path.joinpath('log.jsonl')
+			num_failed = 0
+			past_iterations = 0
+			if log_path.exists():
+				with log_path.open('r') as f:
+					for raw in f:
+						if len(raw):
+							sample = json.loads(raw)
+							if sample.get('failed'):
+								num_failed += 1
+							past_iterations += 1
+			else:
+				past_iterations = None
+
+			self._past_iterations = past_iterations
+			self._past_failures = num_failed
+
+			_starting_from = f' (starting from {past_iterations})' if past_iterations is not None else ''
+			print(f'Resuming {self.resume}{_starting_from}')
+
+			prev_settings_path = path.joinpath('protocol_settings.json')
+			if prev_settings_path.exists():
+				prev_settings = flatten(json.load(prev_settings_path.open('r')))
+				new_settings = flatten(self.json())
+				all_keys = set(prev_settings.keys()) | set(new_settings.keys())
+				diffs = [(key, prev_settings.get(key, '[N/A]'), new_settings.get(key, '[N/A]'))
+						 for key in all_keys if prev_settings.get(key) != new_settings.get(key)]
+				if diffs:
+					print(f'Found {len(diffs)} differences:')
+					print(tabulate(diffs, headers=['key', 'previous', 'current']))
+
+				prev_idx = 1
+				old_path = path.joinpath(f'prev_settings{prev_idx}.json')
+				while old_path.exists():
+					if prev_idx > 1000:
+						raise RuntimeError
+					prev_idx += 1
+					old_path = path.joinpath(f'prev_settings{prev_idx}.json')
+				json.dump(prev_settings, old_path.open('w'))
+
+		else:
+
+			self._past_iterations = 0
+			self._past_failures = 0
 
 		if self._name is None:
 			# self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
 			# 										judge=self.judge, now=self._now, seed=self._master_seed)
 			self._name = pformat(self._name_template, protocol=self, task=self.task, strategy=self.strategy,
 								 judge=self.judge, now=self._now, seed=self._master_seed)
+
+		if root is not None:
+			if path is None:
+				if self.name is None:
+					raise ValueError(f'Protocol must have a name: {self.name}')
+				path = root / self.name
+				if path.exists() and not overwrite:
+					raise RuntimeError(f'Output directory {path} already exists. Use --overwrite to overwrite it.')
+				path.mkdir(exist_ok=True)
+
+			with path.joinpath('protocol_settings.json').open('w') as f:
+				json.dump(self.json(), f)
+
+			return path
+
 
 	def remaining_iterations(self) -> range:
 		"""(optional) Returns the number of iterations remaining in this protocol"""
