@@ -20,6 +20,8 @@ class DefaultProtocol(ProtocolBase):
 		self._limit = limit
 		self._include_gt_info = include_gt_info
 		self._past_iterations = None
+		self._past_failures = None
+		self._fail_rate = None
 		self._use_generate = None
 		self.metrics = None
 		self._answer_type = None
@@ -40,9 +42,11 @@ class DefaultProtocol(ProtocolBase):
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
 		self.strategy.prepare(self._master_seed)
-		self.judge.prepare(self.task.specification())
+		if self.judge is not None:
+			self.judge.prepare(self.task.specification())
 
 		self._past_iterations = 0
+		self._past_failures = 0
 
 		if self._name is None:
 			# self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
@@ -64,7 +68,7 @@ class DefaultProtocol(ProtocolBase):
 			('Task', self.task.name),
 			('Strategy', self.strategy.name),
 			('Model', self.strategy.model_name),
-			('Judge', self.judge.name),
+			('Judge', self.judge.name if self.judge is not None else 'None'),
 			('Random seed', self._master_seed),
 		]
 		return tabulate(tbl)
@@ -72,7 +76,7 @@ class DefaultProtocol(ProtocolBase):
 	def pre_loop(self) -> Optional[JSONOBJ]:
 		context = self.task.context()
 		base_desc = self.task.description()
-		desc = self.judge.format_description(base_desc)
+		desc = base_desc if self.judge is None else self.judge.format_description(base_desc)
 		spec = self.task.specification()
 
 		self._use_generate = self.task.total_questions is None
@@ -146,6 +150,7 @@ class DefaultProtocol(ProtocolBase):
 				log['judge'] = judge_stats
 			if judgement is not None:
 				proc.update(judgement)
+			failed = verdict is None
 
 		score = self._aggregate_verdict(idx, verdict)
 		proc['decision'] = decision
@@ -159,7 +164,11 @@ class DefaultProtocol(ProtocolBase):
 			sample['table'] = proc
 
 		sample['score'] = score
+		sample['failed'] = failed
+		if failed:
+			self._past_failures += 1
 		self._past_iterations += 1
+		sample['fail_rate'] = self._past_failures / self._past_iterations
 		return sample
 
 	def _aggregate_verdict(self, idx: int = None, verdict: JSONABLE = None):

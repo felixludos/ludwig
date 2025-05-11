@@ -42,7 +42,8 @@ class ProjectVenice(TaskBase):
 		return ''
 
 	def description(self) -> str:
-		return f"Which {self._domain_product}s would the user like to see most?"
+		# return f"Which {self._domain_product}s would the user like to see most?"
+		return ''
 
 	def specification(self) -> JSONOBJ:
 		return {'answer': ['ndcg@k', 'ndcg@12', 'ndcg@6', 'map', 'auc', 'p', 'r', 'f1'],}
@@ -70,7 +71,7 @@ class ProjectVenice(TaskBase):
 		users = {u['uid']: u for u in users.to_dict(orient='records')}
 
 		impressions = list(imps.to_dict(orient='records'))
-		for imp in self.impressions:
+		for imp in impressions:
 			imp.update(users[imp['user']])
 
 		self.users = users
@@ -169,9 +170,11 @@ class ProjectVenice(TaskBase):
 
 
 
-@fig.component('venice-judge')
+@fig.component('1step-judge')
 class VeniceJudge(JudgeBase):
-	def __init__(self, format_type: str = 'json', *, pred_type: Optional[JSONABLE] = 'prob', beta: float = 1, **kwargs):
+	def __init__(self, format_type: str = 'json', *, pred_type: Optional[JSONABLE] = 'prob',
+				 indexed: bool = False, zero_based: bool = False, beta: float = 1, set_strategy_schema: bool = True,
+				 **kwargs):
 		assert 0 < beta, 'Beta must be greater than 0'
 		assert format_type in ['json', 'jsonblock', 'yamlblock'], f'Unknown format type: {format_type}'
 		assert pred_type in ['5point', 'prob', 'binary'], f'Unknown prediction type: {pred_type}'
@@ -182,82 +185,161 @@ class VeniceJudge(JudgeBase):
 		self._scale_quant = dict(zip(scales, probs))
 		self.format_type = format_type
 		self.pred_type = pred_type
+		self.indexed = indexed
+		self.zero_based = zero_based
 		self.beta = beta
 		self._template = PromptTemplate(f'judges/{format_type}')
+		self._set_strategy_schema = set_strategy_schema
 
 	@property
 	def name(self) -> str:
-		return f'judge-{self.format_type}-{self.pred_type}'
+		return f'1step-{self.format_type}-{"0" if self.zero_based else ""}{"i" if self.indexed else ""}{self.pred_type}'
 
 	def json(self) -> JSONOBJ:
 		return {
 			'format': self.format_type,
 			'beta': self.beta,
 			'pred': self.pred_type,
+			'indexed': self.indexed,
+			'zero_based': self.zero_based,
 			**super().json()
 		}
 
 	def get_schema(self):
-		if self.pred_type == '5point':
-			return {
-  "title": "User Selection Likelihoods (Ordered List)",
-  "description": "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above.",
-  "type": "array",
-  "minItems": 12,
-  "maxItems": 12,
-  "items": {
-    "title": "Likelihood Value",
-    "description": "The likelihood from a 5-point Likert scale.",
-    "type": "string",
-    "enum": [
-      "Very unlikely",
-      "Somewhat unlikely",
-      "Neutral",
-      "Somewhat likely",
-      "Very likely"
-    ]
-  }
-}
-		elif self.pred_type == 'prob':
-			return {
-			  "title": "User Selection Likelihoods (Ordered List)",
-			  "description": "A list of exactly 12 floats, each representing the likelihood a user will select the corresponding suggestion above.",
-			  "type": "array",
-			  "minItems": 12,
-			  "maxItems": 12,
-			  "items": {
-			    "title": "Likelihood Value",
-			    "description": "The likelihood the user will select the corresponding suggestion above.",
-			    "type": "number",
-			    "minimum": 0,
-			    "maximum": 1
-			  }
+		typ = 'object' if self.indexed else 'array'
+		title = 'User Selection Likelihoods' if self.indexed else 'User Selection Likelihoods (Ordered List)'
+
+		indices = [str(i) for i in (range(12) if self.zero_based else range(1,13))]
+
+		value_title = 'Selection' if self.pred_type == 'binary' else 'Likelihood Value'
+		value_desc = {
+			'5point': 'The likelihood from a 5-point Likert scale.',
+			'prob': 'The probability the user will select the corresponding suggestion above.',
+			'binary': 'Whether the user will select the corresponding suggestion above.',
+		}[self.pred_type]
+
+		schemas = {
+			('5point', True): {
+				"title": title,
+				"description": f"A dictionary of exactly 12 items. Keys are strings from \"{0 if self.zero_based else 1}\" to \"{11 if self.zero_based else 12}\", and each value is a string representing the likelihood a user will select a corresponding suggestion, based on a 5-point Likert scale.",
+				"type": typ,
+				"properties": {
+					**{i: {
+						"title": f"{value_title} {i}",
+						"description": value_desc,
+						"type": "string",
+						"enum": [
+							"Very unlikely",
+							"Somewhat unlikely",
+							"Neutral",
+							"Somewhat likely",
+							"Very likely"
+						]
+					} for i in indices}
+				},
+				"required": indices,
+				"additionalProperties": False,
+			},
+			('5point', False): {
+				"title": title,
+				"description": "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above.",
+				"type": typ,
+				"minItems": 12,
+				"maxItems": 12,
+				"items": {
+					"title": value_title,
+					"description": value_desc,
+					"type": "string",
+					"enum": [
+						"Very unlikely",
+						"Somewhat unlikely",
+						"Neutral",
+						"Somewhat likely",
+						"Very likely"
+					]
+				}
+			},
+			('prob', True): {
+				"title": title,
+				"description": f"A dictionary of exactly 12 items. Keys are strings from \"{0 if self.zero_based else 1}\" to \"{11 if self.zero_based else 12}\", and each value is a float representing the likelihood a user will select a corresponding suggestion, based on a 5-point Likert scale.",
+				"type": typ,
+				"properties": {
+					**{i: {
+						"title": f"{value_title} {i}",
+						"description": value_desc,
+						"type": "number",
+						"minimum": 0,
+						"maximum": 1
+					} for i in indices}
+				},
+				"required": indices,
+				"additionalProperties": False,
+			},
+			('prob', False): {
+				"title": title,
+				"description": "A list of exactly 12 floats, each representing the likelihood a user will select the corresponding suggestion above.",
+				"type": typ,
+				"minItems": 12,
+				"maxItems": 12,
+				"items": {
+					"title": value_title,
+					"description": value_desc,
+					"type": "number",
+					"minimum": 0,
+					"maximum": 1
+				}
+			},
+			('binary', True): {
+				"title": title,
+				"description": f"A dictionary of exactly 12 items. Keys are strings from \"{0 if self.zero_based else 1}\" to \"{11 if self.zero_based else 12}\", and each value is a string (\"yes\" or \"no\") representing whether the user will select the corresponding suggestion above.",
+				"type": typ,
+				"properties": {
+					**{i: {
+						"title": f"{value_title} {i}",
+						"description": value_desc,
+						"type": "string",
+						"enum": [
+							"Yes",
+							"No"
+						]
+					} for i in indices}
+				},
+				"required": indices,
+				"additionalProperties": False,
+			},
+			('binary', False): {
+				"title": title,
+				"description": "A list of exactly 12 strings (\"yes\" or \"no\"), representing whether the user will select the corresponding suggestion above.",
+				"type": typ,
+				"minItems": 12,
+				"maxItems": 12,
+				"items": {
+					"title": value_title,
+					"description": value_desc,
+					"type": "string",
+					"enum": [
+						"Yes",
+						"No"
+					]
+				}
 			}
-		elif self.pred_type == 'binary':
-			return {
-			  "title": "User Selection Likelihoods (Ordered List)",
-			  "description": "A list of exactly 12 strings (\"yes\" or \"no\"), representing the user is predicted to select the corresponding suggestion above.",
-			  "type": "array",
-			  "minItems": 12,
-			  "maxItems": 12,
-			  "items": {
-			    "title": "Selection value",
-			    "description": "Whether the user will select the corresponding suggestion above.",
-			    "type": "string",
-			    "enum": [
-			      "Yes",
-			      "No"
-			    ]
-			  }
-			}
-		raise NotImplementedError(f'Unknown prediction type: {self.pred_type}')
+		}
+
+		if (self.pred_type, self.indexed) not in schemas:
+			raise NotImplementedError(f'Unknown prediction type: {self.pred_type} and indexed: {self.indexed}')
+
+		schema = schemas[self.pred_type, self.indexed]
+		return schema
 
 	def prepare(self, task_spec: JSONOBJ) -> None:
 		super().prepare(task_spec)
 
+		if self._set_strategy_schema:
+			strategy = self._my_config.pull('strategy', silent=True)
+			strategy.params['grammar'] = self.get_schema()
+
 		answers = task_spec['answer']
 		assert isinstance(answers, list), f'Answers must be a list, got {type(answers)}: {answers}'
-
 
 	def format_description(self, task_description: str) -> str:
 		schema = self.get_schema()
@@ -274,27 +356,40 @@ class VeniceJudge(JudgeBase):
 
 		elif self.format_type == 'jsonblock':
 			json_match = re.search(r'```json(.*?)```', response, re.DOTALL)
-			if json_match:
+			try:
 				json_str = json_match.group(1)
 				decision = json.loads(json_str)
-			else:
-				raise ValueError("No JSON found in response")
+			except:
+				# raise
+				return None, None
 
 		elif self.format_type == 'yamlblock':
 			import yaml
 			yaml_match = re.search(r'```yaml(.*?)```', response, re.DOTALL)
-			if yaml_match:
+			try:
 				yaml_str = yaml_match.group(1)
 				decision = yaml.safe_load(yaml_str)
-			else:
-				raise ValueError("No YAML found in response")
+			except:
+				# raise
+				return None, None
 
 		else:
 			raise NotImplementedError(f'Unknown format type: {self.format_type}')
+
+		if self.indexed:
+			inds = {int(k): v for k, v in decision.items()}
+			order = sorted(inds.keys())
+			decision = [inds[i] for i in order]
+
 		return decision, None
 
 
-	def judge(self, decision: List[str], answer: List[int], info: Optional[JSONOBJ] = None) -> Dict[str, float]:
+	def judge(self, decision: Union[List[str], List[float]],
+			  answer: List[int], info: Optional[JSONOBJ] = None) -> Optional[Dict[str, float]]:
+
+		if decision is None:
+			self._failures += 1
+			return None
 
 		if self.pred_type == '5point':
 			probs = np.array([self._scale_quant[dec] for dec in decision]).reshape(1, -1)
@@ -315,15 +410,16 @@ class VeniceJudge(JudgeBase):
 		scores['ndcg@12'] = ndcg_score(ground_truth, probs, k=12).item()
 		scores['ndcg@6'] = ndcg_score(ground_truth, probs, k=6).item()
 
+		self._successes += 1
 		return scores
 
 
 from ..evaluation.judging import ClientJudge, ClientStats, AbstractClient
 
-@fig.component('venice-client-judge')
-class VeniceClientJudge(VeniceJudge):
+@fig.component('2step-judge')
+class Venice2stepJudge(VeniceJudge):
 	def __init__(self, client: AbstractClient, **kwargs):
-		super().__init__(**kwargs)
+		super().__init__(set_strategy_schema=False, **kwargs)
 		self._client = client
 
 	def format_description(self, task_description: str) -> str:
@@ -331,7 +427,7 @@ class VeniceClientJudge(VeniceJudge):
 
 	@property
 	def name(self) -> str:
-		return f'{super().name}-{self._client.ident}'
+		return f'2step-{self.format_type}-{"0" if self.zero_based else ""}{"i" if self.indexed else ""}{self.pred_type}'
 
 	def prepare(self, task_spec: JSONOBJ) -> None:
 		super().prepare(task_spec)
