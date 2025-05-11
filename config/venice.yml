@@ -15,7 +15,7 @@ top-p: 0.95
 domain: travel
 
 #clues: [behavior]
-clues: [profile, responses, behavior]
+#clues: [profile, responses, behavior]
 
 format-type: json
 #format-type: jsonblock

@@ -32,6 +32,7 @@ class ProjectVenice(TaskBase):
 
 	@property
 	def name(self) -> str:
+		return f'{self.domain}-{"_".join(self.clues)}'
 		return f'venice-{self.domain}'
 
 	@property
@@ -87,7 +88,7 @@ class ProjectVenice(TaskBase):
 	def _user_context(self, keys: List[str], info: JSONOBJ) -> str:
 		lines = []
 
-		if 'profile' in keys:
+		if 'sources' in keys or 'profile' in keys:
 			if self.domain == 'news':
 				terms = info['frequency']
 			else:
@@ -102,15 +103,15 @@ class ProjectVenice(TaskBase):
 			terms = '- ' + '\n- '.join(types)
 			lines.append(f'The user listed the sources they use:\n{terms}')
 
-		if 'desc_sources' in keys or 'desc' in keys:
+		if 'desc_sources' in keys or 'habits' in keys or 'profile' in keys:
 			planning = {'travel': 'plan trips', 'food': 'plan meals', 'news': 'read news'}[self.domain]
 			lines.append(f'The user described how they {planning}:\n{info["desc_sources"]}')
 			if self.domain == 'news':
 				lines.append(f'The user described why they read the news:\n{info["reasons"]}')
-		if 'desc_selection' in keys or 'desc' in keys:
+		if 'desc_selection' in keys or 'habits' in keys or 'profile' in keys:
 			lines.append(f"The user described the selection process for {self._domain_product}s:\n{info['desc_selection']}")
 
-		if 'interest' in keys:
+		if 'interest' in keys or 'profile' in keys:
 			novelty = {'travel': 'new places', 'food': 'new meals', 'news': 'new articles'}[self.domain]
 			lines.append(f"When asked how much they value personalized recommendations "
 						 f"(5-point Likert scale): {info['personalized']}")
