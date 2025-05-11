@@ -1,4 +1,5 @@
 _base: [s/dp]
+project-name: venice
 seed: 1000000009
 #protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
 out-dir: local_data/
