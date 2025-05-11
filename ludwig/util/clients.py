@@ -493,7 +493,8 @@ class OpenaiAzure_Client(OpenaiClientBase):
 class Logged(ClientBase):
 	_default_request_log_root = repo_root().joinpath('requests')
 	def __init__(self, log_request: str = '{str(n).zfill(4)}_request', log_response: str = '{str(n).zfill(4)}_response',
-				 log_dir: str = '{"azure" if "azure" in client.__class__.__name__.lower() else "vllm"}'
+				 log_dir: str = '{"azure" if "azure" in client.__class__.__name__.lower() else '
+								'"vllm" if "vllm" in client.__class__.__name__.lower() else "openai"}'
 								'_{now.strftime("%y%m%d-%H%M%S")}', log_root: Path = _default_request_log_root,
 				 no_log: bool = False, **kwargs):
 		log_root = Path(log_root)

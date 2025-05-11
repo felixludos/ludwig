@@ -2,3 +2,5 @@ _base: [venice]
 
 strategy.template: "{question}\n\n{task_context}"
 judge._type: 1step-judge
+
+max-tokens: 512
