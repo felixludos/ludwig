@@ -384,6 +384,12 @@ class VeniceJudge(JudgeBase):
 			inds = {int(k): v for k, v in decision.items()}
 			order = sorted(inds.keys())
 			decision = [inds[i] for i in order]
+		elif isinstance(decision, dict): # some grammars require top-level to be an object
+			assert len(decision) == 1
+			decision = next(iter(decision.values()))
+
+		if len(decision) != 12:
+			return None, None
 
 		return decision, None
 

@@ -438,8 +438,26 @@ class Openai_Client(OpenaiClientBase):
 		return response.to_dict()['data']
 
 
-	@staticmethod
-	def _include_grammar(args: JSONOBJ):
+	def _clean_schema(self, schema: JSONABLE):
+		"""because openai's grammar is weaker than vllm's"""
+		if isinstance(schema, dict):
+			fixed = {}
+			for key, value in schema.items():
+				if key not in {'minimum', 'maximum', 'minItems', 'maxItems'}:
+					fixed[key] = self._clean_schema(value)
+			if fixed.get('type') == 'object':
+				if 'additionalProperties' in fixed and fixed['additionalProperties']:
+					raise ValueError(f'Not allowed: {fixed}')
+				fixed['additionalProperties'] = False
+				if 'required' not in fixed:
+					fixed['required'] = list(fixed.get('properties', []))
+			return fixed
+		if isinstance(schema, list):
+			return [self._clean_schema(item) for item in schema]
+		return schema
+
+
+	def _include_grammar(self, args: JSONOBJ):
 		if 'grammar' in args:
 			grammar = args['grammar']
 			if isinstance(grammar, str):
@@ -453,7 +471,10 @@ class Openai_Client(OpenaiClientBase):
 				grammar = grammars[grammar]
 			# TODO: check if grammar is valid
 			if isinstance(grammar, dict):
-				args['response_format'] = {'json_schema': {"name": "my_schema", "strict": True, "schema": grammar},
+				if grammar.get('type') != 'object':
+					grammar = {'type': 'object', 'properties': {'data': grammar}}
+				fixed = self._clean_schema(grammar)
+				args['response_format'] = {'json_schema': {"name": "my_schema", "strict": True, "schema": fixed},
 										   'type': 'json_schema'}
 			del args['grammar']
 

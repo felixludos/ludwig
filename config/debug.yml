@@ -15,8 +15,8 @@ seed: 1000000009
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
-_base: [1step, c/vllm]
-#_base: [1step, c/openai]
+#_base: [1step, c/vllm]
+_base: [1step, c/openai]
 
 #judge.template: judge-binary-nothink
 
@@ -27,14 +27,14 @@ use-wandb: no
 
 #resume: food_1step-json-prob_profile-responses-behavior_250511-133413
 
-limit: 4
+limit: 2
 #resume: food_1step-json-prob_update2_250511-211320
 
-domain: food
-clues: [profile, responses, behavior]
+domain: travel
+#clues: [profile, responses, behavior]
 clues: [update2]
 
-#zero-based: no
+#zero-based: yes
 #indexed: yes
 
 #out-dir: local_data/
