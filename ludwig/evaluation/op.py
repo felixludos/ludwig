@@ -9,7 +9,9 @@ except ImportError:
 	wandb = None
 
 
-def _view_score(score):
+def _view_score(score, fail_rate=None):
+	if fail_rate is not None:
+		return f'{_view_score(score)} ({fail_rate:.0%})'
 	if score is None:
 		return
 	if isinstance(score, float):
@@ -125,7 +127,7 @@ def eval_task(cfg: fig.Configuration):
 			print(sample['message'])
 			del sample['message']
 		if 'score' in sample and pbar:
-			score = _view_score(sample['score'])
+			score = _view_score(sample['score'], sample.get('fail_rate'))
 			itr.set_description(score)
 		elif 'pbar' in sample and pbar:
 			itr.set_description(sample['pbar'])
