@@ -103,7 +103,8 @@ class DefaultProtocol(ProtocolBase):
 			# self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
 			# 										judge=self.judge, now=self._now, seed=self._master_seed)
 			self._name = pformat(self._name_template, protocol=self, task=self.task, strategy=self.strategy,
-								 judge=self.judge, now=self._now, seed=self._master_seed)
+								 judge=self.judge, now=self._now, seed=self._master_seed,
+													 unique=hex(random.getrandbits(128))[2:])
 
 		if root is not None:
 			if path is None:

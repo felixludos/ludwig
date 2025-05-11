@@ -495,7 +495,7 @@ class Logged(ClientBase):
 	def __init__(self, log_request: str = '{str(n).zfill(4)}_request', log_response: str = '{str(n).zfill(4)}_response',
 				 log_dir: str = '{"azure" if "azure" in client.__class__.__name__.lower() else '
 								'"vllm" if "vllm" in client.__class__.__name__.lower() else "openai"}'
-								'_{now.strftime("%y%m%d-%H%M%S")}', log_root: Path = _default_request_log_root,
+								'_{now.strftime("%y%m%d-%H%M%S")}_{unique[:4]}', log_root: Path = _default_request_log_root,
 				 no_log: bool = False, **kwargs):
 		log_root = Path(log_root)
 		super().__init__(**kwargs)
@@ -513,10 +513,17 @@ class Logged(ClientBase):
 	def prepare(self) -> Self:
 		out = super().prepare()
 		if self._active:
-			self._log_dir = self._log_root / pformat(self._log_dir_fmt, client=self, now=datetime.now())
+			self._log_dir = self._log_root / pformat(self._log_dir_fmt, client=self, now=datetime.now(),
+													 unique=hex(random.getrandbits(32))[2:])
 			self._log_dir.mkdir(parents=False, exist_ok=False)
 			json.dump(self.json(), self._log_dir.joinpath('client.json').open('w'), indent=2)
 		return out
+
+	def json(self) -> JSONOBJ:
+		data = super().json()
+		if self._active:
+			data['log-dir'] = str(self._log_dir)
+		return data
 
 	def _log_request(self, payload: str):
 		n = self._num_requests
