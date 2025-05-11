@@ -3,6 +3,7 @@ project-name: venice
 seed: 1000000009
 #protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
 out-dir: local_data/
+log-samples: yes
 #limit: 2
 #max-tokens: 1024
 protocol.name: "{task.domain}_{judge.name}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}"

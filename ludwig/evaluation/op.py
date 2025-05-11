@@ -49,8 +49,8 @@ def eval_task(cfg: fig.Configuration):
 		out_root = Path(out_root)
 		out_root.mkdir(exist_ok=True)
 
-	log_samples = cfg.pull('log-samples', not use_wandb and out_root is not None)
 	log_table = cfg.pull('log-table', 4)
+	log_samples = cfg.pull('log-samples', (not use_wandb or log_table is not None) and out_root is not None)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 
