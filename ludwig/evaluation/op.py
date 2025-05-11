@@ -93,6 +93,8 @@ def eval_task(cfg: fig.Configuration):
 		print(desc)
 		print()
 	if out_dir is not None:
+		with out_dir.joinpath('protocol_settings.json').open('w') as f:
+			json.dump(protocol.json(), f)
 		print(f'Saving results to {out_dir}')
 		print()
 
