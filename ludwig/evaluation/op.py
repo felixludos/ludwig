@@ -42,7 +42,7 @@ def eval_task(cfg: fig.Configuration):
 	if use_wandb and wandb is None:
 		raise ValueError('You need to install `wandb` to use `wandb`')
 	if use_wandb:
-		pause_after = cfg.pull('pause-after', 10)
+		pause_after = cfg.pull('pause-after', None)
 
 	out_root = cfg.pull('out-dir', None)
 	if out_root is not None:
