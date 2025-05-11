@@ -1,2 +1,4 @@
 
-dataroot: /fast/fleeb/recoreact
+dataroot: /fast/fleeb/venice/recoreact
+
+out-dir: /fast/fleeb/venice/results
