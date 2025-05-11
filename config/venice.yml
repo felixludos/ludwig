@@ -24,7 +24,7 @@ format-type: json
 pred-type: prob
 #pred-type: binary
 
-indexed: yes
+indexed: no
 
 zero-based: no
 
