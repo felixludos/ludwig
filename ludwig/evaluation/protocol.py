@@ -5,7 +5,9 @@ from .imports import *
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
-				 seed: Optional[int] = None, name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
+				 seed: Optional[int] = None,
+				 # name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
+				 name: str = '{task.name}_{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
 				 include_gt_info: bool = False, limit: int = None, **kwargs):
 		if seed == 'sample': seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
@@ -19,7 +21,8 @@ class DefaultProtocol(ProtocolBase):
 		self._include_gt_info = include_gt_info
 		self._past_iterations = None
 		self._use_generate = None
-		self.aggregates = None
+		self.metrics = None
+		self._answer_type = None
 
 		self._task = task
 		self.strategy = strategy
@@ -42,8 +45,10 @@ class DefaultProtocol(ProtocolBase):
 		self._past_iterations = 0
 
 		if self._name is None:
-			self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
-													now=self._now, seed=self._master_seed)
+			# self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
+			# 										judge=self.judge, now=self._now, seed=self._master_seed)
+			self._name = pformat(self._name_template, protocol=self, task=self.task, strategy=self.strategy,
+								 judge=self.judge, now=self._now, seed=self._master_seed)
 
 	def remaining_iterations(self) -> range:
 		"""(optional) Returns the number of iterations remaining in this protocol"""
@@ -84,12 +89,15 @@ class DefaultProtocol(ProtocolBase):
 		if len(stats):
 			artifacts['stats'] = stats
 
-		self.aggregates = {
-			'correct': [],
-			'incorrect': [],
-			# 'scores': [],
-		}
+		self._answer_type = spec['answer']
+		if spec['answer'] == 'yes/no':
+			metrics = {'correct': [], 'incorrect': []}
+		elif isinstance(spec['answer'], list):
+			metrics = {key: [] for key in spec['answer']}
+		else:
+			raise ValueError(f'Unknown answer type: {spec["answer"]}')
 
+		self.metrics = metrics
 		return artifacts
 
 	def step(self, idx: int) -> JSONOBJ:
@@ -105,11 +113,10 @@ class DefaultProtocol(ProtocolBase):
 		info = self.task.side_information(problem)
 		if info is not None:
 			proc.update(info)
-
-		question = self.task.observe(problem, seed=self._master_seed)
-
 		if self._include_gt_info:
 			proc['problem'] = problem
+
+		question = self.task.observe(problem, seed=self._master_seed)
 
 		failed = False
 		with self.strategy.collect_stats() as stats:
@@ -121,29 +128,29 @@ class DefaultProtocol(ProtocolBase):
 				failed = True
 		if len(stats):
 			log.update(stats)
-		proc.update(steps)
+		if steps is not None:
+			proc.update(steps)
 		proc['response'] = response
 
 		if failed:
 			decision = None
-			correct = None
+			verdict = None
 		elif self.judge is None:
 			decision = response
-			correct = decision == answer
+			verdict = decision == answer
 		else:
 			with self.judge.collect_stats() as judge_stats:
 				decision, judgement = self.judge.interpret(question, response)
-				correct = self.judge.judge(decision, answer, judgement)
+				verdict = self.judge.judge(decision, answer, judgement)
 			if len(judge_stats):
 				log['judge'] = judge_stats
 			if judgement is not None:
 				proc.update(judgement)
 
-		if correct is not None:
-			self.aggregates['correct' if correct else 'incorrect'].append(idx)
+		score = self._aggregate_verdict(idx, verdict)
 		proc['decision'] = decision
 		proc['answer'] = answer
-		proc['correct'] = correct
+		proc['verdict'] = verdict
 
 		sample = {}
 		if len(log):
@@ -151,21 +158,38 @@ class DefaultProtocol(ProtocolBase):
 		if len(proc):
 			sample['table'] = proc
 
+		sample['score'] = score
 		self._past_iterations += 1
-		N_cor = len(self.aggregates['correct'])
-		N_inc = len(self.aggregates['incorrect'])
-		N = N_cor + N_inc
-		acc = N_cor / N if N > 0 else 0
-		sample['score'] = acc
 		return sample
+
+	def _aggregate_verdict(self, idx: int = None, verdict: JSONABLE = None):
+		if verdict is not None:
+			if self._answer_type == 'yes/no':
+				self.metrics['correct' if verdict else 'incorrect'].append(idx)
+				N_cor = len(self.metrics['correct'])
+				N_inc = len(self.metrics['incorrect'])
+				N = N_cor + N_inc
+				acc = N_cor / N if N > 0 else 0
+				return acc
+			elif isinstance(self._answer_type, list):
+				for key, val in verdict.items():
+					if val is not None:
+						self.metrics.setdefault(key, []).append(val)
+				return {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
+			else:
+				raise ValueError(f'Unknown answer type: {self._answer_type}')
 
 	def post_loop(self) -> Optional[JSONOBJ]:
 		"""Post-loop cleanup or finalization"""
-		return self.status()
+		data = self.status()
+		if 'metrics' in data:
+			data.update(data['means'])
+			del data['metrics'], data['means']
+		return data
 
 	def status(self) -> JSONOBJ:
 		info = {
-			'seed': self._master_seed,
+			# 'seed': self._master_seed,
 			# 'sample-seed': self._sample_seed,
 			'past_iterations': self._past_iterations,
 			'remaining_iterations': len(self.remaining_iterations()),
@@ -180,21 +204,33 @@ class DefaultProtocol(ProtocolBase):
 		if judge_status is not None:
 			info['judge'] = judge_status
 
-		N_cor = len(self.aggregates['correct'])
-		N_inc = len(self.aggregates['incorrect'])
-		N = N_cor + N_inc
-		acc = N_cor / N if N > 0 else 0
-		info.update({
-			'total': N,
-			'correct': N_cor,
-			'incorrect': N_inc,
-			'accuracy': acc,
-		})
+		if self._answer_type == 'yes/no':
+			N_cor = len(self.metrics['correct'])
+			N_inc = len(self.metrics['incorrect'])
+			N = N_cor + N_inc
+			acc = N_cor / N if N > 0 else 0
+			info.update({
+				'total': N,
+				'correct': N_cor,
+				'incorrect': N_inc,
+				'accuracy': acc,
+			})
+		elif isinstance(self._answer_type, list):
+			means = {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
+			metrics = {key: vals.copy() for key, vals in self.metrics.items() if len(vals)}
+			info.update({'means': means, 'metrics': metrics, })
+		else:
+			raise ValueError(f'Unknown answer type: {self._answer_type}')
 		return info
 
 	def summary(self) -> str:
-		data = flatten(self.status())
-		data['accuracy'] = f'{data["accuracy"]:.1%}'
+		data = self.status()
+		if 'metrics' in data:
+			data.update(data['means'])
+			del data['metrics'], data['means']
+		data = flatten(data)
+		if 'accuracy' in data:
+			data['accuracy'] = f'{data["accuracy"]:.1%}'
 		tbl = list(data.items())
 		return tabulate(tbl)
 
@@ -223,8 +259,8 @@ class DefaultProtocol(ProtocolBase):
 			raise FileExistsError(f'checkpoint directory already exists: {path}')
 		assert path.is_dir(), f'path must be a directory: {path}'
 
-		task_path = self.task.checkpoint(path / 'task').relative_to(path)
-		strat_path = self.strategy.checkpoint(path / 'strategy').relative_to(path)
+		task_path = self.task.checkpoint(path.joinpath('task')).relative_to(path)
+		strat_path = self.strategy.checkpoint(path.joinpath('strategy')).relative_to(path)
 
 		data = self._checkpoint_data(str(task_path), str(strat_path))
 		with path.joinpath('protocol.json').open('w') as f:

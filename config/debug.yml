@@ -15,53 +15,46 @@ seed: 1000000009
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
-_base: [s/dp, j/client, c/vllm]
+_base: [venice, c/vllm]
 
 #judge.template: judge-binary-nothink
-#judge.style: boxed
-judge._type: json-judge
 
-task:
-  _type: venice
-  domain: travel
-  dataroot: C:\Users\anwan\OneDrive\Khan\research\recoreact\data
-
-  template: recs5
-
-  clues: [behavior]
-
+#protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
+protocol.name: "{task.domain}_{judge.format_type}_{judge.pred_type}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}"
 
 use-wandb: no
 
-out-dir: local_data/
+#out-dir: local_data/
 
 addr: http://wagner.is.localnet:8000
 #client.addr: 8001
 #judge.addr: 8000
 
 #template: "{task_context}\n\n{question}\n/nothink"
-strategy.template: "{question}"
+#strategy.template: "{question}"
 
-client._mod.logged: yes
+#client._mod.logged: yes
 
 #max-tokens: 1024
-#max-tokens: 4096 # needed for qwen3-8b due to reasoning
-max-tokens: 1024
+max-tokens: 4096 # needed for qwen3-8b due to reasoning
+#max-tokens: 1024
 
-temperature: 0.6
-top-p: 0.95
+#temperature: 0.6
+#top-p: 0.95
 
-strategy.params.grammar: <>schema
+limit: 2
 
-schema:
-  title: "User Selection Likelihoods (Ordered List)"
-  description: "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above."
-  type: "array"
-  minItems: 12
-  maxItems: 12
-  items:
-    title: "Likelihood Value"
-    description: "The likelihood from a 5-point Likert scale."
-    type: "string"
-    enum: ["Very unlikely", "Somewhat unlikely", "Neutral", "Somewhat likely", "Very likely"]
+#strategy.params.grammar: <>schema
+
+#schema:
+#  title: "User Selection Likelihoods (Ordered List)"
+#  description: "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above."
+#  type: "array"
+#  minItems: 12
+#  maxItems: 12
+#  items:
+#    title: "Likelihood Value"
+#    description: "The likelihood from a 5-point Likert scale."
+#    type: "string"
+#    enum: ["Very unlikely", "Somewhat unlikely", "Neutral", "Somewhat likely", "Very likely"]
 

@@ -4,8 +4,10 @@ judge:
   _type: client-judge
 
   client:
-    _type: vllm
+    _type: <>jclient_type
     max-tokens: 4
     temperature: 0
 
   template: judge-binary
+
+jclient_type: <>client._type

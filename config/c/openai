@@ -1,0 +1,5 @@
+
+_base: [secrets/openai]
+
+client._type: openai
+client._mod.logged: yes

@@ -3,21 +3,28 @@ from ..base import TaskBase, JudgeBase
 from ..imports import *
 from ..util import PromptTemplate
 
+import numpy as np
+from sklearn.metrics import roc_auc_score, ndcg_score, label_ranking_average_precision_score, precision_recall_curve, f1_score
+
+
 
 @fig.component('venice')
 class ProjectVenice(TaskBase):
-	def __init__(self, clues: List[str], *, domain: str, dataroot: str, template: str = 'recs5',
-				 schema: JSONOBJ = None, **kwargs):
+	def __init__(self, clues: List[str], *, domain: str, dataroot: str, template: str = 'bounds',
+				 schema: JSONOBJ = None, zero_based: bool = False, **kwargs):
 		if not isinstance(template, PromptTemplate):
 			template = PromptTemplate(template)
 		assert domain in ['travel', 'food', 'news'], f'{domain} is not a valid domain'
 		dataroot = Path(dataroot)
+		if not dataroot.exists() and str(dataroot).startswith('C:'):
+			dataroot = Path(f'/mnt/c{dataroot.as_posix()[2:]}'.replace('\\', '/'))
 		if not dataroot.exists():
 			raise FileNotFoundError(f"{dataroot} does not exist")
 		super().__init__(**kwargs)
 		self.clues = clues
 		self.schema = json.dumps(schema, indent=2) if schema is not None else None
 		self.template = template
+		self.zero_based = zero_based
 		self._domain_product = {'food': 'meal', 'travel': 'travel destination', 'news': 'article'}[domain]
 		self.dataroot = dataroot
 		self.domain = domain
@@ -38,12 +45,13 @@ class ProjectVenice(TaskBase):
 		return f"Which {self._domain_product}s would the user like to see most?"
 
 	def specification(self) -> JSONOBJ:
-		return {'answer': 'yes/no'}
+		return {'answer': ['ndcg@k', 'ndcg@12', 'ndcg@6', 'map', 'auc', 'p', 'r', 'f1'],}
 
 	def json(self) -> JSONOBJ:
 		return {
 			'clues': self.clues,
 			'domain': self.domain,
+			'zero_based': self.zero_based,
 			'dataroot': str(self.dataroot),
 			'template': self.template.code,
 			**super().json()
@@ -71,7 +79,7 @@ class ProjectVenice(TaskBase):
 
 	def _view_products(self, pids, numbered=False):
 		products = [self.products[pid] for pid in pids]
-		terms = '\n'.join([(f'{i+1}. ' if numbered else '- ')
+		terms = '\n'.join([(f'{i+int(not self.zero_based)}. ' if numbered else '- ')
 						   + f'**{p["title"]}**: {p["description"]}' for i, p in enumerate(products)])
 		return terms
 
@@ -134,7 +142,6 @@ class ProjectVenice(TaskBase):
 
 		return '\n\n'.join(lines)
 
-
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[int, List[str]]:
 		imp = self.impressions[index]
 		candidates = eval(imp['candidates3'])
@@ -147,12 +154,12 @@ class ProjectVenice(TaskBase):
 		return {'iid': imp['iid'], 'domain': self.domain,
 				'options': eval(imp['candidates3']), 'selected': eval(imp['selected3'])}
 
-
 	def observe(self, problem: int, *, seed: int = None) -> str:
 		imp = self.impressions[problem]
 
 		question = self.template.fill(
 			schema=self.schema,
+			json_schema=json.dumps(self.schema, indent=2),
 			context=self._user_context(self.clues, imp),
 			options=self._view_products(eval(imp['candidates3']), numbered=True),
 			product=self._domain_product,
@@ -162,22 +169,208 @@ class ProjectVenice(TaskBase):
 
 
 
-@fig.component('json-judge')
-class JsonJudge(JudgeBase):
+@fig.component('venice-judge')
+class VeniceJudge(JudgeBase):
+	def __init__(self, format_type: str = 'json', *, pred_type: Optional[JSONABLE] = 'prob', beta: float = 1, **kwargs):
+		assert 0 < beta, 'Beta must be greater than 0'
+		assert format_type in ['json', 'jsonblock', 'yamlblock'], f'Unknown format type: {format_type}'
+		assert pred_type in ['5point', 'prob', 'binary'], f'Unknown prediction type: {pred_type}'
+		super().__init__(**kwargs)
+		import math
+		probs = [1 / (1 + math.exp(-beta * i)) for i in range(-2, 3)]
+		scales = ["Very unlikely", "Somewhat unlikely", "Neutral", "Somewhat likely", "Very likely"]
+		self._scale_quant = dict(zip(scales, probs))
+		self.format_type = format_type
+		self.pred_type = pred_type
+		self.beta = beta
+		self._template = PromptTemplate(f'judges/{format_type}')
+
 	@property
 	def name(self) -> str:
-		return 'json-judge'
+		return f'judge-{self.format_type}-{self.pred_type}'
 
-	def interpret(self, question: str, response: str) -> Tuple[List[str], Optional[JSONOBJ]]:
+	def json(self) -> JSONOBJ:
+		return {
+			'format': self.format_type,
+			'beta': self.beta,
+			'pred': self.pred_type,
+			**super().json()
+		}
 
-		decision = json.loads(response)
+	def get_schema(self):
+		if self.pred_type == '5point':
+			return {
+  "title": "User Selection Likelihoods (Ordered List)",
+  "description": "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above.",
+  "type": "array",
+  "minItems": 12,
+  "maxItems": 12,
+  "items": {
+    "title": "Likelihood Value",
+    "description": "The likelihood from a 5-point Likert scale.",
+    "type": "string",
+    "enum": [
+      "Very unlikely",
+      "Somewhat unlikely",
+      "Neutral",
+      "Somewhat likely",
+      "Very likely"
+    ]
+  }
+}
+		elif self.pred_type == 'prob':
+			return {
+			  "title": "User Selection Likelihoods (Ordered List)",
+			  "description": "A list of exactly 12 floats, each representing the likelihood a user will select the corresponding suggestion above.",
+			  "type": "array",
+			  "minItems": 12,
+			  "maxItems": 12,
+			  "items": {
+			    "title": "Likelihood Value",
+			    "description": "The likelihood the user will select the corresponding suggestion above.",
+			    "type": "number",
+			    "minimum": 0,
+			    "maximum": 1
+			  }
+			}
+		elif self.pred_type == 'binary':
+			return {
+			  "title": "User Selection Likelihoods (Ordered List)",
+			  "description": "A list of exactly 12 strings (\"yes\" or \"no\"), representing the user is predicted to select the corresponding suggestion above.",
+			  "type": "array",
+			  "minItems": 12,
+			  "maxItems": 12,
+			  "items": {
+			    "title": "Selection value",
+			    "description": "Whether the user will select the corresponding suggestion above.",
+			    "type": "string",
+			    "enum": [
+			      "Yes",
+			      "No"
+			    ]
+			  }
+			}
+		raise NotImplementedError(f'Unknown prediction type: {self.pred_type}')
 
+	def prepare(self, task_spec: JSONOBJ) -> None:
+		super().prepare(task_spec)
+
+		answers = task_spec['answer']
+		assert isinstance(answers, list), f'Answers must be a list, got {type(answers)}: {answers}'
+
+
+	def format_description(self, task_description: str) -> str:
+		schema = self.get_schema()
+		desc = self._template.fill(
+			task_context = task_description,
+			schema = self.get_schema(),
+			json_schema=json.dumps(schema, indent=2) if schema is not None else None,
+		)
+		return desc
+
+	def interpret(self, question: str, response: str) -> Tuple[List[str], None]:
+		if self.format_type == 'json':
+			decision = json.loads(response)
+
+		elif self.format_type == 'jsonblock':
+			json_match = re.search(r'```json(.*?)```', response, re.DOTALL)
+			if json_match:
+				json_str = json_match.group(1)
+				decision = json.loads(json_str)
+			else:
+				raise ValueError("No JSON found in response")
+
+		elif self.format_type == 'yamlblock':
+			import yaml
+			yaml_match = re.search(r'```yaml(.*?)```', response, re.DOTALL)
+			if yaml_match:
+				yaml_str = yaml_match.group(1)
+				decision = yaml.safe_load(yaml_str)
+			else:
+				raise ValueError("No YAML found in response")
+
+		else:
+			raise NotImplementedError(f'Unknown format type: {self.format_type}')
 		return decision, None
 
 
+	def judge(self, decision: List[str], answer: List[int], info: Optional[JSONOBJ] = None) -> Dict[str, float]:
+
+		if self.pred_type == '5point':
+			probs = np.array([self._scale_quant[dec] for dec in decision]).reshape(1, -1)
+		elif self.pred_type == 'prob':
+			probs = np.array([float(dec) for dec in decision]).reshape(1, -1)
+		elif self.pred_type == 'binary':
+			probs = np.array([1 if dec.lower() == 'yes' else 0 for dec in decision]).reshape(1, -1)
+		else:
+			raise NotImplementedError(f'Unknown prediction type: {self.pred_type}')
+
+		ground_truth = np.array([i in answer for i in range(len(decision))]).reshape(1, -1)
+
+		scores = {}
+
+		scores['map'] = label_ranking_average_precision_score(ground_truth, probs).item()
+		scores['auc'] = roc_auc_score(ground_truth.astype(int).reshape(-1), probs.reshape(-1)).item()
+		scores['ndcg@k'] = ndcg_score(ground_truth, probs, k=len(answer)).item()
+		scores['ndcg@12'] = ndcg_score(ground_truth, probs, k=12).item()
+		scores['ndcg@6'] = ndcg_score(ground_truth, probs, k=6).item()
+
+		return scores
 
 
+from ..evaluation.judging import ClientJudge, ClientStats, AbstractClient
 
+@fig.component('venice-client-judge')
+class VeniceClientJudge(VeniceJudge):
+	def __init__(self, client: AbstractClient, **kwargs):
+		super().__init__(**kwargs)
+		self._client = client
 
+	def format_description(self, task_description: str) -> str:
+		return task_description
 
+	@property
+	def name(self) -> str:
+		return f'{super().name}-{self._client.ident}'
+
+	def prepare(self, task_spec: JSONOBJ) -> None:
+		super().prepare(task_spec)
+		if not self._client.ping():
+			raise ValueError(f'Judge client {self._client.ident} is not ready to use.')
+		self._client.prepare()
+
+	def json(self) -> JSONOBJ:
+		return {'client': self._client.json(), **super().json()}
+
+	def collect_stats(self, include_start: bool = False, **kwargs) -> ClientStats:
+		return ClientStats(self._client, include_start=include_start, **kwargs)
+
+	def status(self) -> JSONOBJ:
+		return {
+			'client': self._client.stats(),
+			**super().status(),
+		}
+
+	def interpret(self, question: str, response: str) -> Tuple[JSONABLE, Optional[JSONOBJ]]:
+
+		schema = self.get_schema()
+
+		prompt = self._template.fill(
+			schema = schema,
+			json_schema=json.dumps(schema, indent=2) if schema is not None else None,
+		)
+		chat = [
+			{'role': 'user', 'content': question},
+			{'role': 'assistant', 'content': response},
+			{'role': 'user', 'content': prompt},
+		]
+
+		resp = self._client.send(self._client.wrap_chat(chat,
+						grammar=None if self.format_type.endswith('block') else schema))
+
+		formatted_response = self._client.extract_response(resp)
+
+		decicion, info = super().interpret(question, formatted_response)
+
+		return decicion, info
 

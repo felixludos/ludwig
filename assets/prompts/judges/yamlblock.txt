@@ -1,0 +1,4 @@
+Answer only as a YAML {"sequence" if schema["type"] == "array" else schema["type"]} wrapped in a code block ("```yaml`"), with the following schema:
+```json
+{json_schema}
+```

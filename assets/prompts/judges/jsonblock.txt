@@ -1,0 +1,4 @@
+Answer only as a JSON {schema["type"]} wrapped in a code block ("```json`"), with the following schema:
+```json
+{json_schema}
+```

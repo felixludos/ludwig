@@ -1,0 +1,4 @@
+Answer only with a JSON {schema["type"]} with the following schema:
+```json
+{json_schema}
+```

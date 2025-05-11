@@ -1,0 +1,36 @@
+_base: [s/dp]
+seed: 1000000009
+#protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
+out-dir: local_data/
+strategy.template: "{question}\n\n{task_context}"
+#limit: 2
+#max-tokens: 1024
+##################################
+
+temperature: 0.6
+top-p: 0.95
+
+domain: travel
+
+clues: [behavior]
+
+format-type: json
+#format-type: yamlblock
+
+#pred-type: 5point
+pred-type: prob
+
+
+##################################
+use-wandb: no
+
+task:
+  _type: venice
+  dataroot: C:\Users\anwan\OneDrive\Khan\research\recoreact\data
+
+  template: venice/bounds
+
+#judge._type: venice-judge
+judge._type: venice-client-judge
+judge.client._type: <>jclient_type
+jclient_type: <>client._type

@@ -9,6 +9,15 @@ except ImportError:
 	wandb = None
 
 
+def _view_score(score):
+	if score is None:
+		return
+	if isinstance(score, float):
+		return f'{score:.2f}'
+	elif isinstance(score, dict): # TODO flatten first
+		return ', '.join([f'{k}={_view_score(v)}' for k, v in score.items()])
+	raise ValueError('score must be float or dict')
+
 @fig.script('eval', description='Evaluate a `task` on a `strategy` (i.e. model)')
 def eval_task(cfg: fig.Configuration):
 	"""
@@ -39,6 +48,7 @@ def eval_task(cfg: fig.Configuration):
 		out_root.mkdir(exist_ok=True)
 
 	log_samples = cfg.pull('log-samples', not use_wandb and out_root is not None)
+	log_table = cfg.pull('log-table', 4)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 
@@ -62,7 +72,11 @@ def eval_task(cfg: fig.Configuration):
 	wandb_run = None
 	check_confirmation = None
 	if use_wandb:
-		wandb_run = wandb.init(project=protocol.task.name, config=protocol.json(), dir=out_dir)
+		wandb_dir = out_dir.absolute()
+		import os
+		# os.environ["WANDB_DIR"] = str(wandb_dir)
+		print(wandb_dir)
+		wandb_run = wandb.init(project=protocol.task.name, config=protocol.json(), dir=wandb_dir)
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
@@ -110,17 +124,16 @@ def eval_task(cfg: fig.Configuration):
 			print()
 			print(sample['message'])
 			del sample['message']
-		if 'pbar' in sample:
-			assert pbar
+		if 'score' in sample and pbar:
+			score = _view_score(sample['score'])
+			itr.set_description(score)
+		elif 'pbar' in sample and pbar:
 			itr.set_description(sample['pbar'])
 			del sample['pbar']
-		elif 'score' in sample:
-			assert pbar
-			itr.set_description(f'{sample["score"]:.1%}')
 		if wandb_run is not None and (pause_after is None or i <= pause_after):
 			# if 'log' in sample:
 			# 	wandb_run.log(flatten(sample['log']))
-			if 'table' in sample:
+			if 'table' in sample and (log_table is None or (i < log_table)):
 				# columns = shutil.get_terminal_size(fallback=(60, 20)).columns
 				# tbl = {key: wrap_text(val, max(columns, 60)) for key, val in flatten(sample['table']).items()}
 				tbl = {key: str(val) for key, val in flatten(sample['table']).items()}
@@ -129,7 +142,10 @@ def eval_task(cfg: fig.Configuration):
 					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
 				if isinstance(tbl, pd.DataFrame):
 					tbl = wandb.Table(dataframe=tbl)
-				wandb_run.log({f'table{i}': tbl})
+				wandb_run.log({f'table{i}': tbl}, step=i)
+			if 'score' in sample:
+				scores = {'score': sample['score']} if isinstance(sample['score'], (int,float)) else sample['score']
+				wandb_run.log({f'live-{key}': val for key, val in flatten(scores).items()}, step=i)
 		if sample_logger is not None:
 			sample_logger.write(json.dumps(sample) + '\n')
 			sample_logger.flush()

@@ -72,7 +72,8 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		"""
 		Fill the template with the given keyword arguments.
 		"""
-		return self._template_data.format(**kwargs)
+		# return self._template_data.format(**kwargs)
+		return pformat(self._template_data, kwargs)
 
 
 

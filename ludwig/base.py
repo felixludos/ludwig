@@ -37,7 +37,7 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 	def format_description(self, task_description: str) -> str:
 		return task_description
 
-	def judge(self, decision: JSONABLE, answer: JSONABLE, info: Optional[JSONOBJ] = None) -> bool:
+	def judge(self, decision: JSONABLE, answer: JSONABLE, info: Optional[JSONOBJ] = None) -> JSONABLE:
 		return decision == answer
 
 	def json(self) -> JSONOBJ:
