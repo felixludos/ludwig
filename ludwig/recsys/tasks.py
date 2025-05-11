@@ -88,8 +88,11 @@ class ProjectVenice(TaskBase):
 		lines = []
 
 		if 'profile' in keys:
-			picks = eval(info['frequency' if self.domain == 'news' else 'companions'])
-			terms = '- ' + '\n- '.join(picks)
+			if self.domain == 'news':
+				terms = info['frequency']
+			else:
+				picks =  eval(info['companions'])
+				terms = '- ' + '\n- '.join(picks)
 			companions = {'travel': 'who they like to travel with',
 						  'food': 'who they like to eat or cook with',
 						  'news': 'how often they read the news'}[self.domain]
