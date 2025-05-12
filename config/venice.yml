@@ -6,7 +6,7 @@ out-dir: local_data/
 log-samples: yes
 #limit: 2
 #max-tokens: 1024
-protocol.name: "{task.domain}_{judge.name}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4}"
+protocol.name: "{task.domain}_{judge.name}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4]}"
 ##################################
 
 temperature: 0.6
