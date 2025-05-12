@@ -32,7 +32,7 @@ class ProjectVenice(TaskBase):
 
 	@property
 	def name(self) -> str:
-		return f'{self.domain}-{"_".join(self.clues)}'
+		return f'{self.domain}-{self.clues if isinstance(self.clues, str) else "_".join(self.clues)}'
 		return f'venice-{self.domain}'
 
 	@property
