@@ -70,8 +70,7 @@ def eval_task(cfg: fig.Configuration):
 		wandb_dir = out_dir.absolute()
 		wandb_config = protocol.json()
 		project_name = cfg.pull('project-name', '{task.name}')
-		project_name = pformat(project_name, protocol=protocol, task=protocol.task,
-							   config=wandb_config)
+		project_name = pformat(project_name, protocol=protocol, task=protocol.task, config=wandb_config)
 		wandb_run = wandb.init(project=project_name, name=protocol.name, config=wandb_config, dir=wandb_dir)
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:

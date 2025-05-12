@@ -88,6 +88,9 @@ class ProjectVenice(TaskBase):
 	def _user_context(self, keys: List[str], info: JSONOBJ) -> str:
 		lines = []
 
+		if keys == 'empty':
+			return '[No user information currently available]'
+
 		if 'sources' in keys or 'profile' in keys:
 			if self.domain == 'news':
 				terms = info['frequency']
