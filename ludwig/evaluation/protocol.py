@@ -236,6 +236,7 @@ class DefaultProtocol(ProtocolBase):
 			self._past_failures += 1
 		self._past_iterations += 1
 		sample['fail_rate'] = self._past_failures / self._past_iterations
+		log['fail_rate'] = sample['fail_rate']
 		return sample
 
 	def _aggregate_verdict(self, idx: int = None, verdict: JSONABLE = None):

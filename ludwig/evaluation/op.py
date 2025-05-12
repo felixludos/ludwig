@@ -146,6 +146,8 @@ def eval_task(cfg: fig.Configuration):
 			if 'score' in sample:
 				scores = {'score': sample['score']} if isinstance(sample['score'], (int,float)) else sample['score']
 				wandb_run.log({f'live-{key}': val for key, val in flatten(scores).items()}, step=i)
+			if 'log' in sample:
+				wandb_run.log(flatten(sample['log']), step=i)
 		if sample_logger is not None:
 			sample_logger.write(json.dumps(sample) + '\n')
 			sample_logger.flush()
