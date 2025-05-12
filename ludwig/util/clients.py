@@ -514,7 +514,7 @@ class Logged(ClientBase):
 		out = super().prepare()
 		if self._active:
 			self._log_dir = self._log_root / pformat(self._log_dir_fmt, client=self, now=datetime.now(),
-													 unique=hex(random.getrandbits(32))[2:])
+													 unique=urandom(16).hex())
 			self._log_dir.mkdir(parents=False, exist_ok=False)
 			json.dump(self.json(), self._log_dir.joinpath('client.json').open('w'), indent=2)
 		return out

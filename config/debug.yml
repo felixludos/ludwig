@@ -23,7 +23,9 @@ _base: [1step, c/vllm]
 #protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
 #protocol.name: "{task.domain}_{judge.format_type}_{judge.pred_type}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}"
 
-use-wandb: yes
+use-wandb: no
+protocol.name: "debug_{task.domain}_{judge.name}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4]}"
+
 
 #resume: food_1step-json-prob_profile-responses-behavior_250511-133413
 

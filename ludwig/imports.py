@@ -5,6 +5,7 @@ from omnibelt import where_am_i, pformat, colorize
 import random
 import json
 import time
+from os import urandom
 import traceback
 import re
 import textwrap
