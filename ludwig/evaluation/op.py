@@ -156,7 +156,7 @@ def eval_task(cfg: fig.Configuration):
 					log_fails -= 1
 					if log_fails <= 0:
 						log_fails = None
-			if 'score' in sample:
+			if 'score' in sample and sample['score'] is not None:
 				scores = {'score': sample['score']} if isinstance(sample['score'], (int,float)) else sample['score']
 				wandb_run.log({f'live-{key}': val for key, val in flatten(scores).items()}, step=i)
 			if 'log' in sample:
