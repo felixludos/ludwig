@@ -15,22 +15,22 @@ seed: 1000000009
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
-#_base: [1step, c/vllm]
-_base: [1step, c/openai]
+_base: [1step, c/vllm]
+#_base: [1step, c/openai]
 
 #judge.template: judge-binary-nothink
 
 #protocol.name: "{task.domain}-{judge.format_type}-{judge.pred_type}-{'_'.join(task.clues)}"
 #protocol.name: "{task.domain}_{judge.format_type}_{judge.pred_type}_{'-'.join(task.clues)}_{now.strftime('%y%m%d-%H%M%S')}"
 
-use-wandb: no
+use-wandb: yes
 
 #resume: food_1step-json-prob_profile-responses-behavior_250511-133413
 
 limit: 2
 #resume: food_1step-json-prob_update2_250511-211320
 
-domain: travel
+domain: news
 #clues: [profile, responses, behavior]
 clues: [update2]
 
