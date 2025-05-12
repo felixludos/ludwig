@@ -50,6 +50,7 @@ def eval_task(cfg: fig.Configuration):
 		out_root.mkdir(exist_ok=True)
 
 	log_table = cfg.pull('log-table', 4)
+	log_fails = cfg.pull('log-fails', 10)
 	log_samples = cfg.pull('log-samples', (not use_wandb or log_table is not None) and out_root is not None)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
@@ -143,6 +144,18 @@ def eval_task(cfg: fig.Configuration):
 				if isinstance(tbl, pd.DataFrame):
 					tbl = wandb.Table(dataframe=tbl)
 				wandb_run.log({f'table{i}': tbl}, step=i)
+			elif 'table' in sample and log_fails and sample.get('failed'):
+				tbl = {key: str(val) for key, val in flatten(sample['table']).items()}
+				if isinstance(tbl, dict):
+					# convert dict[str,str] to dataframe
+					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
+				if isinstance(tbl, pd.DataFrame):
+					tbl = wandb.Table(dataframe=tbl)
+				wandb_run.log({f'fail{i}': tbl}, step=i)
+				if isinstance(log_fails, int):
+					log_fails -= 1
+					if log_fails <= 0:
+						log_fails = None
 			if 'score' in sample:
 				scores = {'score': sample['score']} if isinstance(sample['score'], (int,float)) else sample['score']
 				wandb_run.log({f'live-{key}': val for key, val in flatten(scores).items()}, step=i)

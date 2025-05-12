@@ -359,7 +359,11 @@ class VeniceJudge(JudgeBase):
 
 	def interpret(self, question: str, response: str) -> Tuple[List[str], None]:
 		if self.format_type == 'json':
-			decision = json.loads(response)
+			try:
+				decision = json.loads(response)
+			except json.JSONDecodeError:
+				print(f'Failed to parse JSON: {response}')
+				return None, None
 
 		elif self.format_type == 'jsonblock':
 			json_match = re.search(r'```json(.*?)```', response, re.DOTALL)
