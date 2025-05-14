@@ -38,13 +38,13 @@ max-tokens: 1024 # needed for qwen3-8b due to reasoning
 
 
 ##################
+
 _base: [venice-sent, c/vllm]
 
 
-
 #############################
-
-##_base: [1step, c/vllm]
+#
+#_base: [1step, c/vllm]
 ##_base: [1step, c/openai]
 ##judge.template: judge-binary-nothink
 #
