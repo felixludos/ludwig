@@ -6,7 +6,7 @@ out-dir: local_data/
 log-samples: yes
 #limit: 2
 #max-tokens: 1024
-protocol.name: "{judge.schema.code[:4]}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4]}"
+protocol.name: "p{strategy.template.code[:4]}_s{judge.schema.code[:4]}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4]}"
 ##################################
 
 temperature: 0.6
