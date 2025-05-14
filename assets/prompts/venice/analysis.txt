@@ -41,6 +41,8 @@ If you include `"Other"` as one of the `intentions`, also describe the intention
 
 Describes the **overall sentiment** of the sentence. Note that polarity is overall sentiment; attribute-level polarity may differ.
 
+**Allowed values**:
+
 | Value      | Description                                | Example                                              |
 | ---------- | ------------------------------------------ | ---------------------------------------------------- |
 | `Positive` | Liking, satisfaction, or acceptance        | "I love these suggestions."                          |
@@ -53,6 +55,8 @@ Describes the **overall sentiment** of the sentence. Note that polarity is overa
 ### `epistemic_modality` (string)
 
 Reflects the **degree of certainty** or commitment to the information provided.
+
+**Allowed values**:
 
 | Value         | Description                              | Example                                      |
 | ------------- | ---------------------------------------- | -------------------------------------------- |
@@ -67,6 +71,8 @@ Reflects the **degree of certainty** or commitment to the information provided.
 
 The **grammatical structure** of the sentence.
 
+**Allowed values**:
+
 | Value           | Description                       | Example                                |
 | --------------- | --------------------------------- | -------------------------------------- |
 | `Declarative`   | Statement or description          | "I want beef and broccoli stir-fry."   |
@@ -80,6 +86,8 @@ The **grammatical structure** of the sentence.
 ### `clause_types` (array of strings)
 
 Describes **logical relationships** between clauses in the sentence.
+
+**Allowed values**:
 
 | Clause Type  | Description                    | Example                                                |
 | ------------ | ------------------------------ | ------------------------------------------------------ |
@@ -193,6 +201,8 @@ For each **attribute** the user mentions, provide:
 
 * The sentiment associated with the attribute value.
 
+**Allowed values**:
+
 | Value    | Description                                | Example                 |
 | -------- | ------------------------------------------ | ----------------------- |
 | `Positive` | Liking it (positive)                      | `"I love Italian food"` |
@@ -202,6 +212,8 @@ For each **attribute** the user mentions, provide:
 #### `preference_type` (string)
 
 * Classifies how the attribute is expressed.
+
+**Allowed values**:
 
 | Value                  | Description                                  | Example                 |
 | ---------------------- | -------------------------------------------- | ----------------------- |
@@ -213,6 +225,8 @@ For each **attribute** the user mentions, provide:
 #### `attribute_type` (string)
 
 * The kind of constraint expressed, if applicable.
+
+**Allowed values**:
 
 | Value                  | Description                                  | Example                 |
 | ---------------------- | -------------------------------------------- | ----------------------- |
@@ -234,6 +248,8 @@ If you choose `"Other"` as the `attribute_type`, also provide a better fit in th
 
 * How strongly the user expresses this preference or constraint - i.e. the strength of expression
 
+**Allowed values**:
+
 | Value      | Description                                | Example                 |
 | ---------- | ------------------------------------------ | ----------------------- |
 | `Low`      | Weakly expressed                           | `"I might like something spicy"` |
@@ -244,6 +260,8 @@ If you choose `"Other"` as the `attribute_type`, also provide a better fit in th
 
 * How important this attribute is to the user - i.e. importance of the attribute in context
 
+**Allowed values**:
+
 | Value      | Description                                | Example                 |
 | ---------- | ------------------------------------------ | ----------------------- |
 | `Low`      | Not very important                         | `"It could be entertaining"` |
@@ -253,6 +271,8 @@ If you choose `"Other"` as the `attribute_type`, also provide a better fit in th
 #### `inclusivity` (string)
 
 * Whether the user is expanding or narrowing the set of acceptable options.
+
+**Allowed values**:
 
 | Value      | Description                                  | Example                 |
 | ---------- | -------------------------------------------- | ----------------------- |
@@ -288,11 +308,13 @@ If you choose `"Other"` as the `attribute_type`, also provide a better fit in th
 
 The sentence discusses the recommended items or their attributes - this includes preferences for content (e.g., article topics), food properties (e.g., spicy, healthy), travel features (e.g., beachside), etc.
 
-**Features:**
+**Features**:
 * Mentions of item types ("articles", "meals", "destinations")
 * Specific attribute values ("spicy", "vegan", "romantic setting")
 * Comparisons between item alternatives
 * Constraints on item features (e.g., "no seafood")
+
+**Allowed values**:
 
 | Value | Meaning  | Example |
 | ----- | -------- | ------- |
@@ -305,10 +327,12 @@ The sentence discusses the recommended items or their attributes - this includes
 
 The sentence provides information about the user’s situation, goals, preferences, or personal context - which helps the assistant personalize recommendations.
 
-**Features:**
+**Features**:
 * Statements about goals ("I'm meal prepping", "for a family trip")
 * Mentions of constraints from user lifestyle, budget, health
 * User state or cognitive stance ("I don’t know", "I’m open to suggestions")
+
+**Allowed values**:
 
 | Value | Meaning  | Example |
 | ----- | -------- | ------- |
@@ -321,11 +345,13 @@ The sentence provides information about the user’s situation, goals, preferenc
 
 The sentence evaluates, critiques, refers to, or commands the recommendation assistant or the system - either its previous outputs or its behavior.
 
-**Features:**
+**Features**:
 * Feedback about relevance, quality, or coverage of suggestions
 * References to the assistant's misunderstanding or misinterpretation
 * Meta-comments about how the system functions ("you didn’t use my last input")
 * Explicit system control ("don’t show me that again")
+
+**Allowed values**:
 
 | Value | Meaning  | Example |
 | ----- | -------- | ------- |
