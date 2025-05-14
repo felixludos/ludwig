@@ -161,11 +161,13 @@ class DefaultProtocol(ProtocolBase):
 		if len(stats):
 			artifacts['stats'] = stats
 
-		self._answer_type = spec['answer']
-		if spec['answer'] == 'yes/no':
+		self._answer_type = spec.get('answer')
+		if self._answer_type == 'yes/no':
 			metrics = {'correct': [], 'incorrect': []}
-		elif isinstance(spec['answer'], list):
+		elif isinstance(self._answer_type, list):
 			metrics = {key: [] for key in spec['answer']}
+		elif self._answer_type is None:
+			metrics = None
 		else:
 			raise ValueError(f'Unknown answer type: {spec["answer"]}')
 
@@ -254,6 +256,8 @@ class DefaultProtocol(ProtocolBase):
 					if val is not None:
 						self.metrics.setdefault(key, []).append(val)
 				return {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
+			elif self._answer_type is None:
+				pass
 			else:
 				raise ValueError(f'Unknown answer type: {self._answer_type}')
 
@@ -297,6 +301,8 @@ class DefaultProtocol(ProtocolBase):
 			means = {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
 			metrics = {key: vals.copy() for key, vals in self.metrics.items() if len(vals)}
 			info.update({'means': means, 'metrics': metrics, })
+		elif self._answer_type is None:
+			pass
 		else:
 			raise ValueError(f'Unknown answer type: {self._answer_type}')
 		return info

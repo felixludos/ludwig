@@ -1,0 +1,129 @@
+{
+    "description": "A schema to extract structured information from a single user sentence in a conversational recommendation system. It captures intent, polarity, linguistic structure, item attributes, dialog phenomena, and frame alignment scores.",
+    "properties": {
+        "sentence": {
+            "type": "string",
+            "description": "The exact text of the user’s input sentence. This is the sentence being analyzed."
+        },
+        "intentions": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["Preference", "Information", "Constraint", "Request", "Goal", "Feedback", "Correction", "Encouragement", "Satisfaction", "Rejection", "Other"]
+            },
+            "description": "The overall purpose or intent behind the user's sentence. 'Preference' indicates a statement of liking or desire. 'Information' provides information about the user or item. 'Constraint' indicates a requirement or limitation. 'Request' asks the assistant to do something. 'Goal' describes what the user is trying to achieve. 'Feedback' evaluates the system's behavior. 'Correction' indicates the user is correcting themselves or the assistant. 'Encouragement' indicates the user is expressing support or positivity. 'Satisfaction' indicates the user is expressing contentment with the assistant's response. 'Rejection' indicates the user is dismissing a suggestion or option. 'Other' indicates any other intention not covered by these categories."
+        },
+        "intentions_type_other": {
+          "type": "string",
+          "description": "Optional brief explanation if intentions includes 'Other'.",
+          "minLength": 1
+        },
+        "polarity": {
+            "type": "string",
+            "enum": ["Positive", "Negative", "Neutral", "Mixed"],
+            "description": "The sentiment expressed in the sentence. 'Positive' means the user expresses liking or agreement. 'Negative' means dislike or rejection. 'Neutral' means neither positive nor negative sentiment is expressed. 'Mixed' means both positive and negative sentiments appear. Note that polarity is overall sentiment; attribute-level polarity may differ."
+        },
+        "epistemic_modality": {
+            "type": "string",
+            "enum": ["Certain", "Tentative", "Uncertain", "Unspecified"],
+            "description": "The degree of certainty in the user's statement. 'Certain' implies strong confidence (e.g., 'I definitely want...'), 'Tentative' implies moderate confidence (e.g., 'I think I might...'), 'Uncertain' implies lack of confidence (e.g., 'maybe...')."
+        },
+        "sentence_type": {
+            "type": "string",
+            "enum": ["Declarative", "Interrogative", "Imperative", "Conditional", "Unspecified"],
+            "description": "The grammatical form of the sentence. 'Declarative' states something. 'Interrogative' asks a question. 'Imperative' gives a command. 'Conditional' presents a condition ('If..., then...')."
+        },
+        "clause_types": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["Cause", "Purpose", "Condition", "Contrast", "Concession", "Additive", "Exception"]
+            },
+            "description": "Types of subordinate or dependent clauses used to connect or explain main statements. For example, a 'Cause' clause explains why ('because...'), 'Purpose' explains what for ('so that...'), 'Condition' defines when or if something applies ('if...'), 'Contrast' expresses differences ('but...'), 'Concession' acknowledges exceptions ('although...'), 'Additive' adds information ('and...'), and 'Exception' indicates a limitation ('except...')."
+        },
+        "attribute_mentions": {
+            "type": "array",
+            "description": "A list of item-related attributes mentioned in the sentence, along with how the user expresses preference, dispreference, or constraint for each.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "attribute": {
+                        "type": "string",
+                        "description": "The name of the item attribute being mentioned (e.g., 'cuisine', 'price', 'location', 'dietary')."
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "The specific value or quality of the attribute the user is referencing (e.g., 'Italian', 'cheap', 'under 1 hour')."
+                    },
+                    "attribute_polarity": {
+                        "type": "string",
+                        "enum": ["Positive", "Negative", "Neutral", "Mixed"],
+                        "description": "The sentiment associated with the attribute value: liking it (positive), disliking it (negative), neutral, or mixed."
+                    },
+                    "preference_type": {
+                        "type": "string",
+                        "enum": ["Explicit Preference", "Explicit Dispreference", "Constraint", "Unspecified"],
+                        "description": "Classifies how the attribute is expressed: a positive preference (e.g., 'I love spicy food'), a dispreference (e.g., 'Not seafood'), or a constraint (e.g., 'Must be under 30 minutes')."
+                    },
+                    "attribute_type": {
+                        "type": "string",
+                        "enum": ["Spatial", "Temporal", "Budgetary", "Dietary", "Topic", "Cultural", "Safety", "Health", "Social", "Other", "None"],
+                        "description": "The kind of constraint expressed, if applicable. For example, 'Spatial' refers to location (e.g., 'nearby'), 'Temporal' refers to time (e.g., 'within 30 minutes'), 'Budgetary' refers to cost (e.g., 'under $20'), 'Dietary' refers to food preferences (e.g., 'vegetarian'), 'Topic' refers to subject matter (e.g., 'technology'), 'Cultural' refers to cultural aspects (e.g., 'local cuisine'), 'Safety' refers to safety concerns (e.g., 'family-friendly'), 'Health' refers to health-related aspects (e.g., 'nutrious'), and 'Social' refers to social aspects (e.g., 'popular')."
+                    },
+                    "attribute_type_other": {
+                        "type": "string",
+                        "description": "Optional brief explanation if attribute_type includes 'Other'.",
+                        "minLength": 1
+                    },
+                    "intensity": {
+                        "type": "string",
+                        "enum": ["Low", "Moderate", "Strong"],
+                        "description": "How strongly the user expresses this preference or constraint, based on adverbs or intensity markers like 'definitely', 'somewhat', etc."
+                    },
+                    "priority": {
+                        "type": "string",
+                        "enum": ["Low", "Moderate", "Strong"],
+                        "description": "How important this attribute is to the user, based on the context of the sentence."
+                    },
+                    "inclusivity": {
+                        "type": "string",
+                        "enum": ["Inclusive", "Exclusive", "Mixed", "Unspecified"],
+                        "description": "Whether the user is expanding the set of acceptable options (inclusive), narrowing it down (exclusive), or doing both (mixed)."
+                    }
+                },
+                "required": ["attribute", "value", "polarity", "preference_type", "attribute_type", "intensity", "priority", "inclusivity"],
+                "additionalProperties": false
+            }
+        },
+        "reference_to_past_turns": {
+            "type": "boolean",
+            "description": "True if the sentence explicitly refers back to or revises something from earlier in the conversation (e.g., 'as I said before', 'that’s not what I meant')."
+        },
+        "meta_dialogue": {
+            "type": "boolean",
+            "description": "True if the sentence comments on the assistant’s behavior, the conversation structure, or its responses (e.g., 'you're repeating yourself', 'that suggestion wasn’t relevant')."
+        },
+        "self_correction": {
+            "type": "boolean",
+            "description": "True if the user corrects or updates their own previous input in the current sentence (e.g., 'Actually, I meant something vegetarian')."
+        },
+        "item_focused": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "How strongly the sentence focuses on item properties (e.g., food, news, travel options). '0' means no focus, '1' means weak focus, '2' means moderate focus, and '3' means strong focus."
+        },
+        "user_focused": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "How much the sentence focuses on the user's situation, context, goals, or perspective. '0' means no focus, '1' means weak focus, '2' means moderate focus, and '3' means strong focus."
+        },
+        "system_focused": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3,
+            "description": "How much the sentence focuses on the interaction with the recommendation system, such as providing feedback or evaluating the assistant. '0' means no focus, '1' means weak focus, '2' means moderate focus, and '3' means strong focus."
+        }
+    }
+}

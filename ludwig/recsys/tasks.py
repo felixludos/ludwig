@@ -8,8 +8,8 @@ from sklearn.metrics import roc_auc_score, ndcg_score, label_ranking_average_pre
 
 
 
-@fig.component('venice')
-class ProjectVenice(TaskBase):
+@fig.component('venice-pred')
+class VenicePrediction(TaskBase):
 	def __init__(self, clues: List[str], *, domain: str, dataroot: str, template: str = 'bounds',
 				 schema: JSONOBJ = None, zero_based: bool = False, **kwargs):
 		if not isinstance(template, PromptTemplate):
@@ -174,6 +174,113 @@ class ProjectVenice(TaskBase):
 			products=f'{self._domain_product}s',
 		)
 		return question
+
+
+
+@fig.component('venice-analysis')
+class VeniceAnalysis(TaskBase):
+	def __init__(self, *, dataroot: str, **kwargs):
+		dataroot = Path(dataroot)
+		if not dataroot.exists() and str(dataroot).startswith('C:'):
+			dataroot = Path(f'/mnt/c{dataroot.as_posix()[2:]}'.replace('\\', '/'))
+		if not dataroot.exists():
+			raise FileNotFoundError(f"{dataroot} does not exist")
+		super().__init__(**kwargs)
+		self.dataroot = dataroot
+		self.data = None
+
+	@property
+	def name(self) -> str:
+		return f'venice-analysis'
+
+	@property
+	def total_questions(self) -> Optional[int]:
+		return len(self.data)
+
+	def context(self) -> str:
+		return ''
+
+	def description(self) -> str:
+		# return f"Which {self._domain_product}s would the user like to see most?"
+		return ''
+
+	def specification(self) -> JSONOBJ:
+		return {'answer': None}
+
+	def json(self) -> JSONOBJ:
+		return {
+			'dataroot': str(self.dataroot),
+			**super().json()
+		}
+
+	def prepare(self, seed: Optional[int] = None) -> None:
+		super().prepare(seed)
+
+		datapath = self.dataroot.joinpath('frameinfo.json')
+		if not datapath.exists():
+			raise FileNotFoundError(f"{datapath} does not exist")
+
+		full_data = json.load(datapath.open('r'))
+		sentences = [{
+			'iid': item['iid'],
+			'key': item['key'],
+			'domain': item['domain'],
+			'ident': item['ident'],
+			'sentence_idx': idx,
+			'text': sentence['sentence']
+		} for item in full_data for idx, sentence in enumerate(item['frames'])]
+		self.data = sentences
+
+	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[int, None]:
+		return index, None
+
+	def side_information(self, problem: int) -> JSONOBJ:
+		info = self.data[problem]
+		return {'iid': info['iid'], 'domain': info['domain'], 'key': info['key'], 'ident': info['ident']}
+
+	def observe(self, problem: int, *, seed: int = None) -> str:
+		return self.data[problem]['text']
+
+
+
+@fig.component('json-judge')
+class JsonJudge(JudgeBase):
+	def __init__(self, *, schema: str = 'venice/schema.json', **kwargs):
+		if not isinstance(schema, PromptTemplate):
+			schema = PromptTemplate(schema)
+		super().__init__(**kwargs)
+		self.schema = schema
+		self._set_strategy_schema = True
+
+	@property
+	def name(self) -> str:
+		"""A unique and description name for this judge"""
+		return 'json-parser'
+
+	def format_description(self, task_description: str) -> str:
+		schema_json = json.dumps(self.get_schema(), indent=2)
+		return f'Output a valid JSON object that matches the following schema:\n```json\n{schema_json}```'
+
+	def get_schema(self) -> JSONOBJ:
+		return json.loads(self.schema.get_raw())
+
+	def prepare(self, task_spec: JSONOBJ) -> None:
+		super().prepare(task_spec)
+
+		if self._set_strategy_schema:
+			strategy = self._my_config.pull('strategy', silent=True)
+			strategy.params['grammar'] = self.get_schema()
+
+	def interpret(self, question: str, response: str) -> Tuple[JSONOBJ, None]:
+		try:
+			decision = json.loads(response)
+		except json.JSONDecodeError:
+			print(f'Failed to parse JSON: {response}')
+			return None, None
+		return decision, None
+
+	def judge(self, decision: Optional[JSONOBJ], answer: None, info: Optional[JSONOBJ] = None) -> bool:
+		return decision is not None
 
 
 

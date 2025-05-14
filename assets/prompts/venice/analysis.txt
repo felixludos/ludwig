@@ -1,0 +1,343 @@
+## Task: Extract Structured Features from a User Sentence
+
+You are given a sentence from a user in a **conversational recommendation system**. Your task is to extract structured features from the sentence using the following schema. Each field is defined and illustrated with examples.
+
+---
+
+## Schema Fields and Feature Definitions
+
+### `sentence` (string)
+
+* The original user sentence as text.
+* Example: `"I want something with shrimp, but not fried."`
+
+---
+
+### `intentions` (array of string categories)
+
+Describes the user’s underlying **communication goals**. A sentence may serve multiple intentions.
+
+**Allowed values**:
+
+| Value           | Description                                                     | Example                                                                 |
+| --------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `Preference`    | The user expresses what they want, like, or are open to.        | "I want Mexican or Italian food."                                       |
+| `Information`   | The user provides information an item or their situation.       | "I have two dogs."                                                      |
+| `Constraint`    | The user expresses a limitation, restriction, or condition.     | "Nothing with nuts."                                                    |
+| `Request`       | The user asks the assistant to take an action.                  | "Please show me more travel articles."                                  |
+| `Goal`          | The user states an objective or reason for their preferences.   | "I'm planning meals for the whole week."                                |
+| `Feedback`      | The user comments on the system’s behavior or previous outputs. | "You're not using my previous answers."                                 |
+| `Correction`    | The user corrects themselves or the assistant.                  | "Actually, I meant vegetarian, not vegan."                              |
+| `Encouragement` | The user gives praise or expresses appreciation.                | "Thanks, those look great!"                                             |
+| `Satisfaction`  | The user expresses being pleased with the results.              | "These recipes are perfect."                                            |
+| `Rejection`     | The user explicitly dismisses something offered.                | "That’s not what I was asking for."                                     |
+| `Other`         | The intent doesn't fit in any other category.                   | "It's hard to explain, but I'm looking for something fun and relaxing." |
+
+If you include `"Other"` as one of the `intentions`, also describe the intention in the `intentions_type_other` field. E.g., `"Explanation, Achievement"`
+
+---
+
+### `polarity` (string)
+
+Describes the **overall sentiment** of the sentence. Note that polarity is overall sentiment; attribute-level polarity may differ.
+
+| Value      | Description                                | Example                                              |
+| ---------- | ------------------------------------------ | ---------------------------------------------------- |
+| `Positive` | Liking, satisfaction, or acceptance        | "I love these suggestions."                          |
+| `Negative` | Dislike, complaint, or rejection           | "I don’t want anything spicy."                       |
+| `Neutral`  | Descriptive or factual, no clear sentiment | "I’m planning a trip to Europe."                     |
+| `Mixed`    | Both positive and negative sentiment       | "I liked the suggestions, but none were vegetarian." |
+
+---
+
+### `epistemic_modality` (string)
+
+Reflects the **degree of certainty** or commitment to the information provided.
+
+| Value         | Description                              | Example                                      |
+| ------------- | ---------------------------------------- | -------------------------------------------- |
+| `Certain`     | Confident and definite                   | "I definitely want something quick to cook." |
+| `Tentative`   | Unsure or exploratory                    | "I think I might like something spicy."      |
+| `Uncertain`   | Indecisive or explicitly unsure          | "I don’t really know what I want."           |
+| `Unspecified` | Degree of certainty cannot be determined | "Show me some ideas."                        |
+
+---
+
+### `sentence_type` (string)
+
+The **grammatical structure** of the sentence.
+
+| Value           | Description                       | Example                                |
+| --------------- | --------------------------------- | -------------------------------------- |
+| `Declarative`   | Statement or description          | "I want beef and broccoli stir-fry."   |
+| `Interrogative` | Question or inquiry               | "What are some good healthy snacks?"   |
+| `Imperative`    | Command or instruction            | "Show me more recipes with tofu."      |
+| `Conditional`   | Hypothetical or dependent clause  | "If it's too spicy, I won’t eat it."   |
+| `Unspecified`   | Cannot be determined or malformed | "Hmm, maybe just something different?" |
+
+---
+
+### `clause_types` (array of strings)
+
+Describes **logical relationships** between clauses in the sentence.
+
+| Clause Type  | Description                    | Example                                                |
+| ------------ | ------------------------------ | ------------------------------------------------------ |
+| `Cause`      | Explains why something is true | "I want something quick because I’m busy tonight."     |
+| `Purpose`    | Indicates an intention         | "I'm meal prepping for the week."                      |
+| `Condition`  | Depends on a scenario          | "If it’s vegetarian, that’s fine."                     |
+| `Contrast`   | Offers opposing ideas          | "I like beef, but not in soup."                        |
+| `Concession` | Acknowledges an exception      | "Even though I like spicy food, it upsets my stomach." |
+| `Additive`   | Adds more information          | "And also with rice on the side."                      |
+| `Exception`  | Specifies exclusions           | "Anything except seafood."                             |
+
+---
+
+### `attribute_mentions` (array of objects)
+
+For each **attribute** the user mentions, provide:
+
+* Example 1: (news) Starting from `"I am looking for articles about current events, especially in the US, but definitely not about celebrity gossip."`, two attributes should be extracted, something like:
+  ```json
+  {
+    "attribute": "topic",
+    "value": "current events, especially in the US",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Topic",
+    "intensity": "Moderate",
+    "priority": "Strong",
+    "inclusivity": "Inclusive"
+  },
+  {
+    "attribute": "topic",
+    "value": "celebrity gossip",
+    "attribute_polarity": "Negative",
+    "preference_type": "Explicit Dispreference",
+    "attribute_type": "Topic",
+    "intensity": "Strong",
+    "priority": "Strong",
+    "inclusivity": "Exclusive"
+  }
+
+  ```
+* Example 2: (food) Starting from `"Can you find something high-protein, under 30 minutes, and ideally dairy-free."`, three attributes should be extracted:
+  ```json
+  {
+    "attribute": "protein",
+    "value": "high-protein",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Dietary",
+    "intensity": "Moderate",
+    "priority": "Strong",
+    "inclusivity": "Inclusive"
+  },
+  {
+    "attribute": "time",
+    "value": "under 30 minutes",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Temporal",
+    "intensity": "Moderate",
+    "priority": "Moderate",
+    "inclusivity": "Inclusive"
+  },
+  {
+    "attribute": "dietary restriction",
+    "value": "dairy-free",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Dietary",
+    "intensity": "Moderate",
+    "priority": "Low",
+    "inclusivity": "Exclusive"
+  }
+  ```
+* Example 3: (travel) Starting from `"I'm quite stressed at work, and am in dire need of a relaxing vacation on a quiet beach"`, two attributes should be extracted:
+  ```json
+  {
+    "attribute": "activity",
+    "value": "relaxing vacation",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Social",
+    "intensity": "Strong",
+    "priority": "Moderate",
+    "inclusivity": "Inclusive"
+  },
+  {
+    "attribute": "location",
+    "value": "quiet beach",
+    "attribute_polarity": "Positive",
+    "preference_type": "Explicit Preference",
+    "attribute_type": "Spatial",
+    "intensity": "Moderate",
+    "priority": "Moderate",
+    "inclusivity": "Inclusive"
+  }
+  ```
+
+
+#### `attribute` (string)
+
+* The name of the attribute being discussed.
+* Examples: `"cuisine"`, `"price"`, `"location"`, `"dietary"`.
+
+#### `value` (string)
+
+* The specific value or quality of the attribute the user is referencing.
+* Examples: `"Italian"`, `"cheap"`, `"under 1 hour"`.
+
+#### `attribute_polarity` (string)
+
+* The sentiment associated with the attribute value.
+
+| Value    | Description                                | Example                 |
+| -------- | ------------------------------------------ | ----------------------- |
+| `Positive` | Liking it (positive)                      | `"I love Italian food"` |
+| `Negative` | Disliking it (negative)                   | `"I don’t want seafood"` |
+| `Neutral`  | Neutral sentiment                          | `"I want something quick"` |
+
+#### `preference_type` (string)
+
+* Classifies how the attribute is expressed.
+
+| Value                  | Description                                  | Example                 |
+| ---------------------- | -------------------------------------------- | ----------------------- |
+| `Explicit Preference`  | Positive preference                         | `"I love spicy food"`   |
+| `Explicit Dispreference` | Negative preference                       | `"Not seafood"`         |
+| `Constraint`           | Constraint or requirement                   | `"Must be under 30 minutes"` |
+| `Unspecified`          | No clear preference or constraint           | `"Show me some ideas"`  |
+
+#### `attribute_type` (string)
+
+* The kind of constraint expressed, if applicable.
+
+| Value                  | Description                                  | Example                 |
+| ---------------------- | -------------------------------------------- | ----------------------- |
+| `Spatial`              | Location-related (e.g., `"nearby"`)         | `"in the city"`         |
+| `Temporal`             | Time-related (e.g., `"within 30 minutes"`) | `"for the weekend"`     |
+| `Budgetary`            | Cost-related (e.g., `"under $20"`)         | `"on a budget"`         |
+| `Dietary`              | Food preferences (e.g., `"vegetarian"`)    | `"gluten-free"`         |
+| `Topic`                | Subject matter (e.g., `"technology"`)      | `"politics"`            |
+| `Cultural`             | Cultural aspects (e.g., `"local cuisine"`) | `"Mexican food"`        |
+| `Safety`               | Safety concerns (e.g., `"family-friendly"`) | `"kid-friendly"`        |
+| `Health`               | Health-related aspects (e.g., `"nutritious"`) | `"low-calorie"`        |
+| `Social`               | Social aspects (e.g., `"popular"`)        | `"trending"`            |
+| `Other`                | Other types not listed                      | `"political climate"`   |
+| `None`                | No specific type                           | `"none"`                |
+
+If you choose `"Other"` as the `attribute_type`, also provide a better fit in the `attribute_type_other` field.
+
+#### `intensity` (string)
+
+* How strongly the user expresses this preference or constraint - i.e. the strength of expression
+
+| Value      | Description                                | Example                 |
+| ---------- | ------------------------------------------ | ----------------------- |
+| `Low`      | Weakly expressed                           | `"I might like something spicy"` |
+| `Moderate` | Moderately or normally expressed           | `"I like something spicy"` |
+| `Strong`   | Strongly expressed                         | `"I definitely want something spicy"` |
+
+#### `priority` (string)
+
+* How important this attribute is to the user - i.e. importance of the attribute in context
+
+| Value      | Description                                | Example                 |
+| ---------- | ------------------------------------------ | ----------------------- |
+| `Low`      | Not very important                         | `"It could be entertaining"` |
+| `Moderate` | No explicit priority mentioned             | `"I want something entertaining"` |
+| `Strong`   | Very important                             | `"Most importantly, the article should be entertaining"` |
+
+#### `inclusivity` (string)
+
+* Whether the user is expanding or narrowing the set of acceptable options.
+
+| Value      | Description                                  | Example                 |
+| ---------- | -------------------------------------------- | ----------------------- |
+| `Inclusive` | Expanding the set of options                | `"I want something spicy or sweet"` |
+| `Exclusive` | Narrowing down the options                  | `"I want something spicy, not sweet"` |
+| `Mixed`     | Both expanding and narrowing                 | `"I want something spicy, but not too hot"` |
+| `Unspecified` | Cannot be determined                        | `"I want something different"` |
+
+---
+
+### `reference_to_past_turns` (boolean)
+
+* `true` if the user refers to earlier conversation turns.
+* Example: `"As I said before, I want vegetarian options."`
+
+---
+
+### `meta_dialogue` (boolean)
+
+* `true` if the user talks about how the system is responding.
+* Example: `"You’re not listening to my input."`
+
+---
+
+### `self_correction` (boolean)
+
+* `true` if the user updates or retracts their own earlier input.
+* Example: `"Actually, not pasta—maybe rice."`
+
+---
+
+### `item_focused` (integer: 0–3)
+
+The sentence discusses the recommended items or their attributes - this includes preferences for content (e.g., article topics), food properties (e.g., spicy, healthy), travel features (e.g., beachside), etc.
+
+**Features:**
+* Mentions of item types ("articles", "meals", "destinations")
+* Specific attribute values ("spicy", "vegan", "romantic setting")
+* Comparisons between item alternatives
+* Constraints on item features (e.g., "no seafood")
+
+| Value | Meaning  | Example |
+| ----- | -------- | ------- |
+| `0`   | None     | "That’s not what I meant." (No item discussed) |
+| `1`   | Weak     | "Something like what you showed me yesterday." (Implicit item reference) |
+| `2`   | Moderate | "I’d like Italian or Thai food." (Clear item type + values) |
+| `3`   | Strong   | "I want protein-rich meals under 30 minutes, preferably vegetarian and spicy, but not sweet." (Detailed constraints on multiple item attributes) |
+
+#### `user_focused` (integer: 0–3)
+
+The sentence provides information about the user’s situation, goals, preferences, or personal context - which helps the assistant personalize recommendations.
+
+**Features:**
+* Statements about goals ("I'm meal prepping", "for a family trip")
+* Mentions of constraints from user lifestyle, budget, health
+* User state or cognitive stance ("I don’t know", "I’m open to suggestions")
+
+| Value | Meaning  | Example |
+| ----- | -------- | ------- |
+| `0`   | None     | "No onions." (Only item-focused, nothing about user state) |
+| `1`   | Weak     | "Just something simple." (Minimal indirect hint of user need) |
+| `2`   | Moderate | "I'm looking for something quick for after work." (Describes time/context) |
+| `3`   | Strong   | "I'm planning a surprise anniversary dinner and need something elegant, affordable, and not too complicated to make." (Rich detail about user situation, goals, and constraints) |
+
+#### `system_focused` (integer: 0–3)
+
+The sentence evaluates, critiques, refers to, or commands the recommendation assistant or the system - either its previous outputs or its behavior.
+
+**Features:**
+* Feedback about relevance, quality, or coverage of suggestions
+* References to the assistant's misunderstanding or misinterpretation
+* Meta-comments about how the system functions ("you didn’t use my last input")
+* Explicit system control ("don’t show me that again")
+
+| Value | Meaning  | Example |
+| ----- | -------- | ------- |
+| `0`   | None     | "I want a sandwich." (Purely item-focused) |
+| `1`   | Weak     | "You know what I like." (Vague reference to system role) |
+| `2`   | Moderate | "These suggestions weren’t very helpful." (Direct, moderate feedback) |
+| `3`   | Strong   | "I asked for vegetarian meals, but you gave me meat. You’re not using the feedback I gave in the previous turn." (Detailed, critical feedback on system behavior and output) |
+
+## Sentence
+
+Here is the sentence to analyze:
+
+{question}
+
+{task_context}

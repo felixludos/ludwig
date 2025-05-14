@@ -35,6 +35,6 @@ use-wandb: no
 
 dataroot: C:\Users\anwan\OneDrive\Khan\research\recoreact\data
 task:
-  _type: venice
+  _type: venice-pred
   template: venice/bounds
 

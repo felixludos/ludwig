@@ -68,6 +68,9 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 			'code': self._template_code,
 		}
 
+	def get_raw(self) -> str:
+		return self._template_data
+
 	def fill(self, **kwargs) -> str:
 		"""
 		Fill the template with the given keyword arguments.
