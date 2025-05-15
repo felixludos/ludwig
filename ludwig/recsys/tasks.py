@@ -236,7 +236,8 @@ class VeniceAnalysis(TaskBase):
 
 	def side_information(self, problem: int) -> JSONOBJ:
 		info = self.data[problem]
-		return {'iid': info['iid'], 'domain': info['domain'], 'key': info['key'], 'ident': info['ident']}
+		return {'iid': info['iid'], 'domain': info['domain'], 'key': info['key'], 'ident': info['ident'],
+				'sentence_idx': info['sentence_idx']}
 
 	def observe(self, problem: int, *, seed: int = None) -> str:
 		return self.data[problem]['text']
