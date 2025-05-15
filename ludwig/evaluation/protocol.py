@@ -61,9 +61,9 @@ class DefaultProtocol(ProtocolBase):
 				with log_path.open('r') as f:
 					for raw in f:
 						if len(raw):
-							sample = json.loads(raw)
-							if sample.get('failed'):
-								num_failed += 1
+							# sample = json.loads(raw)
+							# if sample.get('failed'):
+							# 	num_failed += 1
 							past_iterations += 1
 			else:
 				past_iterations = None

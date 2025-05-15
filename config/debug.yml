@@ -16,7 +16,7 @@ seed: 1000000009
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
-#limit: 2
+limit: 4
 
 use-wandb: no
 
@@ -26,6 +26,8 @@ addr: http://wagner.is.localnet:8000
 #client.addr: 8001
 #judge.addr: 8000
 
+
+resume: faa9_250514-141821_7e15
 
 #client._mod.logged: yes
 

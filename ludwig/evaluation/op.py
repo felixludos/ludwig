@@ -8,6 +8,23 @@ try:
 except ImportError:
 	wandb = None
 
+def drop_keys_in_sample(sample, drop_keys):
+	for key in drop_keys:
+		loc = sample
+		while len(key):
+			x, *terms = key.split('.')
+			key = '.'.join(terms)
+			if isinstance(loc, dict):
+				if x in loc:
+					if len(terms):
+						loc = loc[x]
+					else:
+						del loc[x]
+						break
+				else:
+					break
+			else:
+				break
 
 def _view_score(score, fail_rate=None):
 	if fail_rate is not None:
@@ -52,6 +69,7 @@ def eval_task(cfg: fig.Configuration):
 	log_table = cfg.pull('log-table', 4)
 	log_fails = cfg.pull('log-fails', 10)
 	log_samples = cfg.pull('log-samples', (not use_wandb or log_table is not None) and out_root is not None)
+	drop_keys = cfg.pull('drop-keys', [])
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 	error_ckpt = cfg.pull('err-ckpt', True)
@@ -162,6 +180,8 @@ def eval_task(cfg: fig.Configuration):
 			if 'log' in sample:
 				wandb_run.log(flatten(sample['log']), step=i)
 		if sample_logger is not None:
+			if drop_keys:
+				drop_keys_in_sample(sample, drop_keys)
 			sample_logger.write(json.dumps(sample) + '\n')
 			sample_logger.flush()
 		if out_dir is not None and ckpt_freq is not None and i > 0 and i % ckpt_freq == 0:

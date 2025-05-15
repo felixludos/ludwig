@@ -9,6 +9,7 @@ log-samples: yes
 protocol.name: "p{strategy.template.code[:4]}_s{judge.schema.code[:4]}_{now.strftime('%y%m%d-%H%M%S')}_{unique[:4]}"
 ##################################
 
+
 temperature: 0.6
 top-p: 0.95
 
@@ -22,4 +23,6 @@ use-wandb: no
 
 dataroot: C:\Users\anwan\OneDrive\Khan\research\recoreact\data
 task._type: venice-analysis
+drop-keys:
+  - table.prompt
 
