@@ -74,6 +74,8 @@ def eval_task(cfg: fig.Configuration):
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 	error_ckpt = cfg.pull('err-ckpt', True)
 
+	resume = cfg.pull('resume', None)
+
 	cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 	protocol: AbstractProtocol = cfg.pull('protocol')
 
@@ -90,7 +92,19 @@ def eval_task(cfg: fig.Configuration):
 		wandb_config = protocol.json()
 		project_name = cfg.pull('project-name', '{task.name}')
 		project_name = pformat(project_name, protocol=protocol, task=protocol.task, config=wandb_config)
-		wandb_run = wandb.init(project=project_name, name=protocol.name, config=wandb_config, dir=wandb_dir)
+		wand_id = None
+		if resume is not None:
+			# get wandb entity
+			entity = cfg.pull('wandb-entity', 'felixludos')
+			api = wandb.Api()
+			runs = api.runs(f'{entity}/{project_name}', filters={'display_name': resume})
+			if len(runs) == 0:
+				raise RuntimeError(f'No runs found with name {resume}')
+			if len(runs) > 1:
+				raise RuntimeError(f'Multiple runs found with name {resume}')
+			wandb_run = runs[0]
+			wand_id = wandb_run.id
+		wandb_run = wandb.init(project=project_name, name=protocol.name, config=wandb_config, dir=wandb_dir, id=wand_id)
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
