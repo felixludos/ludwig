@@ -27,7 +27,7 @@ addr: http://wagner.is.localnet:8000
 #judge.addr: 8000
 
 
-resume: p6088_sfaa9_250515-120654_0b0d
+# resume: p6088_sfaa9_250515-120654_0b0d
 
 #client._mod.logged: yes
 
@@ -73,20 +73,4 @@ template: venice/analysis-yaml
 ##strategy.template: "{question}"
 #
 ##pred-type: binary
-
-
-############################################
-#strategy.params.grammar: <>schema
-
-#schema:
-#  title: "User Selection Likelihoods (Ordered List)"
-#  description: "A list of exactly 12 strings, each representing the likelihood a user will select the corresponding suggestion above."
-#  type: "array"
-#  minItems: 12
-#  maxItems: 12
-#  items:
-#    title: "Likelihood Value"
-#    description: "The likelihood from a 5-point Likert scale."
-#    type: "string"
-#    enum: ["Very unlikely", "Somewhat unlikely", "Neutral", "Somewhat likely", "Very likely"]
 

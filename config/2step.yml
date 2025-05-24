@@ -1,7 +1,0 @@
-_base: [venice]
-
-strategy.template: "{question}"
-
-judge._type: 2step-judge
-judge.client._type: <>jclient_type
-jclient_type: <>client._type
