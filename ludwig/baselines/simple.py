@@ -30,7 +30,7 @@ class DirectPrompting(ClientStrategy):
 		return {'template': self.template.json(), **super().json()}
 
 
-	def study(self, context: str, desc: str, spec: JSONOBJ) -> Optional[JSONABLE]:
+	def study(self, context: str, desc: str, spec: JSONOBJ) -> Optional[JSONDATA]:
 		self.system_context = context
 		self.task_context = desc
 

@@ -1,12 +1,12 @@
 from .imports import *
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
 
-PROBLEM = JSONABLE
-ANSWER = JSONABLE
-DECISION = JSONABLE
+PROBLEM = JSONDATA
+ANSWER = JSONDATA
+DECISION = JSONDATA
 
 
-class AbstractTool:
+class AbstractTool(Jsonable):
 	@property
 	def name(self) -> str:
 		"""A descriptive and ideally unique name for this tool"""
@@ -27,9 +27,6 @@ class AbstractTool:
 		The desciption may include example inputs and outputs, and should provide enough information to help identify
 		under what circumstances the tool is useful, how to effectively use the tool, and what results to expect.
 		"""
-		raise NotImplementedError
-
-	def json(self) -> JSONOBJ:
 		raise NotImplementedError
 
 	def schema(self, style: str = None) -> JSONOBJ:
@@ -59,7 +56,7 @@ class AbstractTool:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def call(self, arguments: JSONABLE, *, seed: Optional[int] = None) -> str:
+	def call(self, arguments: JSONDATA, *, seed: Optional[int] = None) -> str:
 		"""
 		Calls the tool with the given arguments and returns the result as a string.
 
@@ -313,7 +310,7 @@ class AbstractStrategy:
 		"""
 		raise NotImplementedError
 
-	def study(self, context: str, task_description: str, task_spec: JSONOBJ) -> Optional[JSONABLE]:
+	def study(self, context: str, task_description: str, task_spec: JSONOBJ) -> Optional[JSONDATA]:
 		"""
 		(optional) Processes the given system and task context to prepare for a specific task
 
@@ -388,7 +385,7 @@ class AbstractJudge:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def judge(self, decision: DECISION, answer: JSONABLE, info: Optional[JSONOBJ] = None) -> JSONABLE:
+	def judge(self, decision: DECISION, answer: JSONDATA, info: Optional[JSONOBJ] = None) -> JSONDATA:
 		raise NotImplementedError
 
 	def prepare(self, task_spec: JSONOBJ) -> None:

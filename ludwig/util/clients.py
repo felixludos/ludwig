@@ -438,7 +438,7 @@ class Openai_Client(OpenaiClientBase):
 		return response.to_dict()['data']
 
 
-	def _clean_schema(self, schema: JSONABLE):
+	def _clean_schema(self, schema: JSONDATA):
 		"""because openai's grammar is weaker than vllm's"""
 		if isinstance(schema, dict):
 			fixed = {}

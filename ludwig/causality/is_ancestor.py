@@ -4,8 +4,8 @@ import re
 from ludwig.imports import *
 from ludwig.causality.causal_task import CausalTask
 
-PROBLEM = JSONABLE
-ANSWER = JSONABLE
+PROBLEM = JSONDATA
+ANSWER = JSONDATA
 
 
 class isAncestor(CausalTask):

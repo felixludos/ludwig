@@ -63,7 +63,7 @@ class TTT_Tool(ToolBase):
 		super().__init__(**kwargs)
 		self.rep_type = rep_type
 
-	def decode(self, state: JSONABLE) -> str:
+	def decode(self, state: JSONDATA) -> str:
 		"""
 		Decode the state string into a string.
 		"""
@@ -76,7 +76,7 @@ class TTT_Tool(ToolBase):
 		else:
 			raise ValueError(f"Unknown representation type: {self.rep_type}")
 
-	def encode(self, state: str) -> JSONABLE:
+	def encode(self, state: str) -> JSONDATA:
 		"""
 		Encode the state string into the specified representation.
 		"""
@@ -89,7 +89,7 @@ class TTT_Tool(ToolBase):
 		else:
 			raise ValueError(f"Unknown representation type: {self.rep_type}")
 
-	def validate(self, state: JSONABLE) -> Optional[str]:
+	def validate(self, state: JSONDATA) -> Optional[str]:
 		"""
 		Validate the state string.
 		"""

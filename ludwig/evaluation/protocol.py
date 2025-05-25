@@ -242,7 +242,7 @@ class DefaultProtocol(ProtocolBase):
 		log['fail_rate'] = sample['fail_rate']
 		return sample
 
-	def _aggregate_verdict(self, idx: int = None, verdict: JSONABLE = None):
+	def _aggregate_verdict(self, idx: int = None, verdict: JSONDATA = None):
 		if verdict is not None:
 			if self._answer_type == 'yes/no':
 				self.metrics['correct' if verdict else 'incorrect'].append(idx)

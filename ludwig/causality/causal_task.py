@@ -6,8 +6,8 @@ from numpy.random import default_rng
 from ludwig.imports import *
 from ludwig.base import TaskBase
 
-PROBLEM = JSONABLE
-ANSWER = JSONABLE
+PROBLEM = JSONDATA
+ANSWER = JSONDATA
 
 
 class CausalTask(TaskBase):

@@ -24,10 +24,10 @@ class AbstractParser:
 	def prepare(self):
 		raise NotImplementedError
 
-	def parse(self, text: str) -> JSONABLE:
+	def parse(self, text: str) -> JSONDATA:
 		raise NotImplementedError
 
-	def realize(self, data: JSONABLE) -> Any:
+	def realize(self, data: JSONDATA) -> Any:
 		raise NotImplementedError
 
 

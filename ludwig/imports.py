@@ -13,5 +13,7 @@ from datetime import datetime
 from tabulate import tabulate
 import omnifig as fig
 
-JSONABLE = Union[Dict[str,'JSONABLE'], List['JSONABLE'], str, int, float, bool, None]
-JSONOBJ = Dict[str, JSONABLE]
+from jsonutils import (JSONDATA, JSONLIKE, JSONOBJ, JSONFLAT, Jsonable,
+								 flatten, unflatten, deep_get, deep_remove)
+
+
