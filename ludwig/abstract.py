@@ -419,7 +419,16 @@ class AbstractProtocol:
 		"""(optional) Prepare all the necessary state for this protocol"""
 		raise OptionalMethodNotImplemented
 
-	def remaining_iterations(self) -> range:
+	def remember(self, **info):
+		"""
+		(optional) Remember some information about the protocol run
+
+		This can be used to store any information that is relevant for the protocol, such as hyperparameters, metrics,
+		or any other information that may be useful for later analysis.
+		"""
+		raise OptionalMethodNotImplemented
+
+	def remaining_iterations(self, limit: Optional[int] = None) -> range:
 		"""(optional) Returns the number of iterations remaining in this protocol"""
 		raise OptionalMethodNotImplemented
 

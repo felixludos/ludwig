@@ -5,26 +5,28 @@ from .imports import *
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
-				 seed: Optional[int] = None, resume: str = None,
+				 seed: Optional[int] = None,
 				 # name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 name: str = '{task.name}_{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
-				 include_gt_info: bool = False, limit: int = None, **kwargs):
+				 include_gt_info: bool = False, **kwargs):
 		if seed == 'sample': seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
 		self._name_template = name
-		self.resume = resume
 		self._name = None
 		self._master_seed = seed
 		random.seed(seed)
 		self._sample_seed = seed
 		self._now = datetime.now()
-		self._limit = limit
+		self._extra_info = {}
 		self._include_gt_info = include_gt_info
-		self._past_iterations = None
-		self._past_failures = None
 		self._fail_rate = None
 		self._use_generate = None
+
 		self.metrics = None
+		self.history = None
+		self.scores = None
+		self.fails = None
+
 		self._answer_type = None
 
 		self._task = task
@@ -40,95 +42,99 @@ class DefaultProtocol(ProtocolBase):
 		"""The task used in this protocol"""
 		return self._task
 
-	def prepare(self, root: Path = None, overwrite: bool = False) -> None:
+	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
 		self.strategy.prepare(self._master_seed)
 		if self.judge is not None:
 			self.judge.prepare(self.task.specification())
 
-		path = None
-		if self.resume is not None:
-			assert root is not None, f'root must be provided to resume'
-			path = root.joinpath(self.resume)
-			if not path.exists():
-				raise FileNotFoundError(f'Checkpoint path does not exist: {path}')
-			self._name = self.resume
+		# path = None
+		# if self.resume is not None:
+		# 	assert root is not None, f'root must be provided to resume'
+		# 	path = root.joinpath(self.resume)
+		# 	if not path.exists():
+		# 		raise FileNotFoundError(f'Checkpoint path does not exist: {path}')
+		# 	self._name = self.resume
+		#
+		# 	log_path = path.joinpath('log.jsonl')
+		# 	num_failed = 0
+		# 	past_iterations = 0
+		# 	if log_path.exists():
+		# 		with log_path.open('r') as f:
+		# 			for raw in f:
+		# 				if len(raw):
+		# 					# sample = json.loads(raw)
+		# 					# if sample.get('failed'):
+		# 					# 	num_failed += 1
+		# 					past_iterations += 1
+		# 	else:
+		# 		past_iterations = None
+		#
+		# 	self._past_iterations = past_iterations
+		# 	self._past_failures = num_failed
+		#
+		# 	_starting_from = f' (starting from {past_iterations})' if past_iterations is not None else ''
+		# 	print(f'Resuming {self.resume}{_starting_from}')
+		#
+		# 	prev_settings_path = path.joinpath('protocol_settings.json')
+		# 	if prev_settings_path.exists():
+		# 		prev_settings = flatten(json.load(prev_settings_path.open('r')))
+		# 		new_settings = flatten(self.json())
+		# 		all_keys = set(prev_settings.keys()) | set(new_settings.keys())
+		# 		diffs = [(key, prev_settings.get(key, '[N/A]'), new_settings.get(key, '[N/A]'))
+		# 				 for key in all_keys if prev_settings.get(key) != new_settings.get(key)]
+		# 		if diffs:
+		# 			print(f'Found {len(diffs)} differences:')
+		# 			print(tabulate(diffs, headers=['key', 'previous', 'current']))
+		#
+		# 		prev_idx = 1
+		# 		old_path = path.joinpath(f'prev_settings{prev_idx}.json')
+		# 		while old_path.exists():
+		# 			if prev_idx > 1000:
+		# 				raise RuntimeError
+		# 			prev_idx += 1
+		# 			old_path = path.joinpath(f'prev_settings{prev_idx}.json')
+		# 		json.dump(prev_settings, old_path.open('w'))
+		#
+		# else:
+		#
+		# 	self._past_iterations = 0
+		# 	self._past_failures = 0
 
-			log_path = path.joinpath('log.jsonl')
-			num_failed = 0
-			past_iterations = 0
-			if log_path.exists():
-				with log_path.open('r') as f:
-					for raw in f:
-						if len(raw):
-							# sample = json.loads(raw)
-							# if sample.get('failed'):
-							# 	num_failed += 1
-							past_iterations += 1
-			else:
-				past_iterations = None
-
-			self._past_iterations = past_iterations
-			self._past_failures = num_failed
-
-			_starting_from = f' (starting from {past_iterations})' if past_iterations is not None else ''
-			print(f'Resuming {self.resume}{_starting_from}')
-
-			prev_settings_path = path.joinpath('protocol_settings.json')
-			if prev_settings_path.exists():
-				prev_settings = flatten(json.load(prev_settings_path.open('r')))
-				new_settings = flatten(self.json())
-				all_keys = set(prev_settings.keys()) | set(new_settings.keys())
-				diffs = [(key, prev_settings.get(key, '[N/A]'), new_settings.get(key, '[N/A]'))
-						 for key in all_keys if prev_settings.get(key) != new_settings.get(key)]
-				if diffs:
-					print(f'Found {len(diffs)} differences:')
-					print(tabulate(diffs, headers=['key', 'previous', 'current']))
-
-				prev_idx = 1
-				old_path = path.joinpath(f'prev_settings{prev_idx}.json')
-				while old_path.exists():
-					if prev_idx > 1000:
-						raise RuntimeError
-					prev_idx += 1
-					old_path = path.joinpath(f'prev_settings{prev_idx}.json')
-				json.dump(prev_settings, old_path.open('w'))
-
-		else:
-
-			self._past_iterations = 0
-			self._past_failures = 0
+		if self.history is None:
+			self.history = []
+		if self.scores is None:
+			self.scores = []
+		if self.fails is None:
+			self.fails = []
 
 		if self._name is None:
-			# self._name = self._name_template.format(protocol=self, task=self.task, strategy=self.strategy,
-			# 										judge=self.judge, now=self._now, seed=self._master_seed)
-			# get random bytes from os
 			self._name = pformat(self._name_template, protocol=self, task=self.task, strategy=self.strategy,
-								 judge=self.judge, now=self._now, seed=self._master_seed,
-													 unique=urandom(16).hex())
+								 judge=self.judge, now=self._now, seed=self._master_seed, unique=urandom(16).hex())
 
-		if root is not None:
-			if path is None:
-				if self.name is None:
-					raise ValueError(f'Protocol must have a name: {self.name}')
-				path = root / self.name
-				if path.exists() and not overwrite:
-					raise RuntimeError(f'Output directory {path} already exists. Use --overwrite to overwrite it.')
-				path.mkdir(exist_ok=True)
+		# if root is not None:
+		# 	if path is None:
+		# 		if self.name is None:
+		# 			raise ValueError(f'Protocol must have a name: {self.name}')
+		# 		path = root / self.name
+		# 		if path.exists() and not overwrite:
+		# 			raise RuntimeError(f'Output directory {path} already exists. Use --overwrite to overwrite it.')
+		# 		path.mkdir(exist_ok=True)
+		#
+		# 	with path.joinpath('protocol_settings.json').open('w') as f:
+		# 		json.dump(self.json(), f)
+		#
+		# 	return path
 
-			with path.joinpath('protocol_settings.json').open('w') as f:
-				json.dump(self.json(), f)
 
-			return path
-
-
-	def remaining_iterations(self) -> range:
+	def remaining_iterations(self, limit: Optional[int] = None) -> range:
+		raise NotImplementedError
 		"""(optional) Returns the number of iterations remaining in this protocol"""
-		if self._limit is None:
+		if limit is None:
 			if self.task.total_questions is None:
 				raise RuntimeError('Task has no total_questions and no limit was provided.')
 			return range(self._past_iterations, self.task.total_questions)
-		return range(self._past_iterations, self._limit)
+		return range(self._past_iterations, limit)
 
 	def describe(self) -> str:
 		tbl = [
@@ -162,9 +168,8 @@ class DefaultProtocol(ProtocolBase):
 			artifacts['stats'] = stats
 
 		self._answer_type = spec.get('answer')
-		if self._answer_type == 'yes/no':
-			metrics = {'correct': [], 'incorrect': []}
-		elif isinstance(self._answer_type, list):
+		metrics = []
+		if isinstance(self._answer_type, list):
 			metrics = {key: [] for key in spec['answer']}
 		elif self._answer_type is None:
 			metrics = None
@@ -209,57 +214,66 @@ class DefaultProtocol(ProtocolBase):
 		if failed:
 			decision = None
 			verdict = None
-		elif self.judge is None:
+		elif self.judge is None and not self.task.is_judge:
 			decision = response
-			verdict = decision == answer
+			verdict = None if response is None else decision == answer
 		else:
-			with self.judge.collect_stats() as judge_stats:
-				decision, judgement = self.judge.interpret(question, response)
-				verdict = self.judge.judge(decision, answer, judgement)
-			if len(judge_stats):
-				log['judge'] = judge_stats
+			if self.judge is None:
+				verdict, decision, judgement = self.task.evaluate(response, problem, answer)
+			else:
+				with self.judge.collect_stats() as judge_stats:
+					decision, judgement = self.judge.interpret(question, response)
+					verdict = self.judge.judge(decision, answer, judgement)
+				if len(judge_stats):
+					log['judge'] = judge_stats
 			if judgement is not None:
 				proc.update(judgement)
-			failed = verdict is None
+		# failed = verdict is None
 
 		score = self._aggregate_verdict(idx, verdict)
 		proc['decision'] = decision
 		proc['answer'] = answer
-		proc['verdict'] = verdict
+		proc['score'] = score
 
 		sample = {}
 		if len(log):
 			sample['log'] = log
 		if len(proc):
 			sample['table'] = proc
+		if self.metrics:
+			sample['metrics'] = self.metrics
 
-		sample['score'] = score
-		sample['failed'] = failed
+		self.history.append([idx, failed, score])
 		if failed:
-			self._past_failures += 1
-		self._past_iterations += 1
-		sample['fail_rate'] = self._past_failures / self._past_iterations
-		log['fail_rate'] = sample['fail_rate']
+			self.fails.append(idx)
+		if score is not None:
+			self.scores.append(score)
+		sample['failure'] = failed
 		return sample
 
+	def _default_stats(self) -> JSONFLAT:
+		stats = {}
+		if len(self.scores):
+			stats['score'] = sum(self.scores) / len(self.scores)
+		stats['past_itr'] = len(self.history)
+		stats['fails'] = len(self.fails)
+		stats['invalid'] = len(self.history) - len(self.scores)
+		return stats
+
 	def _aggregate_verdict(self, idx: int = None, verdict: JSONDATA = None):
-		if verdict is not None:
-			if self._answer_type == 'yes/no':
-				self.metrics['correct' if verdict else 'incorrect'].append(idx)
-				N_cor = len(self.metrics['correct'])
-				N_inc = len(self.metrics['incorrect'])
-				N = N_cor + N_inc
-				acc = N_cor / N if N > 0 else 0
-				return acc
-			elif isinstance(self._answer_type, list):
-				for key, val in verdict.items():
-					if val is not None:
-						self.metrics.setdefault(key, []).append(val)
-				return {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
-			elif self._answer_type is None:
-				pass
-			else:
-				raise ValueError(f'Unknown answer type: {self._answer_type}')
+		if verdict is None:
+			return
+		if self._answer_type == 'yes/no':
+			return verdict
+		elif isinstance(self._answer_type, list):
+			for key, val in verdict.items():
+				if val is not None:
+					self.metrics.setdefault(key, []).append(val)
+			return {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
+		elif self._answer_type is None:
+			return
+		else:
+			raise ValueError(f'Unknown answer type: {self._answer_type}')
 
 	def post_loop(self) -> Optional[JSONOBJ]:
 		"""Post-loop cleanup or finalization"""
@@ -270,12 +284,7 @@ class DefaultProtocol(ProtocolBase):
 		return data
 
 	def status(self) -> JSONOBJ:
-		info = {
-			# 'seed': self._master_seed,
-			# 'sample-seed': self._sample_seed,
-			'past_iterations': self._past_iterations,
-			'remaining_iterations': len(self.remaining_iterations()),
-		}
+		info = self._default_stats()
 		task_status = self.task.status()
 		if task_status is not None:
 			info['task'] = task_status
@@ -286,21 +295,8 @@ class DefaultProtocol(ProtocolBase):
 		if judge_status is not None:
 			info['judge'] = judge_status
 
-		if self._answer_type == 'yes/no':
-			N_cor = len(self.metrics['correct'])
-			N_inc = len(self.metrics['incorrect'])
-			N = N_cor + N_inc
-			acc = N_cor / N if N > 0 else 0
-			info.update({
-				'total': N,
-				'correct': N_cor,
-				'incorrect': N_inc,
-				'accuracy': acc,
-			})
-		elif isinstance(self._answer_type, list):
-			means = {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
-			metrics = {key: vals.copy() for key, vals in self.metrics.items() if len(vals)}
-			info.update({'means': means, 'metrics': metrics, })
+		if isinstance(self._answer_type, list):
+			info.update({key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)})
 		elif self._answer_type is None:
 			pass
 		else:
@@ -318,6 +314,9 @@ class DefaultProtocol(ProtocolBase):
 		tbl = list(data.items())
 		return tabulate(tbl)
 
+	def remember(self, **info: JSONDATA):
+		self._extra_info.update(info)
+
 	def json(self) -> JSONOBJ:
 		task_json = self.task.json()
 		task_json['name'] = self.task.name
@@ -331,7 +330,7 @@ class DefaultProtocol(ProtocolBase):
 			'model': self.strategy.model_name,
 			'judge': judge_json,
 			'seed': self._master_seed,
-			'limit': self._limit,
+			'entra': self._extra_info,
 		**super().json()}
 
 	def checkpoint(self, path: Optional[Path] = None, *, overwrite: bool = True) -> Union[JSONOBJ, Path]:
@@ -345,6 +344,8 @@ class DefaultProtocol(ProtocolBase):
 
 		task_path = self.task.checkpoint(path.joinpath('task')).relative_to(path)
 		strat_path = self.strategy.checkpoint(path.joinpath('strategy')).relative_to(path)
+		if self.judge is not None:
+			judge_path = self.judge.checkpoint(path.joinpath('judge')).relative_to(path)
 
 		data = self._checkpoint_data(str(task_path), str(strat_path))
 		with path.joinpath('protocol.json').open('w') as f:
@@ -365,6 +366,13 @@ class DefaultProtocol(ProtocolBase):
 		data = super()._checkpoint_data()
 		data['task'] = self.task.checkpoint() if task is None else task
 		data['strategy'] = self.strategy.checkpoint() if strategy is None else strategy
+		data['status'] = self.status()
+		data['state'] = {
+			'scores': self.scores,
+			'fails': self.fails,
+			'history': self.history,
+			'metrics': self.metrics,
+		}
 		return data
 
 	def load_checkpoint(self, *, path: Path = None, data: Any = None, unsafe: bool = True) -> Optional[Path]:
@@ -386,6 +394,11 @@ class DefaultProtocol(ProtocolBase):
 				self.task.load_checkpoint(data=data['task'])
 			if 'strategy' in data:
 				self.strategy.load_checkpoint(data=data['strategy'])
+		state = data.get('state', {})
+		self.scores = state.get('scores', [])
+		self.fails = state.get('fails', [])
+		self.history = state.get('history', [])
+		self.metrics = state.get('metrics', {})
 
 
 

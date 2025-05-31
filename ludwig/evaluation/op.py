@@ -1,5 +1,6 @@
 from .imports import *
 from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
+from ..util import AbstractBroker, DefaultBroker
 # from ..base import Task, Strategy
 import pandas as pd
 
@@ -7,24 +8,6 @@ try:
 	import wandb
 except ImportError:
 	wandb = None
-
-def drop_keys_in_sample(sample, drop_keys):
-	for key in drop_keys:
-		loc = sample
-		while len(key):
-			x, *terms = key.split('.')
-			key = '.'.join(terms)
-			if isinstance(loc, dict):
-				if x in loc:
-					if len(terms):
-						loc = loc[x]
-					else:
-						del loc[x]
-						break
-				else:
-					break
-			else:
-				break
 
 def _view_score(score, fail_rate=None):
 	if fail_rate is not None:
@@ -36,6 +19,7 @@ def _view_score(score, fail_rate=None):
 	elif isinstance(score, dict): # TODO flatten first
 		return ', '.join([f'{k}={_view_score(v)}' for k, v in score.items()])
 	raise ValueError('score must be float or dict')
+
 
 @fig.script('eval', description='Evaluate a `task` on a `strategy` (i.e. model)')
 def eval_task(cfg: fig.Configuration):
@@ -52,6 +36,35 @@ def eval_task(cfg: fig.Configuration):
 	:type protocol: AbstractProtocol
 	:return:
 	"""
+	out_root = cfg.pull('out-dir', None)
+	if out_root is not None:
+		out_root = Path(out_root)
+		out_root.mkdir(exist_ok=True)
+
+	resume = cfg.pull('resume', None)
+	if resume is None:
+		cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
+		ckptpath = None
+	else:
+		out_dir = out_root / resume
+		assert out_dir.exists(), f'Cannot resume from {out_dir}, it does not exist'
+		cfgpath = out_dir / 'config.yaml'
+		assert cfgpath.exists(), f'Cannot resume from {out_dir}, config file does not exist'
+		loadcfg = fig.create_config(cfgpath)
+		loadcfg.update(cfg)
+		# find/load checkpoint
+		ckpts = list(out_dir.glob('ckpt-*'))
+		if len(ckpts) == 0:
+			raise ValueError(f'No checkpoints found in {out_dir}')
+		ckptpath = max(ckpts, key=lambda p: (p.name, p.stat().st_mtime))
+
+	protocol: AbstractProtocol = cfg.pull('protocol')
+
+	if ckptpath is not None:
+		if not ckptpath.exists():
+			raise ValueError(f'Checkpoint path {ckptpath} does not exist')
+		protocol.load_checkpoint(ckptpath)
+
 	pbar: bool = cfg.pull('pbar', where_am_i() != 'cluster')
 
 	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
@@ -61,29 +74,14 @@ def eval_task(cfg: fig.Configuration):
 	if use_wandb:
 		pause_after = cfg.pull('pause-after', None)
 
-	out_root = cfg.pull('out-dir', None)
-	if out_root is not None:
-		out_root = Path(out_root)
-		out_root.mkdir(exist_ok=True)
-
-	log_table = cfg.pull('log-table', 4)
-	log_fails = cfg.pull('log-fails', 10)
-	log_samples = cfg.pull('log-samples', (not use_wandb or log_table is not None) and out_root is not None)
-	drop_keys = cfg.pull('drop-keys', [])
+	logger = cfg.pull('logger', None)
+	viewer = cfg.pull('viewer', None)
+	results = cfg.pull('results', None)
 
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 	error_ckpt = cfg.pull('err-ckpt', True)
 
-	resume = cfg.pull('resume', None)
-
-	cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
-	protocol: AbstractProtocol = cfg.pull('protocol')
-
 	out_dir = protocol.prepare(out_root)
-
-	if out_dir is not None:
-		with out_dir.joinpath('config.yaml').open('w') as f:
-			f.write(str(cfg))
 
 	wandb_run = None
 	check_confirmation = None
@@ -109,17 +107,32 @@ def eval_task(cfg: fig.Configuration):
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
 
-	sample_logger = None
-	if log_samples:
-		assert out_dir is not None, f'log-samples requires out-dir to be set'
-		sample_logger = out_dir.joinpath('log.jsonl').open('a')
+		if viewer is not None and len(viewer):
+			print('Viewer:')
+			print(viewer.describe())
+		else:
+			print(f'Not viewing anything.')
+
+		protocol.remember(wandb={'id': wandb_run.id, 'entity': wandb_run.entity, 'project': wandb_run.project})
 
 	desc = protocol.describe()
 	if desc is not None:
 		print(desc)
 		print()
+
+	sample_logger = None
 	if out_dir is not None:
-		print(f'Saving results to {out_dir}')
+		with out_dir.joinpath('config.yaml').open('w') as f:
+			f.write(str(cfg))
+		if logger is not None and len(logger):
+			print('Logging:')
+			print(logger.describe())
+			sample_logger = out_dir.joinpath('log.jsonl').open('a')
+		else:
+			print(f'Not logging anything.')
+
+	if out_dir is not None:
+		print(f'Output dir: {out_dir}')
 		print()
 
 	artifacts = protocol.pre_loop()
@@ -136,8 +149,17 @@ def eval_task(cfg: fig.Configuration):
 				tbl = wandb.Table(dataframe=tbl)
 			wandb_run.log({f'study': tbl})
 
-	itr = protocol.remaining_iterations()
-	num_digits = len(str(len(itr))) + 1
+	limit = cfg.pull('limit', None)
+	itr = protocol.remaining_iterations(limit)
+	n_itr = len(itr)
+	pbar_desc = None
+	print_freq = None
+	if pbar:
+		pbar_desc = cfg.pull('pbar-desc', '{"[score]" if sample.get("score") is None else f"{score:.2%}"} '
+										  '(fail={fails}, invalid={invalid})')
+	else:
+		print_freq = cfg.pull('print-freq', max(n_itr//200, 1))
+	num_digits = len(str(n_itr)) + 1
 	if out_dir is not None and ckpt_freq is not None:
 		ckptpath = out_dir / f'ckpt-{0:0{num_digits}}'
 		protocol.checkpoint(ckptpath)
@@ -151,18 +173,14 @@ def eval_task(cfg: fig.Configuration):
 			sample = protocol.step(i)
 		except:
 			if out_dir is not None and error_ckpt:
-				protocol.checkpoint(out_dir / f'error{i}')
+				ckptpath = out_dir / f'ckpt-{i:0{num_digits}}'
+				protocol.checkpoint(path=out_dir / f'error{i}', force=True)
+				print(f'Checkpointed error at iteration {i} to {out_dir / f"error{i}"}')
 			raise
-		if 'message' in sample:
-			print()
-			print(sample['message'])
-			del sample['message']
-		if 'score' in sample and pbar:
-			score = _view_score(sample['score'], sample.get('fail_rate'))
-			itr.set_description(score)
-		elif 'pbar' in sample and pbar:
-			itr.set_description(sample['pbar'])
-			del sample['pbar']
+		if pbar and pbar_desc is not None:
+			itr.set_description(pformat(pbar_desc, sample))
+		if print_freq is not None:
+			raise NotImplementedError
 		if wandb_run is not None and (pause_after is None or i <= pause_after):
 			# if 'log' in sample:
 			# 	wandb_run.log(flatten(sample['log']))
@@ -205,6 +223,10 @@ def eval_task(cfg: fig.Configuration):
 	if summary is not None:
 		print(summary)
 		print()
+
+	remaining = protocol.remaining_iterations()
+	if remaining:
+		print(f'Remaining iterations: {remaining}')
 
 	if sample_logger is not None:
 		sample_logger.close()
