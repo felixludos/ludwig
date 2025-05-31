@@ -111,31 +111,45 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
         return tabulate(tbl, headers=['Target', 'Value'], stralign='left', numalign='left')
 
     def extract(self, data: JSONOBJ) -> JSONFLAT:
-        collected = {}
+        raw = {}
+
+        # extract
+        for target in self.active:
+            try:
+                value = deep_get(data, target, sep=self.sep)
+            except (KeyError, ValueError):
+                pass
+            else:
+                raw[target] = value
+
+        # filter
+        if self.untargets:
+            raw = unflatten(raw, sep=self.sep)
+            for untarget in self.untargets:
+                try:
+                    deep_remove(raw, untarget, sep=self.sep)
+                except (KeyError, ValueError):
+                    pass
+
+        # format
+        selected = {}
         for target in self.active:
             try:
                 formatter = self.targets[target]
-                value = formatter.extract(data, target, sep=self.sep) if isinstance(formatter, AbstractFormatter) \
-                            else deep_get(data, target, sep=self.sep)
+                value = formatter.extract(raw, target, sep=self.sep) if isinstance(formatter, AbstractFormatter) \
+                            else deep_get(raw, target, sep=self.sep)
             except (KeyError, ValueError):
                 pass
             else:
                 if isinstance(formatter, AbstractFormatter):
-                    formatter.update(collected, target, value)
+                    formatter.update(selected, target, value)
                 elif isinstance(formatter, int):
                     self.targets[target] -= 1
                     if self.targets[target] <= 0:
                         del self.targets[target]
                         self.active.remove(target)
                 else:
-                    collected[target] = value
+                    selected[target] = value
 
-        if self.untargets:
-            collected = unflatten(collected, sep=self.sep)
-            for untarget in self.untargets:
-                try:
-                    deep_remove(collected, untarget, sep=self.sep)
-                except (KeyError, ValueError):
-                    pass
 
-        return flatten(collected, sep=self.sep)
+        return flatten(selected, sep=self.sep)
