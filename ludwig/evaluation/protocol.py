@@ -248,7 +248,7 @@ class DefaultProtocol(ProtocolBase):
 			self.fails.append(idx)
 		if score is not None:
 			self.scores.append(score)
-		sample['failure'] = failed
+		sample['failed'] = failed
 		return sample
 
 	def _default_stats(self) -> JSONFLAT:

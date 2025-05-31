@@ -69,12 +69,15 @@ def eval_task(cfg: fig.Configuration):
 
 	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
 	pause_after = None
+	shutdown_freq = None
 	if use_wandb and wandb is None:
 		raise ValueError('You need to install `wandb` to use `wandb`')
 	if use_wandb:
 		pause_after = cfg.pull('pause-after', None)
+		shutdown_freq = cfg.pull('shutdown-freq', None)
 
 	logger = cfg.pull('logger', None)
+	prelogger = cfg.pull('prelogger', None)
 	viewer = cfg.pull('viewer', None)
 	results = cfg.pull('results', None)
 
@@ -85,6 +88,7 @@ def eval_task(cfg: fig.Configuration):
 
 	wandb_run = None
 	check_confirmation = None
+	check_shutdown = None
 	if use_wandb:
 		wandb_dir = out_dir.absolute()
 		wandb_config = protocol.json()
@@ -106,6 +110,7 @@ def eval_task(cfg: fig.Configuration):
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
+		check_shutdown = lambda: 'shutdown' in wandb.apis.public.Api().run(wandb_addr).tags
 
 		if viewer is not None and len(viewer):
 			print('Viewer:')
@@ -140,14 +145,11 @@ def eval_task(cfg: fig.Configuration):
 		if 'stats' in artifacts:
 			print(f'Pre-loop stats:')
 			print(tabulate(flatten(artifacts['stats']).items()))
-		if use_wandb and 'study' in artifacts:
-			tbl = {key: str(val) for key, val in flatten(artifacts['study']).items()}
-			if isinstance(tbl, dict):
-				# convert dict[str,str] to dataframe
-				tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
-			if isinstance(tbl, pd.DataFrame):
-				tbl = wandb.Table(dataframe=tbl)
-			wandb_run.log({f'study': tbl})
+		if prelogger is not None and len(prelogger):
+			pre = prelogger.extract(artifacts)
+			if use_wandb and len(pre):
+				pre = {f'pre/{k}': v for k, v in flatten(pre).items()}
+				wandb_run.log({f'pre': pre}, step=0)
 
 	limit = cfg.pull('limit', None)
 	itr = protocol.remaining_iterations(limit)
@@ -159,6 +161,8 @@ def eval_task(cfg: fig.Configuration):
 										  '(fail={fails}, invalid={invalid})')
 	else:
 		print_freq = cfg.pull('print-freq', max(n_itr//200, 1))
+	if shutdown_freq is None:
+		shutdown_freq = max(n_itr // 200, 1)
 	num_digits = len(str(n_itr)) + 1
 	if out_dir is not None and ckpt_freq is not None:
 		ckptpath = out_dir / f'ckpt-{0:0{num_digits}}'
@@ -181,42 +185,20 @@ def eval_task(cfg: fig.Configuration):
 			itr.set_description(pformat(pbar_desc, sample))
 		if print_freq is not None:
 			raise NotImplementedError
-		if wandb_run is not None and (pause_after is None or i <= pause_after):
-			# if 'log' in sample:
-			# 	wandb_run.log(flatten(sample['log']))
-			if 'table' in sample and (log_table is None or (i < log_table)):
-				# columns = shutil.get_terminal_size(fallback=(60, 20)).columns
-				# tbl = {key: wrap_text(val, max(columns, 60)) for key, val in flatten(sample['table']).items()}
-				tbl = {key: str(val) for key, val in flatten(sample['table']).items()}
-				if isinstance(tbl, dict):
-					# convert dict[str,str] to dataframe
-					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
-				if isinstance(tbl, pd.DataFrame):
-					tbl = wandb.Table(dataframe=tbl)
-				wandb_run.log({f'table{i}': tbl}, step=i)
-			elif 'table' in sample and log_fails and sample.get('failed'):
-				tbl = {key: str(val) for key, val in flatten(sample['table']).items()}
-				if isinstance(tbl, dict):
-					# convert dict[str,str] to dataframe
-					tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
-				if isinstance(tbl, pd.DataFrame):
-					tbl = wandb.Table(dataframe=tbl)
-				wandb_run.log({f'fail{i}': tbl}, step=i)
-				if isinstance(log_fails, int):
-					log_fails -= 1
-					if log_fails <= 0:
-						log_fails = None
-			if 'score' in sample and sample['score'] is not None:
-				scores = {'score': sample['score']} if isinstance(sample['score'], (int,float)) else sample['score']
-				wandb_run.log({f'live-{key}': val for key, val in flatten(scores).items()}, step=i)
-			if 'log' in sample:
-				wandb_run.log(flatten(sample['log']), step=i)
-		if sample_logger is not None:
-			if drop_keys:
-				drop_keys_in_sample(sample, drop_keys)
-			sample_logger.write(json.dumps(sample) + '\n')
+		if wandb_run is not None:
+			if viewer is not None and len(viewer):
+				viz = viewer.extract(sample)
+				if len(viz):
+					viz = {f'live/{k}': v for k, v in flatten(viz).items()}
+					wandb_run.log(viz, step=i)
+			if out_dir is not None and i > 0 and (i % shutdown_freq == 0) and check_shutdown():
+				protocol.checkpoint(out_dir / f'ckpt-{i + 1:0{num_digits}}')
+		if sample_logger is not None and len(logger):
+			log = logger.extract(sample)
+			sample_logger.write(json.dumps(log) + '\n')
 			sample_logger.flush()
-		if out_dir is not None and ckpt_freq is not None and i > 0 and i % ckpt_freq == 0:
+		if out_dir is not None and i > 0 and ((ckpt_freq is not None and i % ckpt_freq == 0)
+							or (use_wandb and (i % shutdown_freq == 0) and check_shutdown())):
 			protocol.checkpoint(out_dir / f'ckpt-{i+1:0{num_digits}}')
 
 	summary = protocol.summary()
@@ -235,11 +217,12 @@ def eval_task(cfg: fig.Configuration):
 		protocol.checkpoint(out_dir)
 
 	out = protocol.post_loop()
+	if results is not None and len(results):
+		out = results.extract(out)
 
 	if wandb_run is not None:
-		wandb.summary.update(flatten(out))
+		wandb.summary.update(out)
 		wandb_run.finish()
-
 	return out
 
 

@@ -1,6 +1,9 @@
 from .imports import *
 from ..jsonutils import flatten, deep_get, deep_remove
 
+import pandas as pd
+import wandb
+
 try:
     from omnibelt import wrap_text
 except ImportError:
@@ -26,18 +29,47 @@ class AbstractFormatter:
         raise NotImplementedError("Subclasses must implement update method")
 
 
-class SimpleFormatter(AbstractFormatter):
+@fig.component('formatter/simple')
+class SimpleFormatter(fig.Configurable, AbstractFormatter):
+    def __init__(self, expires: int = None, **kwargs):
+        super().__init__(**kwargs)
+        self.expires = expires
+
     def extract(self, data: JSONOBJ, key: str, *, sep: str = '.') -> Any:
         """
         Extract a value from data for the given key.
         """
         return deep_get(data, key, sep=sep)
 
-    def update(self, collected: JSONOBJ, key: str, value: Any) -> None:
+    def update(self, data: JSONOBJ, collected: JSONOBJ, key: str, value: Any) -> None:
+        """
+        Update the collected data with the extracted value.
+        """
+        if self.expires is None or self.expires <= 0:
+            return
+        self._update(data, collected, key, value)
+        if self.expires is not None:
+            self.expires -= 1
+
+    def _update(self, data: JSONOBJ, collected: JSONOBJ, key: str, value: Any) -> None:
         """
         Update the collected data with the extracted value.
         """
         collected[key] = value
+
+
+@fig.component('formatter/table')
+class TableFormatter(SimpleFormatter):
+    def _update(self, data: JSONOBJ, collected: JSONOBJ, key: str, value: Any) -> None:
+        """
+        Update the collected data with the extracted value.
+        """
+        assert isinstance(value, dict)
+        tbl = flatten(value)
+        tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
+        if isinstance(tbl, pd.DataFrame):
+            tbl = wandb.Table(dataframe=tbl)
+        collected[key] = tbl
 
 
 
