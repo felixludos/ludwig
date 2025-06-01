@@ -18,7 +18,7 @@ _base: [demo]
 
 limit: 8
 
-use-wandb: yes
+use-wandb: no
 
 root: local_data/
 

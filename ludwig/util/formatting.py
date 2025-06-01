@@ -186,7 +186,7 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
                 else:
                     selected[target] = value
                 
-                if isinstance(formatter, int):
+                if isinstance(formatter, int) and not isinstance(formatter, bool):
                     self.targets[target] -= 1
                     if self.targets[target] <= 0:
                         del self.targets[target]
