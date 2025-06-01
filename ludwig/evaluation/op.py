@@ -3,6 +3,7 @@ from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
 from ..util import AbstractBroker, DefaultBroker
 # from ..base import Task, Strategy
 import pandas as pd
+from os import symlink
 
 try:
 	import wandb
@@ -78,12 +79,11 @@ def eval_task(cfg: fig.Configuration):
 
 	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
 	pause_after = None
-	shutdown_freq = None
 	if use_wandb and wandb is None:
 		raise ValueError('You need to install `wandb` to use `wandb`')
 	if use_wandb:
 		pause_after = cfg.pull('pause-after', None)
-		shutdown_freq = cfg.pull('shutdown-freq', None)
+		shutdown_period = cfg.pull('shutdown-period', 60) # in sec
 
 	logger = cfg.pull('logger', None)
 	prelogger = cfg.pull('prelogger', None)
@@ -168,8 +168,6 @@ def eval_task(cfg: fig.Configuration):
 	n_itr = len(itr)
 	if pbar is None and print_freq is None:
 		print_freq = max(n_itr//200, 1)
-	if shutdown_freq is None:
-		shutdown_freq = max(n_itr // 200, 1)
 	num_digits = len(str(n_itr)) + 1
 	if out_dir is not None and ckpt_freq is not None:
 		ckptpath = out_dir / f'ckpt-{0:0{num_digits}}'
@@ -179,7 +177,11 @@ def eval_task(cfg: fig.Configuration):
 				json.dump(artifacts, f)
 
 	if pbar: itr = tqdm(itr, desc=f'[score]')
+	ckpted = False
+	shutdown_time = time.time()
+	i = 0
 	for i in itr:
+		ckpted = False
 		try:
 			sample = protocol.step(i)
 		except:
@@ -192,42 +194,58 @@ def eval_task(cfg: fig.Configuration):
 			itr.set_description(pformat(pbar_desc, sample))
 		if print_freq is not None:
 			raise NotImplementedError
+		if sample_logger is not None and len(logger):
+			log = logger.extract(sample)
+			sample_logger.write(json.dumps(log) + '\n')
+			sample_logger.flush()
 		if wandb_run is not None:
 			if viewer is not None and len(viewer):
 				viz = viewer.extract(sample)
 				if len(viz):
 					viz = {f'live/{k}': v for k, v in flatten(viz).items()}
 					wandb_run.log(viz, step=i)
-			if out_dir is not None and i > 0 and (i % shutdown_freq == 0) and check_shutdown():
-				protocol.checkpoint(out_dir / f'ckpt-{i + 1:0{num_digits}}')
-		if sample_logger is not None and len(logger):
-			log = logger.extract(sample)
-			sample_logger.write(json.dumps(log) + '\n')
-			sample_logger.flush()
-		if out_dir is not None and i > 0 and ((ckpt_freq is not None and i % ckpt_freq == 0)
-							or (use_wandb and (i % shutdown_freq == 0) and check_shutdown())):
-			protocol.checkpoint(out_dir / f'ckpt-{i+1:0{num_digits}}')
+		if wandb_run is not None and (time.time() - shutdown_time) >= shutdown_period:
+			shutdown_time = time.time()
+			if check_shutdown():
+				ckptpath = out_dir / f'ckpt-{i + 1:0{num_digits}}'
+				protocol.checkpoint(ckptpath)
+				print(f'Received shutdown signal, checkpointed at: {ckptpath}')
+				return
+		if out_dir is not None and i > 0 and ckpt_freq is not None and i % ckpt_freq == 0:
+			ckptpath = out_dir / f'ckpt-{i + 1:0{num_digits}}'
+			protocol.checkpoint(ckptpath)
+			ckpted = True
 
 	summary = protocol.summary()
 	if summary is not None:
 		print(summary)
-		print()
 
 	remaining = protocol.remaining_iterations()
 	if remaining:
-		print(f'Remaining iterations: {remaining}')
+		print(f'Remaining iterations: {len(remaining)}')
 
 	if sample_logger is not None:
 		sample_logger.close()
 
-	if out_dir is not None:
-		protocol.checkpoint(out_dir)
-
+	if out_dir is not None and not ckpted:
+		ckptpath = out_dir / f'ckpt-{i + 1:0{num_digits}}'
+		protocol.checkpoint(ckptpath)
+		print(f'Checkpointed final state to {ckptpath}')
+		latest_ckpt = out_dir / 'ckpt-final'
+		if latest_ckpt.exists():
+			latest_ckpt.unlink()
+		latest_ckpt.symlink_to(ckptpath.name)
+		
 	out = protocol.post_loop()
 	if results is not None and len(results):
 		out = results.extract(out)
 
 	if wandb_run is not None:
+		# if viewer is not None and len(viewer):
+		# 	viz = viewer.extract(sample)
+		# 	if len(viz):
+		# 		viz = {f'{k}': v for k, v in flatten(viz).items()}
+		# 		wandb_run.log(viz, step=i)
 		wandb.summary.update(out)
 		wandb_run.finish()
 	return out

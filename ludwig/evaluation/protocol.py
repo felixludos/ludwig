@@ -260,11 +260,8 @@ class DefaultProtocol(ProtocolBase):
 
 	def _default_stats(self) -> JSONFLAT:
 		stats = {}
-		if len(self.scores):
-			stats['score'] = sum(self.scores) / len(self.scores)
-		else:
-			stats['score'] = None
-		stats['past_itr'] = len(self.history)
+		stats['score'] = sum(self.scores) / len(self.scores) if len(self.scores) else None
+		stats['iterations'] = len(self.history)
 		stats['fails'] = len(self.fails)
 		stats['invalid'] = len(self.history) - len(self.scores)
 		return stats

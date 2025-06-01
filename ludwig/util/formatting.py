@@ -65,7 +65,7 @@ class TableFormatter(SimpleFormatter):
         Update the collected data with the extracted value.
         """
         assert isinstance(value, dict)
-        tbl = flatten(value)
+        tbl = {key: str(val) for key,val in flatten(value).items()}
         tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
         if isinstance(tbl, pd.DataFrame):
             tbl = wandb.Table(dataframe=tbl)
@@ -147,12 +147,16 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
 
         # extract
         for target in self.active:
-            try:
-                value = deep_get(data, target, sep=self.sep)
-            except (KeyError, ValueError):
-                pass
+            if target == '_all_':
+                raw.update(flatten(data))
+                break
             else:
-                raw[target] = value
+                try:
+                    value = deep_get(data, target, sep=self.sep)
+                except (KeyError, ValueError):
+                    pass
+                else:
+                    raw[target] = value
 
         # filter
         if self.untargets:
@@ -168,20 +172,25 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
         for target in self.active:
             try:
                 formatter = self.targets[target]
-                value = formatter.extract(raw, target, sep=self.sep) if isinstance(formatter, AbstractFormatter) \
-                            else deep_get(raw, target, sep=self.sep)
+                if isinstance(formatter, AbstractFormatter):
+                    value = formatter.extract(raw, target, sep=self.sep)
+                elif target != '_all_':
+                    value = deep_get(raw, target, sep=self.sep)
             except (KeyError, ValueError):
                 pass
             else:
                 if isinstance(formatter, AbstractFormatter):
-                    formatter.update(selected, target, value)
-                elif isinstance(formatter, int):
+                    formatter.update(raw, selected, target, value)
+                elif target == '_all_':
+                    selected.update(raw)
+                else:
+                    selected[target] = value
+                
+                if isinstance(formatter, int):
                     self.targets[target] -= 1
                     if self.targets[target] <= 0:
                         del self.targets[target]
                         self.active.remove(target)
-                else:
-                    selected[target] = value
 
 
         return flatten(selected, sep=self.sep)

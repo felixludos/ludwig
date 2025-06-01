@@ -18,7 +18,7 @@ _base: [demo]
 
 limit: 8
 
-use-wandb: no
+use-wandb: yes
 
 root: local_data/
 
@@ -37,6 +37,43 @@ max-tokens: 1024
 
 #temperature: 0.6
 #top-p: 0.95
+
+viewer:
+  _type: default-broker
+  targets: <>viz
+viz: {}
+unviz: {}
+
+logger:
+  _type: default-broker
+  targets: <>log
+  untargets: <>unlog
+log: {}
+unlog: {}
+
+
+prelogger:
+  _type: default-broker
+  targets: <>pre
+  untargets: <>unpre
+pre: {}
+unpre: {}
+
+
+viz:
+  table:
+    _type: formatter/table
+    expires: 4
+  score: yes
+  fails: yes
+  invalid: yes
+  stats: yes
+
+log:
+  _all_: yes
+
+prelog:
+  _all_: yes
 
 
 ##################
