@@ -128,13 +128,16 @@ class DefaultProtocol(ProtocolBase):
 
 
 	def remaining_iterations(self, limit: Optional[int] = None) -> range:
-		raise NotImplementedError
 		"""(optional) Returns the number of iterations remaining in this protocol"""
+		n = self.task.total_questions
 		if limit is None:
-			if self.task.total_questions is None:
+			if n is None:
 				raise RuntimeError('Task has no total_questions and no limit was provided.')
-			return range(self._past_iterations, self.task.total_questions)
-		return range(self._past_iterations, limit)
+			return range(len(self.history), n)
+		past = len(self.history)
+		if n is None:
+			return range(past, past + limit)
+		return range(past, min(past + limit, n))
 
 	def describe(self) -> str:
 		tbl = [
@@ -171,6 +174,8 @@ class DefaultProtocol(ProtocolBase):
 		metrics = []
 		if isinstance(self._answer_type, list):
 			metrics = {key: [] for key in spec['answer']}
+		elif self._answer_type == 'yes/no':
+			metrics = None
 		elif self._answer_type is None:
 			metrics = None
 		else:
@@ -233,7 +238,7 @@ class DefaultProtocol(ProtocolBase):
 		score = self._aggregate_verdict(idx, verdict)
 		proc['decision'] = decision
 		proc['answer'] = answer
-		proc['score'] = score
+		proc['verdict'] = verdict
 
 		sample = {}
 		if len(log):
@@ -248,13 +253,17 @@ class DefaultProtocol(ProtocolBase):
 			self.fails.append(idx)
 		if score is not None:
 			self.scores.append(score)
+		sample['idx'] = idx
 		sample['failed'] = failed
+		sample.update(self._default_stats())
 		return sample
 
 	def _default_stats(self) -> JSONFLAT:
 		stats = {}
 		if len(self.scores):
 			stats['score'] = sum(self.scores) / len(self.scores)
+		else:
+			stats['score'] = None
 		stats['past_itr'] = len(self.history)
 		stats['fails'] = len(self.fails)
 		stats['invalid'] = len(self.history) - len(self.scores)
@@ -298,6 +307,8 @@ class DefaultProtocol(ProtocolBase):
 		if isinstance(self._answer_type, list):
 			info.update({key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)})
 		elif self._answer_type is None:
+			pass
+		elif self._answer_type == 'yes/no':
 			pass
 		else:
 			raise ValueError(f'Unknown answer type: {self._answer_type}')
@@ -344,8 +355,6 @@ class DefaultProtocol(ProtocolBase):
 
 		task_path = self.task.checkpoint(path.joinpath('task')).relative_to(path)
 		strat_path = self.strategy.checkpoint(path.joinpath('strategy')).relative_to(path)
-		if self.judge is not None:
-			judge_path = self.judge.checkpoint(path.joinpath('judge')).relative_to(path)
 
 		data = self._checkpoint_data(str(task_path), str(strat_path))
 		with path.joinpath('protocol.json').open('w') as f:

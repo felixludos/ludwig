@@ -3,7 +3,7 @@ _meta.script_name: eval
 
 seed: 1000000009
 
-#_base: [demo]
+_base: [demo]
 #_base: [s/dp, ttt/take-the-middle, j/client]
 #_base: [s/zcot, ttt/take-the-middle, j/client]
 #_base: [s/dp, ttt/take-the-middle, j/client]
@@ -18,11 +18,11 @@ seed: 1000000009
 
 limit: 8
 
-use-wandb: yes
+use-wandb: no
 
-#out-dir: local_data/
+root: local_data/
 
-addr: http://wagner.is.localnet:8000
+# addr: http://wagner.is.localnet:8000
 #client.addr: 8001
 #judge.addr: 8000
 
@@ -41,10 +41,10 @@ max-tokens: 1024
 
 ##################
 
-_base: [venice-sent, c/vllm]
+# _base: [venice-sent, c/vllm]
 
-#template: venice/analysis
-template: venice/analysis-yaml
+# #template: venice/analysis
+# template: venice/analysis-yaml
 
 #############################
 #

@@ -36,7 +36,9 @@ def eval_task(cfg: fig.Configuration):
 	:type protocol: AbstractProtocol
 	:return:
 	"""
-	out_root = cfg.pull('out-dir', None)
+	limit = cfg.pull('limit', None)
+
+	out_root = cfg.pull('root', None)
 	if out_root is not None:
 		out_root = Path(out_root)
 		out_root.mkdir(exist_ok=True)
@@ -46,6 +48,7 @@ def eval_task(cfg: fig.Configuration):
 		cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 		ckptpath = None
 	else:
+		assert out_root is not None, 'Cannot resume from a directory without `root` specified'
 		out_dir = out_root / resume
 		assert out_dir.exists(), f'Cannot resume from {out_dir}, it does not exist'
 		cfgpath = out_dir / 'config.yaml'
@@ -66,6 +69,12 @@ def eval_task(cfg: fig.Configuration):
 		protocol.load_checkpoint(ckptpath)
 
 	pbar: bool = cfg.pull('pbar', where_am_i() != 'cluster')
+	print_freq = None
+	if pbar:
+		pbar_desc = cfg.pull('pbar-desc', '{"[score]" if score is None else f"{score:.2%}"} '
+										  '(fail={fails}, invalid={invalid})')
+	else:
+		print_freq = cfg.pull('print-freq', None)
 
 	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
 	pause_after = None
@@ -84,7 +93,11 @@ def eval_task(cfg: fig.Configuration):
 	ckpt_freq = cfg.pulls('ckpt-freq', 'ckpt', default=None)
 	error_ckpt = cfg.pull('err-ckpt', True)
 
-	out_dir = protocol.prepare(out_root)
+	protocol.prepare()
+
+	if out_root is not None:
+		out_dir = out_root / protocol.name
+		out_dir.mkdir(parents=False, exist_ok=True)
 
 	wandb_run = None
 	check_confirmation = None
@@ -151,16 +164,10 @@ def eval_task(cfg: fig.Configuration):
 				pre = {f'pre/{k}': v for k, v in flatten(pre).items()}
 				wandb_run.log({f'pre': pre}, step=0)
 
-	limit = cfg.pull('limit', None)
 	itr = protocol.remaining_iterations(limit)
 	n_itr = len(itr)
-	pbar_desc = None
-	print_freq = None
-	if pbar:
-		pbar_desc = cfg.pull('pbar-desc', '{"[score]" if sample.get("score") is None else f"{score:.2%}"} '
-										  '(fail={fails}, invalid={invalid})')
-	else:
-		print_freq = cfg.pull('print-freq', max(n_itr//200, 1))
+	if pbar is None and print_freq is None:
+		print_freq = max(n_itr//200, 1)
 	if shutdown_freq is None:
 		shutdown_freq = max(n_itr // 200, 1)
 	num_digits = len(str(n_itr)) + 1

@@ -11,4 +11,4 @@ strategy._type: direct-prompting
 template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
 client._type: mock
 
-judge._type: final-answer-judge
+judge._type: format-judge
