@@ -1,5 +1,5 @@
 from .imports import *
-from ..jsonutils import flatten, deep_get, deep_remove
+from ..jsonutils import flatten, deep_get, deep_remove, AbstractJsonable
 
 import pandas as pd
 import wandb
@@ -88,6 +88,16 @@ class AbstractBroker:
         Return an iterator of tuples containing target, value, and active status.
         """
         raise NotImplementedError("Subclasses must implement details method")
+    
+    def json(self) -> JSONOBJ:
+        """
+        Return a JSON representation of the broker configuration.
+        """
+        raise NotImplementedError("Subclasses must implement json method")
+    
+    def status(self) -> JSONOBJ:
+        raise NotImplementedError
+
 
 
 @fig.component('default-broker')
@@ -194,3 +204,56 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
 
 
         return flatten(selected, sep=self.sep)
+
+
+class MinimalBroker(DefaultBroker):
+    """
+    Minimal broker that extracts values from data for each target in targets.
+    """
+    def __init__(self, targets: Union[Dict[str, Any], Iterable[str]] = None, untargets: Iterable[str] = None,
+                 *, sep: str = '.', **kwargs):
+        super().__init__(targets=targets, untargets=untargets, sep=sep, **kwargs)
+        self.assignments = {}
+        self.displayed = {}
+        self.tree = {}
+
+    def _as_unique(self, key: str) -> str:
+        if key not in self.displayed:
+            return key
+        i = 0
+        while f'{key}{i}' in self.displayed:
+            i += 1
+        return f'{key}{i}'
+
+
+    def _simplify_key(self, key: str):
+        if key not in self.assignments:
+            terms = key.split(self.sep)
+
+            if len(terms) == 2 and terms[-1] not in self.displayed:
+                self.assignments[key] = terms[-1]
+
+            elif len(terms) > 2:
+                for i in range(len(terms)):
+                    addr = self.sep.join([*terms[:i], terms[-1]])
+                    if addr not in self.displayed:
+                        self.assignments[key] = addr
+                        break
+
+        if key not in self.assignments:
+            self.assignments[key] = self._as_unique(key)
+
+        self.displayed[self.assignments[key]] = key
+        return self.assignments[key]
+
+
+    def extract(self, data: JSONOBJ) -> JSONFLAT:
+        """
+        Extract values from data for each target in targets.
+        """
+        raw = super().extract(data)
+        
+        simple = {self._simplify_key(key): value for key, value in raw.items()}
+        assert isinstance(simple, dict), f'Expected dict, got {type(simple)}'
+
+

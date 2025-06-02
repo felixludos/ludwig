@@ -1,6 +1,6 @@
 
 try:
-	from omnibelt.structured import (JSONDATA, JSONLIKE, JSONOBJ, JSONFLAT, Jsonable,
+	from omnibelt.structured import (JSONDATA, JSONLIKE, JSONLIKEOBJ, JSONOBJ, JSONFLAT, Jsonable as AbstractJsonable,
 								 flatten, unflatten, deep_get, deep_remove)
 
 except ImportError:
@@ -15,7 +15,7 @@ except ImportError:
 	JSONFLAT = Dict[str, JSONPRIMITIVE]
 
 
-	class Jsonable:
+	class AbstractJsonable:
 		def json(self) -> 'JSONLIKEOBJ':
 			"""
 			Return a JSON serializable representation of the object.
@@ -23,7 +23,7 @@ except ImportError:
 			raise NotImplementedError("Subclasses must implement json() method")
 
 
-	JSONLIKE = Union[None, *PRIMITIVES, Jsonable, List['JSONLIKE'], Dict[str, 'JSONLIKE']]
+	JSONLIKE = Union[None, *PRIMITIVES, AbstractJsonable, List['JSONLIKE'], Dict[str, 'JSONLIKE']]
 	JSONLIKEOBJ = Dict[str, JSONLIKE]
 
 
