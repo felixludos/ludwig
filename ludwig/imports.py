@@ -13,7 +13,7 @@ from datetime import datetime
 from tabulate import tabulate
 import omnifig as fig
 
-from .jsonutils import (JSONDATA, JSONLIKE, JSONOBJ, JSONFLAT, Jsonable,
+from .jsonutils import (JSONDATA, JSONLIKE, JSONOBJ, JSONFLAT, AbstractJsonable,
 								 flatten, unflatten, deep_get, deep_remove)
 
 

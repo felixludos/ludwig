@@ -6,7 +6,7 @@ ANSWER = JSONDATA
 DECISION = JSONDATA
 
 
-class AbstractTool(Jsonable):
+class AbstractTool(AbstractJsonable):
 	@property
 	def name(self) -> str:
 		"""A descriptive and ideally unique name for this tool"""
