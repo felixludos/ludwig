@@ -50,6 +50,7 @@ class ChatInterface(fig.Configurable):
 			yield response
 
 
+# fig chat --addr http://localhost:8001
 
 @fig.script('chat', description='Launch a chat interface')
 def launch_chat(cfg: fig.Configuration):
