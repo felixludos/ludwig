@@ -103,7 +103,7 @@ class ClientJudge(JudgeBase):
 		words = verdict.strip().lower().split()
 		if not len(words) or words[0].lower() not in {'yes', 'no', 'unknown'}:
 			self._failures += 1
-			return False, {'raw': verdict, 'decision': None}
+			return None, {'raw': verdict, 'decision': None}
 
 		decision = words[0].lower()
 		self._successes += 1

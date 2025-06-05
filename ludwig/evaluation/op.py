@@ -187,7 +187,7 @@ def eval_task(cfg: fig.Configuration):
 		except:
 			if out_dir is not None and error_ckpt:
 				ckptpath = out_dir / f'ckpt-{i:0{num_digits}}'
-				protocol.checkpoint(path=out_dir / f'error{i}', force=True)
+				protocol.checkpoint(path=out_dir / f'error{i}')
 				print(f'Checkpointed error at iteration {i} to {out_dir / f"error{i}"}')
 			raise
 		if pbar and pbar_desc is not None:

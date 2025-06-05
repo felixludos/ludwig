@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess LLM Demo</title>
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Chess LLM Demo</h1>
+    <div id="mainContainer">
+        <div id="gameArea">
+            <div id="board"></div> <!-- CSS will handle sizing -->
+            <div id="gameInfo">
+                <p>Status: <span id="status">White to move.</span></p>
+                <p>Current FEN: <input type="text" id="currentFen" readonly></p>
+            </div>
+        </div>
+
+        <div id="gameControls">
+            <h2>Settings</h2>
+            <div>
+                <label for="llmPlayerControl">LLM Plays:</label>
+                <select id="llmPlayerControl">
+                    <option value="black">Black</option>
+                    <option value="white">White</option>
+                    <option value="both">Both</option>
+                    <option value="neither" selected>Neither (Human vs Human)</option>
+                </select>
+            </div>
+            <hr>
+            <div>
+                <label for="useFrontendStub">Use Frontend LLM Stub:</label>
+                <input type="checkbox" id="useFrontendStub">
+            </div>
+            <div>
+                <label for="backendUrl">Backend URL:</label>
+                <input type="text" id="backendUrl" value="http://localhost:5001">
+            </div>
+            <div id="llmModelSelection">
+                <h3>Select Model:</h3>
+                <!-- Radio buttons will be populated here -->
+            </div>
+            <div id="promptMethodSelection">
+                <h3>Select Prompting Method:</h3>
+                <!-- Radio buttons will be populated here -->
+            </div>
+            <button id="resetButton">Reset Game to Start</button>
+            <!-- Container for side-by-side conversation toggle buttons -->
+            <div id="conversationToggleButtonsContainer"> 
+                <button id="toggleWhiteConversationButton">View White's LLM Convo</button>
+                <button id="toggleBlackConversationButton">View Black's LLM Convo</button>
+            </div>
+            <hr>
+            <h2>Editor</h2>
+            <button id="toggleEditorButton">Enter Editor Mode</button>
+            <div id="editorControls" style="display: none;">
+                <p><strong>Editor Mode Active</strong></p>
+                <button id="editorClearBoard">Clear Board</button>
+                <button id="editorStartPosition">Start Position</button>
+                <button id="editorFlipBoard">Flip Board Orientation</button>
+                <div>
+                    <label>Turn to move:</label>
+                    <input type="radio" name="editorTurn" id="editorTurnWhite" value="w" checked><label for="editorTurnWhite" class="radio-label">White</label>
+                    <input type="radio" name="editorTurn" id="editorTurnBlack" value="b"><label for="editorTurnBlack" class="radio-label">Black</label>
+                </div>
+                <div class="fen-input-area">
+                    <label for="editorFenInput">Set Board from FEN:</label>
+                    <input type="text" id="editorFenInput" placeholder="Paste FEN here (e.g., rnbqkbnr/pp1ppppp/... w KQkq - 0 1)">
+                    <button id="editorSetFenButton">Set from FEN</button>
+                    <p id="fenValidationMessage"></p>
+                </div>
+                <button id="llmPlayFromPosition">LLM Play from this Position</button>
+            </div>
+        </div>
+
+        <!-- White's LLM Conversation Log -->
+        <div id="llmConversationLogContainerWhite" class="llm-conversation-log-wrapper" style="display: none;">
+            <h2>White's LLM Conversation</h2>
+            <button class="clear-log-button" data-color="white">Clear White's Log</button>
+            <div id="llmConversationLogWhite" class="llm-conversation-log-area">
+                <!-- White's conversation messages will appear here -->
+            </div>
+        </div>
+
+        <!-- Black's LLM Conversation Log -->
+        <div id="llmConversationLogContainerBlack" class="llm-conversation-log-wrapper" style="display: none;">
+            <h2>Black's LLM Conversation</h2>
+            <button class="clear-log-button" data-color="black">Clear Black's Log</button>
+            <div id="llmConversationLogBlack" class="llm-conversation-log-area">
+                <!-- Black's conversation messages will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Local Piece Images (Assumed to be in img/chesspieces/wikipedia/) -->
+    <!-- If you don't have them locally, script.js will use a CDN -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

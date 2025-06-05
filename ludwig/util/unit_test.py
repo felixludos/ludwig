@@ -98,7 +98,9 @@ def test_tool():
 	class Client(Tool_Client, vllm_Client):
 		pass
 
-	client = Client(addr='8000', tools=[GetWeather()])
+	addr = '8021'
+	# addr = 'http://wagner.is.localnet:8000'
+	client = Client(addr=addr, tools=[GetWeather()])
 	client.prepare()
 
 	data = client.json()
@@ -108,13 +110,15 @@ def test_tool():
 		raise RuntimeError("Client is not reachable.")
 	print()
 
+	mxtokens = 512
+
 	chat = [{'role': 'user', 'content': "What is the weather in Dallas?"}]
-	r = client.step(chat, max_tokens=512)
+	r = client.step(chat, max_tokens=mxtokens)
 	print(chat[-1]['content'])
 	assert chat[-1]['role'] == 'assistant'
 
 	chat = [{'role': 'user', 'content': "Is it warmer in Dallas or Barcelona today?"}]
-	r = client.step(chat, max_tokens=512)
+	r = client.step(chat, max_tokens=mxtokens)
 	print(chat[-1]['content']) # answer should be Dallas
 	assert chat[-1]['role'] == 'assistant'
 
@@ -123,12 +127,15 @@ def test_tool():
 
 	chat = [{'role': 'user', 'content': "Is it warmer in Barcelona or Jakarta right now? "
 										"Answer only with either 'Barcelona' or 'Jakarta'."}]
-	r = client.step(chat, max_tokens=512)
+	r = client.step(chat, max_tokens=mxtokens)
 	print(chat[-1]['content']) # answer should be Barcelona
 	assert chat[-1]['role'] == 'assistant'
 
 	statsend = client.stats()
 	print(statsend)
+
+	assert 'Barcelona' in chat[-1]['content']
+
 
 
 def test_azure_client():

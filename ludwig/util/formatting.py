@@ -60,6 +60,7 @@ class SimpleFormatter(fig.Configurable, AbstractFormatter):
 
 @fig.component('formatter/table')
 class TableFormatter(SimpleFormatter):
+
     def _update(self, data: JSONOBJ, collected: JSONOBJ, key: str, value: Any) -> None:
         """
         Update the collected data with the extracted value.
@@ -69,7 +70,8 @@ class TableFormatter(SimpleFormatter):
         tbl = pd.DataFrame(tbl.items(), columns=['Key', 'Value'])
         if isinstance(tbl, pd.DataFrame):
             tbl = wandb.Table(dataframe=tbl)
-        collected[key] = tbl
+        idx = data.get('idx', None)
+        collected[f'{key}{idx}' if idx is not None else key] = tbl
 
 
 
@@ -190,7 +192,7 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
                 pass
             else:
                 if isinstance(formatter, AbstractFormatter):
-                    formatter.update(raw, selected, target, value)
+                    formatter.update(data, selected, target, value)
                 elif target == '_all_':
                     selected.update(raw)
                 else:
@@ -206,6 +208,7 @@ class DefaultBroker(fig.Configurable, AbstractBroker):
         return flatten(selected, sep=self.sep)
 
 
+@fig.component('min-broker')
 class MinimalBroker(DefaultBroker):
     """
     Minimal broker that extracts values from data for each target in targets.

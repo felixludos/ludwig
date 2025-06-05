@@ -1,0 +1,239 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+    font-size: 14px; /* Base font size */
+}
+
+h1 { text-align: center; margin-bottom: 20px; color: #2c3e50;}
+h2 { margin-top: 0; margin-bottom: 15px; color: #2c3e50; font-size: 1.4em; }
+h3 { margin-top: 15px; margin-bottom: 8px; color: #34495e; font-size: 1.1em;}
+
+#mainContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 25px;
+    align-items: flex-start;
+}
+
+/* Game Area (Board + Info) */
+#gameArea {
+    flex: 2 1 380px; /* Grow more, basis around board size */
+    max-width: 420px; /* Max size of the board area */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#board {
+    width: 100%; /* Board fills the responsive #gameArea */
+    min-height: 100px; /* Prevent collapse before js init */
+}
+
+#gameInfo {
+    text-align: center;
+    margin-top: 12px;
+    width: 100%;
+}
+#currentFen {
+    width: 100%; /* Full width of its container */
+    box-sizing: border-box;
+    font-size: 0.85em;
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+#status { font-weight: bold; }
+
+/* Game Controls (Settings + Editor) */
+#gameControls {
+    flex: 1 1 300px; /* Grow less, basis for controls width */
+    min-width: 280px;
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+}
+
+#gameControls div:not(.fen-input-area):not(#conversationToggleButtonsContainer), 
+#editorControls div:not(.fen-input-area) { 
+    margin-bottom: 15px; 
+}
+
+/* Container for conversation toggle buttons */
+#conversationToggleButtonsContainer {
+    display: flex;
+    flex-wrap: wrap; /* Allow buttons to wrap if not enough space */
+    gap: 10px; /* Space between buttons */
+    margin-top: 10px;
+    margin-bottom: 15px; /* Ensure consistent spacing with other elements */
+}
+#conversationToggleButtonsContainer button {
+    flex: 1 1 auto; /* Allow buttons to share space but not shrink too much */
+    min-width: 180px; /* Minimum width for each conversation toggle button */
+}
+
+
+/* LLM Conversation Log Containers (now two of them) */
+.llm-conversation-log-wrapper {
+    flex: 1 1 100%; /* Each takes full width on its own line */
+    border: 1px solid #ccc;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    margin-top: 0; /* Let mainContainer gap handle spacing; remove if it creates double gap */
+    position: relative; /* For positioning the clear button */
+}
+
+
+/* Common UI Elements */
+button {
+    padding: 10px 15px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 8px;
+    margin-top: 8px;
+    font-size: 0.95em;
+    transition: background-color 0.2s ease;
+}
+button:hover { background-color: #2980b9; }
+button:active { background-color: #2573a7; }
+
+#toggleEditorButton.active-editor { background-color: #e74c3c; }
+#toggleEditorButton.active-editor:hover { background-color: #c0392b; }
+
+/* Style for Clear Log buttons */
+.clear-log-button {
+    background-color: #95a5a6; /* A neutral secondary color, slightly darker */
+    position: absolute; /* Position relative to .llm-conversation-log-wrapper */
+    top: 15px; /* Adjust to align nicely with the h2 */
+    right: 20px;
+    font-size: 0.8em; /* Smaller than main buttons */
+    padding: 5px 8px;
+    margin-top: 0; /* Reset margin if any from general button style */
+    margin-right: 0;
+}
+.clear-log-button:hover { background-color: #7f8c8d; }
+
+
+input[type="text"], select {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%; /* Default to full width */
+    box-sizing: border-box;
+    font-size: 0.95em;
+}
+/* Specific input width overrides if needed */
+#gameControls #backendUrl { width: calc(100% - 8px); } /* Example if padding/border makes it overflow */
+select { width: auto; min-width: 160px;}
+
+label { display: block; margin-bottom: 6px; font-weight: 500; color: #555;}
+.radio-label { display: inline; margin-left: 4px; margin-right: 12px; font-weight: normal;}
+hr { margin: 20px 0; border: 0; border-top: 1px solid #eee; }
+
+/* FEN Input Area Styling */
+.fen-input-area {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 12px;
+    border: 1px dashed #b0bec5; 
+    border-radius: 4px;
+    background-color: #eceff1; 
+}
+.fen-input-area label { font-weight: bold; margin-bottom: 8px; }
+.fen-input-area input[type="text"] {
+    margin-bottom: 10px;
+    font-family: monospace; 
+}
+.fen-input-area button { margin-top: 0; } 
+#fenValidationMessage {
+    font-size:0.9em;
+    margin-top: 8px;
+    min-height: 1.2em; 
+}
+
+/* LLM Conversation Log Actual Area Styling */
+.llm-conversation-log-area { /* Renamed from #llmConversationLog for multiple instances */
+    max-height: 450px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    margin-top: 10px; /* Space below h2 and clear button */
+}
+.log-message {
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    word-wrap: break-word;
+    line-height: 1.5;
+}
+.log-message:last-child { margin-bottom: 0; }
+.log-message .sender { font-weight: bold; margin-bottom: 5px; display: block; color: #333; }
+.log-message .type { font-style: italic; font-size: 0.85em; color: #555; margin-bottom: 5px; display: block;}
+.log-message pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #e9ecef;
+    padding: 8px 10px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+    border: 1px solid #dee2e6;
+}
+/* Message type colors */
+.log-message.system, .log-message.frontend { background-color: #e3f2fd; border-left: 3px solid #90caf9; }
+.log-message.backend { background-color: #e8eaf6; border-left: 3px solid #b39ddb; }
+.log-message.llm-script-stub, .log-message.llm-script-host { background-color: #f1f8e9; border-left: 3px solid #c5e1a5; }
+.log-message.llm { background-color: #dcedc8; border-left: 3px solid #a5d6a7; }
+.log-message.judge { background-color: #fff9c4; border-left: 3px solid #fff176; }
+.log-message.error-log, .log-message.critical_error { background-color: #ffebee; border-left: 3px solid #ef9a9a; color: #c62828; }
+.log-message.warning { background-color: #fff3e0; border-left: 3px solid #ffcc80;}
+
+
+/* Responsive Adjustments */
+@media (max-width: 820px) { /* Breakpoint for stacking gameArea and gameControls */
+    #gameArea, #gameControls {
+        flex-basis: 100%; /* Stack them */
+        min-width: unset;
+        max-width: 100%; /* Allow them to take full width */
+    }
+    #gameArea { max-width: 450px; margin-left: auto; margin-right: auto; } /* Center board if narrower than full */
+
+    /* Ensure toggle buttons stack nicely if they were side-by-side */
+    #conversationToggleButtonsContainer {
+        flex-direction: column; /* Stack toggle buttons on smaller screens */
+    }
+    #conversationToggleButtonsContainer button {
+        min-width: 100%; /* Make toggle buttons full width when stacked */
+        margin-right: 0; /* Remove right margin when stacked */
+    }
+}
+
+@media (max-width: 480px) { /* Fine-tuning for small mobile */
+    body { margin: 10px; font-size: 13px; }
+    #mainContainer { gap: 15px; }
+    h1 {font-size: 1.8em;}
+    h2 {font-size: 1.2em;}
+    h3 {font-size: 1em;}
+
+    button { padding: 10px 12px; font-size: 0.9em; }
+    .clear-log-button { padding: 5px 8px; font-size: 0.75em; top: 18px; right: 15px;}
+
+
+    input[type="text"], select, #currentFen { padding: 8px; font-size: 0.9em; }
+    
+    #gameArea { max-width: 95vw; } 
+    #gameControls, .llm-conversation-log-wrapper { padding: 15px; }
+
+    .fen-input-area input[type="text"] { font-size: 0.85em;}
+}

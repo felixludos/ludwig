@@ -1,0 +1,343 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f9; /* Lighter, cleaner background */
+    color: #333d47; /* Softer black for text */
+    font-size: 15px; /* Slightly larger base font */
+    line-height: 1.65;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #1c3d5a; /* Dark blue heading */
+    font-size: 2.2em;
+    font-weight: 600;
+}
+h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #1c3d5a;
+    font-size: 1.6em;
+    font-weight: 500;
+    border-bottom: 2px solid #e0e6eb;
+    padding-bottom: 10px;
+}
+h3 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    color: #2c4a65;
+    font-size: 1.25em;
+    font-weight: 500;
+}
+
+#gameSelectionContainer {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+#gameSelectionContainer label {
+    font-weight: 600;
+    margin-right: 10px;
+    color: #333d47;
+}
+#gameSelector {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid #cdd3d9;
+    font-size: 1em;
+    min-width: 200px;
+    background-color: #fff;
+}
+
+#mainContainer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+/* Game Area (Board + Info) */
+#gameArea {
+    flex: 2 1 380px; /* Can grow, basis around typical board size */
+    max-width: 450px; /* Max size of the board area */
+    min-width: 300px; /* Prevent it from becoming too small */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+#dynamicBoardContainer {
+    width: 100%;
+    margin-bottom: 20px;
+    display: flex; 
+    justify-content: center; 
+}
+
+
+#gameInfo {
+    text-align: center;
+    width: 100%;
+    margin-top: 15px;
+}
+#currentGameStateDisplay {
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 0.9em;
+    padding: 8px 10px;
+    border: 1px solid #d1d9e0;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    text-align: center;
+    margin-top: 5px;
+}
+#gameStateLabel { font-weight: 500; }
+#status { font-weight: bold; color: #007bff; font-size: 1.1em;}
+
+/* Game Controls (Settings + Editor) */
+#gameControls {
+    flex: 1 1 320px; 
+    min-width: 300px;
+    border: 1px solid #d1d9e0;
+    padding: 25px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+#gameControls div:not(.fen-input-area):not(.board-state-input-area):not(#conversationToggleButtonsContainer), 
+#editorControlsContainer div:not(.fen-input-area):not(.board-state-input-area) { 
+    margin-bottom: 20px; 
+}
+#conversationToggleButtonsContainer {
+    display: flex;
+    flex-wrap: wrap; 
+    gap: 10px; 
+    margin-top: 15px;
+    margin-bottom: 20px;
+}
+#conversationToggleButtonsContainer button {
+    flex: 1 1 auto; 
+    min-width: 160px; 
+}
+
+/* LLM Conversation Log Containers */
+.llm-conversation-log-wrapper {
+    flex: 1 1 100%; 
+    border: 1px solid #d1d9e0;
+    padding: 25px;
+    border-radius: 12px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    position: relative; 
+}
+
+
+/* Common UI Elements */
+button {
+    padding: 12px 20px;
+    background-color: #007bff; 
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-top: 10px;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+button:hover { background-color: #0069d9; box-shadow: 0 3px 7px rgba(0,0,0,0.15); }
+button:active { background-color: #005cbf; }
+
+#toggleEditorButton.active-editor { background-color: #d9534f; } 
+#toggleEditorButton.active-editor:hover { background-color: #c9302c; }
+
+.clear-log-button {
+    background-color: #6c757d; 
+    position: absolute; 
+    top: 20px; 
+    right: 25px;
+    font-size: 0.85em; 
+    padding: 6px 12px;
+    margin-top: 0; 
+    margin-right: 0;
+}
+.clear-log-button:hover { background-color: #5a6268; }
+
+input[type="text"], select {
+    padding: 10px 12px;
+    border: 1px solid #ced4da; 
+    border-radius: 6px;
+    width: 100%; 
+    box-sizing: border-box;
+    font-size: 1em;
+    background-color: #fff;
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+input[type="text"]:focus, select:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+#gameControls #backendUrl { width: 100%; } 
+select#llmPlayerControl, select#gameSelector { width: 100%; } 
+
+label { display: block; margin-bottom: 8px; font-weight: 500; color: #495057;}
+.radio-label { display: inline-block; margin-left: 5px; margin-right: 15px; font-weight: normal; vertical-align: middle;}
+input[type="radio"] { margin-right: 4px; vertical-align: middle; transform: scale(1.1);}
+hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
+
+
+/* Game-Specific Editor Input Areas */
+.fen-input-area, .board-state-input-area {
+    margin-top: 20px;
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px dashed #adb5bd; 
+    border-radius: 6px;
+    background-color: #f8f9fa; 
+}
+.fen-input-area label, .board-state-input-area label { font-weight: bold; margin-bottom: 10px; }
+.fen-input-area input[type="text"], .board-state-input-area input[type="text"] {
+    margin-bottom: 12px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+.board-state-input-area input[type="text"] { /* TTT specific */
+    text-align: center;
+    letter-spacing: 3px; 
+    font-size: 1.15em;
+}
+.fen-input-area button, .board-state-input-area button { margin-top: 0; } 
+#fenValidationMessage, #boardStateValidationMessage {
+    font-size:0.9em;
+    margin-top: 10px;
+    min-height: 1.3em; 
+    font-weight: 500;
+}
+#fenValidationMessage.success, #boardStateValidationMessage.success { color: #28a745; } 
+#fenValidationMessage.error, #boardStateValidationMessage.error { color: #dc3545; } 
+
+
+/* LLM Conversation Log Actual Area Styling */
+.llm-conversation-log-area { 
+    max-height: 450px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    padding: 15px;
+    background-color: #fdfdff; 
+    border-radius: 6px;
+    margin-top: 15px; 
+}
+.log-message { padding: 10px 12px; margin-bottom: 10px; border-radius: 6px; word-wrap: break-word; line-height: 1.55; }
+.log-message:last-child { margin-bottom: 0; }
+.log-message .sender { font-weight: 600; margin-bottom: 6px; display: block; color: #212529; }
+.log-message .type { font-style: italic; font-size: 0.88em; color: #6c757d; margin-bottom: 6px; display: block;}
+.log-message pre { white-space: pre-wrap; word-wrap: break-word; background-color: #e9ecef; padding: 10px 12px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.9em; border: 1px solid #dee2e6;}
+.log-message.system, .log-message.frontend { background-color: #e7f3ff; border-left: 4px solid #007bff; }
+.log-message.backend { background-color: #e9ecef; border-left: 4px solid #6f42c1; } 
+.log-message.llm-script-stub, .log-message.llm-script-host { background-color: #f0f9f0; border-left: 4px solid #fd7e14; } 
+.log-message.llm { background-color: #d4edda; border-left: 4px solid #28a745; }
+.log-message.judge { background-color: #fff3cd; border-left: 4px solid #ffc107; } 
+.log-message.error-log, .log-message.critical_error { background-color: #f8d7da; border-left: 4px solid #dc3545; color: #721c24; }
+.log-message.warning { background-color: #fff3e0; border-left: 4px solid #fd7e14;}
+
+
+/* --- Tic-Tac-Toe Board Specific Styles --- */
+#ticTacToeBoard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    width: 270px; 
+    height: 270px;
+    gap: 8px; 
+    background-color: #546e7a; 
+    padding: 8px;
+    border-radius: 8px;
+    box-shadow: inset 0 0 8px rgba(0,0,0,0.2);
+}
+.ttt-cell {
+    background-color: #eceff1; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 4em; 
+    font-weight: bold;
+    color: #37474f; 
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    /* FIXES APPLIED HERE */
+    line-height: 1;     /* Control vertical space of the text */
+    overflow: hidden;   /* Prevent content from visually pushing boundaries */
+}
+.ttt-cell:hover {
+    background-color: #cfd8dc; 
+}
+.ttt-cell:active {
+    transform: scale(0.95);
+}
+.ttt-cell.X { color: #c62828; } 
+.ttt-cell.O { color: #1565c0; } 
+.ttt-cell.winning-cell {
+    background-color: #ffb300; 
+    color: #fff !important; 
+}
+
+/* --- Chess Board Specific Styles (Minimal as chessboard.js handles most) --- */
+#chessBoardUiElement { /* Updated ID to match JS if it was changed */
+    width: 100%; 
+    max-width: 400px; 
+}
+
+
+/* Responsive Adjustments */
+@media (max-width: 820px) { 
+    #gameArea, #gameControls {
+        flex-basis: 100%; 
+        min-width: unset;
+        max-width: 100%; 
+    }
+    #gameArea { max-width: 450px; margin-left: auto; margin-right: auto; }
+    #conversationToggleButtonsContainer { flex-direction: column; }
+    #conversationToggleButtonsContainer button { min-width: 100%; margin-right: 0; }
+}
+
+@media (max-width: 480px) { 
+    body { margin: 10px; padding: 5px; font-size: 14px; }
+    #mainContainer { gap: 15px; }
+    h1 {font-size: 1.8em;} 
+    h2 {font-size: 1.3em;}
+    h3 {font-size: 1.1em;}
+
+    button { padding: 10px 14px; font-size: 0.95em; }
+    .clear-log-button { padding: 5px 10px; font-size: 0.8em; top: 22px; right: 15px;}
+
+    input[type="text"], select, #currentGameStateDisplay { padding: 9px; font-size: 0.95em; }
+    
+    #gameArea { max-width: 95vw; padding: 15px; } 
+    #gameControls, .llm-conversation-log-wrapper { padding: 15px; }
+
+    /* TTT specific small screen */
+    #ticTacToeBoard { width: 240px; height: 240px; gap: 6px; padding: 6px;} 
+    .ttt-cell { 
+        font-size: 3.2em; 
+        line-height: 1;    /* Ensure fix is applied here too */
+        overflow: hidden;  /* Ensure fix is applied here too */
+    } 
+    .board-state-input-area input[type="text"] { font-size: 1em;}
+
+    /* Chess specific small screen (if #chessBoard needs it) */
+    #chessBoardUiElement { max-width: 90vw; } /* Ensure this matches the ID used in JS */
+}

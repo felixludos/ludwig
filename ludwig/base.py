@@ -59,7 +59,15 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
 	def __init__(self, client: AbstractClient, **kwargs):
 		super().__init__(**kwargs)
-		self.client = client
+		self._client = client
+		self._is_prepared = False
+
+	@property
+	def client(self) -> AbstractClient:
+		return self._client
+	@client.setter
+	def client(self, client: AbstractClient):
+		self._client = client
 
 	@property
 	def model_name(self) -> str:
@@ -67,10 +75,13 @@ class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
 
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		"""Prepare the strategy for use. This may include setting up any necessary resources or configurations."""
-		if not self.client.ping():
-			raise ValueError(f'Client {self.client.ident} is not ready to use.')
-		self.client.prepare()
-
+		client = self.client
+		if client is not None:
+			if not client.ping():
+				raise ValueError(f'Client {client.ident} is not ready to use.')
+			client.prepare()
+		self._is_prepared = True
+		
 	def json(self):
 		return {
 			'client': self.client.json(),

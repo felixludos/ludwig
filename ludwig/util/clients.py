@@ -67,14 +67,15 @@ class ClientBase(fig.Configurable, AbstractClient):
 									  f'(try increasing `max_tokens`)')
 
 		role = resp.choices[0].message.role
+
 		if resp.choices[0].message.content is not None:
 			chat.append({'role': role, 'content': resp.choices[0].message.content})
-			if resp.choices[0].message.model_extra is not None \
-				and 'reasoning_content' in resp.choices[0].message.model_extra:
-				chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
 		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
 			chat.append({'role': role, 'tool_calls': [json.loads(t.json())
 													  for t in resp.choices[0].message.tool_calls]})
+		if resp.choices[0].message.model_extra is not None \
+			and 'reasoning_content' in resp.choices[0].message.model_extra:
+			chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
 		return resp
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
@@ -282,8 +283,10 @@ class OpenaiClientBase(ClientBase):
 
 	_valid_chat_keys = {'role', 'content', 'name', 'function_call', 'tool_calls', 'tool_call_id'}
 	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
-		messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
-		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
+		for m in chat:
+			assert all(k in self._valid_chat_keys for k in m), f'Invalid keys in chat message: {m.keys()}'
+		# messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
+		args = {'messages': chat, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar
@@ -416,7 +419,7 @@ class vllm_Client(OpenaiClientBase):
 					raise ValueError(f'Unknown grammar: {grammar}')
 				grammar = grammars[grammar]
 			# TODO: check if grammar is valid
-			if isinstance(grammar, dict):
+			elif isinstance(grammar, dict):
 				grammar =  {'guided_json': grammar}
 			args['extra_body'] = grammar
 			del args['grammar']
@@ -630,6 +633,9 @@ class Tool_Client(ClientBase):
 				except ToolError as e:
 					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
 				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
+				if resp.choices[0].message.model_extra is not None \
+						and 'reasoning_content' in resp.choices[0].message.model_extra:
+					chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
 				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
 
 			including_tools = data.copy()

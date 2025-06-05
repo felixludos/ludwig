@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Game LLM Demo</title>
+    <!-- Chessboard.js CSS will be loaded by JS if Chess is selected -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Multi-Game LLM Demo</h1>
+
+    <div id="gameSelectionContainer">
+        <label for="gameSelector">Select Game:</label>
+        <select id="gameSelector">
+            <option value="tictactoe" selected>Tic-Tac-Toe</option>
+            <option value="chess">Chess</option>
+            <!-- Add more games here in the future -->
+        </select>
+    </div>
+
+    <div id="mainContainer">
+        <div id="gameArea">
+            <!-- Game-specific board will be injected here by JS -->
+            <!-- e.g., <div id="ticTacToeBoard"></div> or <div id="chessBoard"></div> -->
+            <div id="dynamicBoardContainer"></div>
+            
+            <div id="gameInfo">
+                <p>Status: <span id="status"></span></p>
+                <!-- Game-specific state display (FEN for chess, board string for TTT) -->
+                <p><span id="gameStateLabel">Board State:</span> <input type="text" id="currentGameStateDisplay" readonly></p>
+            </div>
+        </div>
+
+        <div id="gameControls">
+            <h2>Settings</h2>
+            <div>
+                <label for="llmPlayerControl">LLM Plays As:</label>
+                <select id="llmPlayerControl">
+                    <!-- Options will be populated by JS based on game -->
+                </select>
+            </div>
+            <hr>
+            <div>
+                <label for="useFrontendStub">Use Frontend LLM Stub:</label>
+                <input type="checkbox" id="useFrontendStub">
+            </div>
+            <div>
+                <label for="backendUrl">Backend URL:</label>
+                <input type="text" id="backendUrl" value="http://localhost:5001">
+            </div>
+            <div id="llmModelSelection">
+                <h3>Select Model:</h3>
+                <!-- Radio buttons will be populated here -->
+            </div>
+            <div id="promptMethodSelection">
+                <h3>Select Prompting Method:</h3>
+                <!-- Radio buttons will be populated here -->
+            </div>
+            <button id="resetButton">Reset Game</button>
+            <div id="conversationToggleButtonsContainer"> 
+                <button id="togglePlayer1ConversationButton"></button> <!-- Text set by JS -->
+                <button id="togglePlayer2ConversationButton"></button> <!-- Text set by JS -->
+            </div>
+            <hr>
+            <h2>Editor</h2>
+            <button id="toggleEditorButton">Enter Editor Mode</button>
+            <!-- Game-specific editor controls will be injected or shown/hidden here by JS -->
+            <div id="editorControlsContainer" style="display: none;">
+                <p><strong>Editor Mode Active</strong></p>
+                <!-- Common editor actions -->
+                <button id="editorClearBoard">Clear Board</button>
+                <!-- Game-specific editor actions/inputs -->
+                <div id="gameSpecificEditorControls">
+                    <!-- For Chess: Start Pos, Flip, FEN Input -->
+                    <!-- For TTT: Piece to Place, Board State Input -->
+                </div>
+                 <div>
+                    <label>Turn to move:</label>
+                    <input type="radio" name="editorTurn" id="editorTurnPlayer1" value="player1" checked><label for="editorTurnPlayer1" class="radio-label" id="editorTurnPlayer1Label"></label>
+                    <input type="radio" name="editorTurn" id="editorTurnPlayer2" value="player2"><label for="editorTurnPlayer2" class="radio-label" id="editorTurnPlayer2Label"></label>
+                </div>
+                <button id="llmPlayFromPosition">LLM Play from this Position</button>
+            </div>
+        </div>
+
+        <!-- Player 1 (e.g., White / X) LLM Conversation Log -->
+        <div id="llmConversationLogContainerPlayer1" class="llm-conversation-log-wrapper" style="display: none;">
+            <h2 id="player1LogTitle"></h2> <!-- Title set by JS -->
+            <button class="clear-log-button" data-player="player1"></button> <!-- Text set by JS -->
+            <div id="llmConversationLogPlayer1" class="llm-conversation-log-area"></div>
+        </div>
+
+        <!-- Player 2 (e.g., Black / O) LLM Conversation Log -->
+        <div id="llmConversationLogContainerPlayer2" class="llm-conversation-log-wrapper" style="display: none;">
+            <h2 id="player2LogTitle"></h2> <!-- Title set by JS -->
+            <button class="clear-log-button" data-player="player2"></button> <!-- Text set by JS -->
+            <div id="llmConversationLogPlayer2" class="llm-conversation-log-area"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <!-- chess.js and chessboard.js will be loaded dynamically by script.js if chess is selected -->
+    <script src="script.js"></script>
+</body>
+</html>
