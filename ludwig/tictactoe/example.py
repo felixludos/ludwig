@@ -68,10 +68,32 @@ class TTT_Tool(ToolBase):
 		Decode the state string into a string.
 		"""
 		if self.rep_type == 'str':
+			if not isinstance(state, str) or len(state) != 9:
+				raise ToolError("State must be a string of length 9.")
+			if not all(c in 'XO ' for c in state):
+				raise ToolError("State can only contain 'X', 'O', or ' '.")
 			return state
 		elif self.rep_type == 'list':
+			if not isinstance(state, list) or len(state) != 9:
+				raise ToolError("State must be a list of length 9.")
+			if not all(c in ['X', 'O', ' '] for c in state):
+				raise ToolError("State can only contain 'X', 'O', or ' '.")
 			return ''.join(state)
 		elif self.rep_type == 'nested':
+			if isinstance(state, str) and state[0] == '[':
+				if "'" in state and not ('"' in state):
+					state = state.replace("'", '"')
+				try:
+					state = json.loads(state)
+				except json.JSONDecodeError as e:
+					raise ToolError(f"Invalid JSON format: {e}")
+			if not isinstance(state, list) or len(state) != 3:
+				raise ToolError("State must be a list of 3 lists.")
+			for row in state:
+				if len(row) != 3:
+					raise ToolError("Each row must have exactly 3 elements.")
+				if not all(c in ['X', 'O', ' '] for c in row):
+					raise ToolError("State can only contain 'X', 'O', or ' '.")
 			return ''.join(''.join(row) for row in state)
 		else:
 			raise ValueError(f"Unknown representation type: {self.rep_type}")
@@ -86,31 +108,6 @@ class TTT_Tool(ToolBase):
 			return list(state)
 		elif self.rep_type == 'nested':
 			return [list(state[i:i + 3]) for i in range(0, len(state), 3)]
-		else:
-			raise ValueError(f"Unknown representation type: {self.rep_type}")
-
-	def validate(self, state: JSONDATA) -> Optional[str]:
-		"""
-		Validate the state string.
-		"""
-		if self.rep_type == 'str':
-			if not isinstance(state, str) or len(state) != 9:
-				return "State must be a string of length 9."
-			if not all(c in 'XO ' for c in state):
-				return "State can only contain 'X', 'O', or ' '."
-		elif self.rep_type == 'list':
-			if not isinstance(state, list) or len(state) != 9:
-				return "State must be a list of length 9."
-			if not all(c in ['X', 'O', ' '] for c in state):
-				return "State can only contain 'X', 'O', or ' '."
-		elif self.rep_type == 'nested':
-			if not isinstance(state, list) or len(state) != 3:
-				return "State must be a list of 3 lists."
-			for row in state:
-				if len(row) != 3:
-					return "Each row must have exactly 3 elements."
-				if not all(c in ['X', 'O', ' '] for c in row):
-					return "State can only contain 'X', 'O', or ' '."
 		else:
 			raise ValueError(f"Unknown representation type: {self.rep_type}")
 
@@ -211,10 +208,6 @@ class StateValue(TTT_Tool):
 		if current_player not in ['X', 'O']:
 			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
 
-		error = self.validate(state)
-		if error:
-			raise ToolError(error)
-
 		code = self.decode(state)
 		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')
 								  or code.count('X') > code.count('O')) else 'O'
@@ -310,10 +303,6 @@ class NextMove(TTT_Tool):
 		current_player = arguments['current_player']
 		if current_player not in ['X', 'O']:
 			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
-
-		error = self.validate(state)
-		if error:
-			raise ToolError(error)
 
 		code = self.decode(state)
 		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')

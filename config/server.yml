@@ -1,0 +1,28 @@
+
+
+games:
+  chess._type: chess
+  tictactoe._type: tictactoe
+
+
+clients:
+  gemma:
+    _type: vllm
+    addr: 8001
+  llama:
+    _type: vllm
+    addr: 8002
+#  qwen:
+#    _type: vllm
+#    addr: 8003
+
+client: null
+strategies:
+  dp:
+    _type: direct-prompting
+
+
+
+
+
+

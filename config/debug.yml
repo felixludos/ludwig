@@ -18,7 +18,7 @@ _base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
 limit: 8
 
-use-wandb: yes
+use-wandb: no
 
 root: local_data/
 
@@ -27,8 +27,8 @@ logger._type: <>broker-type
 prelogger._type: <>broker-type
 broker-type: min-broker
 
-addr: http://wagner.is.localnet:8000
-# addr: 8002
+#addr: http://wagner.is.localnet:8000
+addr: 8002
 #client.addr: 8001
 #judge.addr: 8001
 
@@ -37,8 +37,8 @@ addr: http://wagner.is.localnet:8000
 
 #client._mod.logged: yes
 
-max-tokens: 1024
-#max-tokens: 4096 # needed for qwen3-8b due to reasoning
+#max-tokens: 1024
+max-tokens: 4096 # needed for qwen3-8b due to reasoning
 #max-tokens: 1024
 
 #temperature: 0.6

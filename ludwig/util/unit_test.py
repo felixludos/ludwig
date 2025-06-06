@@ -98,8 +98,7 @@ def test_tool():
 	class Client(Tool_Client, vllm_Client):
 		pass
 
-	addr = '8021'
-	# addr = 'http://wagner.is.localnet:8000'
+	addr = '8002'
 	client = Client(addr=addr, tools=[GetWeather()])
 	client.prepare()
 

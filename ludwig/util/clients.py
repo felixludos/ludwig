@@ -4,10 +4,15 @@ from .imports import *
 from .abstract import AbstractClient
 from .files import repo_root, hash_str
 
+CHAT = List[Dict[str, JSONDATA]]
+REQUEST_PARAMS = Dict[str, JSONDATA]
+REQUEST = JSONOBJ
+RESPONSE = openai.ChatCompletion
 
 class ClientBase(fig.Configurable, AbstractClient):
-	def __init__(self, raise_length_limit: bool = True, **kwargs):
+	def __init__(self, raise_length_limit: bool = True, system_message: str = None, **kwargs):
 		super().__init__(**kwargs)
+		self.system_message = system_message
 		self._raise_length_limit = raise_length_limit
 		self._model_name = None
 		self.history = None
@@ -17,30 +22,27 @@ class ClientBase(fig.Configurable, AbstractClient):
 	def model_name(self) -> str: # fallback
 		return self.ident
 
-	def begin_chat(self, prompt: str, *, role: str = 'user') -> List[Dict[str, str]]:
-		return [{'role': role, 'content': prompt}]
+	def begin_chat(self, prompt: str, *, role: str = 'user') -> CHAT:
+		chat = [] if self.system_message is None else [{'role': 'system', 'content': self.system_message}]
+		chat.append({'role': role, 'content': prompt})
+		return chat
 
-	def wrap_prompt(self, prompt: str, **params) -> JSONOBJ:
-		return self.wrap_chat(self.begin_chat(prompt), **params)
+	def get_response(self, prompt: Union[str, CHAT], **params: JSONDATA) -> str:
+		resp = self.step(self.begin_chat(prompt) if isinstance(prompt, str) else prompt, **params)
+		return self.extract_response(resp)
 
-	def get_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> str:
-		if isinstance(prompt, str):
-			prompt = self.wrap_prompt(prompt, **params)
-		else:
-			prompt = self.wrap_chat(prompt, **params)
-		full = self.send(prompt)
-		return self.extract_response(full)
+	def wrap_prompt(self, prompt: str, params: REQUEST_PARAMS = {}) -> REQUEST:
+		return self.wrap_chat(self.begin_chat(prompt), params)
 
-	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+	def wrap_chat(self, chat: CHAT, params: REQUEST_PARAMS = {}) -> REQUEST:
 		raise NotImplementedError
 
-	def multi_turn(self, chat: List[Dict[str, str]], *, max_retries: int = None,
-				   **params) -> Iterator[List[Dict[str, str]]]:
+	def multi_turn(self, chat: CHAT, params: REQUEST_PARAMS = {}, *, max_retries: int = None) -> Iterator[RESPONSE]:
 		"""
 		Input should be something like [{'role': 'user', 'content': '[prompt]'}]
 		:param chat:
-		:param max_retries:
 		:param params:
+		:param max_retries:
 		:return:
 		"""
 		assert isinstance(chat, list), f'Expected a list of messages, got {type(chat)}'
@@ -48,34 +50,59 @@ class ClientBase(fig.Configurable, AbstractClient):
 		i = 0
 		while max_retries is None or i <= max_retries:
 			resp = self.step(chat, **params)
-			n = len(chat)
 			yield resp
-			assert len(chat) > n, f'No new prompt provided'
+			role = resp.choices[0].message.role
+			assert chat[-1]['role'] != role, f'Chat must be updated with a new message from the user'
 			i += 1
 
-	def step(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+	def step(self, chat: CHAT, *, auto_resolve_tools: bool = True, **params) -> RESPONSE:
+		"""sends a single request"""
 		if isinstance(chat, str):
 			chat = self.begin_chat(chat)
 
-		data = self.wrap_chat(chat, **params)
-		resp = self.send(data)
+		data = self.wrap_chat(chat, params)
+		if data.get('n', 1) > 1:
+			raise NotImplementedError(f'Multiple responses not supported: {data["n"]} responses requested')
 
-		assert len(resp.choices) == 1, f'Expected 1 choice, got {len(resp.choices)}'
+		resp = self.send(data)
+		# assert len(resp.choices) > 1, f'Expected one response, got {len(resp.choices)} choices'
 
 		if self._raise_length_limit and resp.choices[0].finish_reason == 'length':
 			raise BudgetExceededError(f'Response length limit reached {resp.usage.completion_tokens} tokens '
 									  f'(try increasing `max_tokens`)')
 
-		role = resp.choices[0].message.role
+		self._update_chat(chat, resp)
+		if auto_resolve_tools:
+			resp = self._resolve_turn(chat, data, resp)
+		return resp
 
+	def _update_chat(self, chat: CHAT, resp: RESPONSE) -> None:
+		input_length = len(chat)
+
+		# update chat with the response
+		role = resp.choices[0].message.role
 		if resp.choices[0].message.content is not None:
-			chat.append({'role': role, 'content': resp.choices[0].message.content})
-		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
-			chat.append({'role': role, 'tool_calls': [json.loads(t.json())
-													  for t in resp.choices[0].message.tool_calls]})
-		if resp.choices[0].message.model_extra is not None \
-			and 'reasoning_content' in resp.choices[0].message.model_extra:
-			chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
+			chat.append({
+				'role': role,
+				'content': resp.choices[0].message.content
+			})
+		if resp.choices[0].message.tool_calls:
+			chat.append({
+				'role': role,
+				'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]
+			})
+		assert len(chat) > input_length, f'No new contentful response found'
+
+		# extract additional chat relevant info
+		extra_info = resp.choices[0].message.model_extra
+		if extra_info is not None and extra_info.get('reasoning_content'):
+			chat[-1]['reasoning_content'] = extra_info['reasoning_content']
+
+	def _resolve_turn(self, chat: CHAT, data: REQUEST, resp: RESPONSE) -> RESPONSE:
+		"""
+		Override this method to modify the response after the chat has been updated.
+		For example, to extract reasoning content or handle tool calls.
+		"""
 		return resp
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
@@ -99,15 +126,31 @@ class ClientBase(fig.Configurable, AbstractClient):
 		pass
 
 	def json(self) -> JSONOBJ:
-		return {}
+		return {
+			'system_message': self.system_message,
+		}
 
-	def send(self, data: JSONOBJ) -> JSONOBJ:
+	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		self._record_send(data)
 		resp = self._send(data)
+		resp = self._post_response_fixes(resp)
 		self._record_response(data, resp)
 		return resp
 
-	def _send(self, data: JSONOBJ) -> JSONOBJ:
+	def _post_response_fixes(self, resp: openai.ChatCompletion) -> openai.ChatCompletion:
+		"""
+		Override this method to apply any post-processing fixes to the response.
+		For example, to handle reasoning content or tool calls.
+		"""
+		msg = resp.choices[0].message
+		content = msg.content
+		if content is not None and msg.tool_calls is None:
+			pass
+
+
+		return resp
+
+	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		raise NotImplementedError
 
 	def send_no_wait(self, data: JSONOBJ) -> Iterator[JSONOBJ]:
@@ -282,15 +325,16 @@ class OpenaiClientBase(ClientBase):
 			raise NotImplementedError
 
 	_valid_chat_keys = {'role', 'content', 'name', 'function_call', 'tool_calls', 'tool_call_id'}
-	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
-		for m in chat:
-			assert all(k in self._valid_chat_keys for k in m), f'Invalid keys in chat message: {m.keys()}'
-		# messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
-		args = {'messages': chat, 'model': self._model_name, 'max_tokens': self.max_tokens,
+	def wrap_chat(self, chat: CHAT, params: REQUEST_PARAMS = None) -> JSONOBJ:
+		# for m in chat:
+		# 	assert all(k in self._valid_chat_keys for k in m), f'Invalid keys in chat message: {m.keys()}'
+		messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
+		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar
-		args.update(params)
+		if params is not None:
+			args.update(params)
 		self._include_grammar(args)
 		return args
 
@@ -582,8 +626,8 @@ class Tool_Client(ClientBase):
 			raise NotImplementedError
 		return super().stream_response(prompt, **params)
 
-	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
-		args = super().wrap_chat(chat, **params)
+	def wrap_chat(self, chat: CHAT, params: REQUEST_PARAMS) -> RESPONSE:
+		args = super().wrap_chat(chat, params)
 		if self.tools:
 			args['tools'] = [tool.schema() for tool in self.tools.values()]
 		return args
@@ -634,7 +678,8 @@ class Tool_Client(ClientBase):
 					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
 				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
 				if resp.choices[0].message.model_extra is not None \
-						and 'reasoning_content' in resp.choices[0].message.model_extra:
+						and 'reasoning_content' in resp.choices[0].message.model_extra \
+						and resp.choices[0].message.model_extra['reasoning_content'] is not None:
 					chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
 				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
 

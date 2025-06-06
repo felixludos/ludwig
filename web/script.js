@@ -577,7 +577,7 @@ $(document).ready(function() {
         let chess_board_ui; 
         const CHESS_PLAYER1 = gamesConfig.chess.player1Name.toLowerCase(); 
         const CHESS_PLAYER2 = gamesConfig.chess.player2Name.toLowerCase(); 
-        const chess_pieceThemeUrl = 'chess/img/chesspieces/wikipedia/{piece}.png'; 
+        const chess_pieceThemeUrl = 'chess/img/chesspieces/alpha/{piece}.png'; 
 
         gamesConfig.chess.updateBoardUIVisuals = function() {
             if (chess_board_ui && chess_game) {
