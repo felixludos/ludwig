@@ -28,7 +28,7 @@ prelogger._type: <>broker-type
 broker-type: min-broker
 
 #addr: http://wagner.is.localnet:8000
-addr: 8002
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 

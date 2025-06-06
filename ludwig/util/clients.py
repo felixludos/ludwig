@@ -3,6 +3,7 @@ import openai
 from .imports import *
 from .abstract import AbstractClient
 from .files import repo_root, hash_str
+from ..util.tools import parse_pythonic_tool_calls
 
 CHAT = List[Dict[str, JSONDATA]]
 REQUEST_PARAMS = Dict[str, JSONDATA]
@@ -55,7 +56,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 			assert chat[-1]['role'] != role, f'Chat must be updated with a new message from the user'
 			i += 1
 
-	def step(self, chat: CHAT, *, auto_resolve_tools: bool = True, **params) -> RESPONSE:
+	def step(self, chat: CHAT, **params) -> RESPONSE:
 		"""sends a single request"""
 		if isinstance(chat, str):
 			chat = self.begin_chat(chat)
@@ -71,12 +72,6 @@ class ClientBase(fig.Configurable, AbstractClient):
 			raise BudgetExceededError(f'Response length limit reached {resp.usage.completion_tokens} tokens '
 									  f'(try increasing `max_tokens`)')
 
-		self._update_chat(chat, resp)
-		if auto_resolve_tools:
-			resp = self._resolve_turn(chat, data, resp)
-		return resp
-
-	def _update_chat(self, chat: CHAT, resp: RESPONSE) -> None:
 		input_length = len(chat)
 
 		# update chat with the response
@@ -98,11 +93,6 @@ class ClientBase(fig.Configurable, AbstractClient):
 		if extra_info is not None and extra_info.get('reasoning_content'):
 			chat[-1]['reasoning_content'] = extra_info['reasoning_content']
 
-	def _resolve_turn(self, chat: CHAT, data: REQUEST, resp: RESPONSE) -> RESPONSE:
-		"""
-		Override this method to modify the response after the chat has been updated.
-		For example, to extract reasoning content or handle tool calls.
-		"""
 		return resp
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
@@ -144,9 +134,13 @@ class ClientBase(fig.Configurable, AbstractClient):
 		"""
 		msg = resp.choices[0].message
 		content = msg.content
-		if content is not None and msg.tool_calls is None:
-			pass
-
+		if self.model_name == 'google/gemma-3-27b-it':
+			if content is not None and not msg.tool_calls:
+				lines = content.split('\n')
+				if len(lines) and lines[-1].startswith('[') and lines[-1].endswith(']'):
+					tool_call_str = lines[-1]
+					msg.model_extra['reasoning_content'] = '\n'.join(lines[:-1]).strip()
+					msg.tool_calls = parse_pythonic_tool_calls(tool_call_str)
 
 		return resp
 
@@ -659,36 +653,38 @@ class Tool_Client(ClientBase):
 			info['tools'] = [tool.json() for tool in self.tools.values()]
 		return info
 
-	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
-		resp = super().send(data)
+	def resolve_tool_calls(self, chat: CHAT) -> List[Dict[str, str]]:
+		tool_results = []
+		for item in reversed(chat):
+			if 'tool_calls' in item:
+				for tool_call in item['tool_calls']:
+					info = tool_call['function']
+					assert info['name'] in self.tools, f'Tool {info["name"]} not registered'
+					tool = self.tools[info['name']]
+					arguments = info['arguments']
+					if isinstance(arguments, str):
+						arguments = json.loads(arguments)
+					try:
+						result = tool.call(arguments)
+					except ToolError as e:
+						result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
+					tool_results.append({'role': 'tool',
+										 'content': result,
+										 'tool_call_id': tool_call['id'],
+										 'name': info['name']})
+			else:
+				break
+		tool_results = list(reversed(tool_results))
+		chat.extend(tool_results)
+		return tool_results
 
-		if len(self.tools) and len(resp.choices) == 1 and resp.choices[0].message.tool_calls:
-			chat = data['messages']
-			# chat.append({'role': 'assistant', 'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]})
-			for tool_call in resp.choices[0].message.tool_calls:
-				info = tool_call.function
-				assert info.name in self.tools, f'Tool {info.name} not registered'
-				tool = self.tools[info.name]
-				arguments = info.arguments
-				if isinstance(arguments, str):
-					arguments = json.loads(arguments)
-				try:
-					result = tool.call(arguments)
-				except ToolError as e:
-					result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
-				chat.append({'role': 'assistant', 'tool_calls': [json.loads(tool_call.json())]})
-				if resp.choices[0].message.model_extra is not None \
-						and 'reasoning_content' in resp.choices[0].message.model_extra \
-						and resp.choices[0].message.model_extra['reasoning_content'] is not None:
-					chat[-1]['reasoning_content'] = resp.choices[0].message.model_extra['reasoning_content']
-				chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, 'name': info.name})
 
-			including_tools = data.copy()
-			including_tools['messages'] = chat
-			return self.send(including_tools)
-
+	def step(self, chat: CHAT, auto_tool_rounds: Optional[int] = None, **params) -> RESPONSE:
+		resp = super().step(chat, **params)
+		self.resolve_tool_calls(chat)
+		if (auto_tool_rounds is None or auto_tool_rounds >= 0) and chat[-1].get('role') == 'tool':
+			return self.step(chat, auto_tool_rounds=None if auto_tool_rounds is None else auto_tool_rounds-1, **params)
 		return resp
-
 
 
 class Local_vllm_Client(ClientBase):

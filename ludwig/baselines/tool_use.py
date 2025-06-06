@@ -55,7 +55,7 @@ class ToolUse(DirectPrompting):
 
 		tool_schemas = [tool.schema() for tool in self.tools.values()]
 		chat = self.client.begin_chat(prompt)
-		for resp in self.client.multi_turn(chat, tools=tool_schemas):
+		for resp in self.client.multi_turn(chat, dict(tools=tool_schemas)):
 			if resp.choices[0].message.tool_calls:
 				for tool_call in resp.choices[0].message.tool_calls:
 					info = tool_call.function
