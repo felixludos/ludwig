@@ -3,7 +3,7 @@ import openai
 from .imports import *
 from .abstract import AbstractClient
 from .files import repo_root, hash_str
-from ..util.tools import parse_pythonic_tool_calls
+from ..util.tools import parse_pythonic_tool_calls, parse_json_tool_calls
 
 CHAT = List[Dict[str, JSONDATA]]
 REQUEST_PARAMS = Dict[str, JSONDATA]
@@ -75,18 +75,18 @@ class ClientBase(fig.Configurable, AbstractClient):
 		input_length = len(chat)
 
 		# update chat with the response
-		role = resp.choices[0].message.role
-		if resp.choices[0].message.content is not None:
-			chat.append({
-				'role': role,
-				'content': resp.choices[0].message.content
-			})
-		if resp.choices[0].message.tool_calls:
-			chat.append({
-				'role': role,
-				'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]
-			})
-		assert len(chat) > input_length, f'No new contentful response found'
+		msg = resp.choices[0].message
+		assistant_turn = {'role': msg.role}
+		if msg.content:
+			assistant_turn['content'] = msg.content
+		if msg.tool_calls:
+			# chat.append({
+			# 	'role': role,
+			# 	'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls],
+			# 	'content': '',
+			# })
+			assistant_turn['tool_calls'] = [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]
+		chat.append(assistant_turn)
 
 		# extract additional chat relevant info
 		extra_info = resp.choices[0].message.model_extra
@@ -123,25 +123,31 @@ class ClientBase(fig.Configurable, AbstractClient):
 	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
 		self._record_send(data)
 		resp = self._send(data)
-		resp = self._post_response_fixes(resp)
+		resp = self._post_response_fixes(data, resp)
 		self._record_response(data, resp)
 		return resp
 
-	def _post_response_fixes(self, resp: openai.ChatCompletion) -> openai.ChatCompletion:
+	def _post_response_fixes(self, data: REQUEST_PARAMS, resp: openai.ChatCompletion) -> openai.ChatCompletion:
 		"""
 		Override this method to apply any post-processing fixes to the response.
 		For example, to handle reasoning content or tool calls.
 		"""
 		msg = resp.choices[0].message
-		content = msg.content
-		if self.model_name == 'google/gemma-3-27b-it':
-			if content is not None and not msg.tool_calls:
-				lines = content.split('\n')
-				if len(lines) and lines[-1].startswith('[') and lines[-1].endswith(']'):
-					tool_call_str = lines[-1]
-					msg.model_extra['reasoning_content'] = '\n'.join(lines[:-1]).strip()
-					msg.tool_calls = parse_pythonic_tool_calls(tool_call_str)
-
+		if msg.content and not msg.tool_calls:
+			lines = msg.content.splitlines()
+			reasoning = []
+			tool_calls = []
+			for line in lines:
+				if line.startswith('[') and line.endswith(']'):
+					tool_calls.extend(parse_pythonic_tool_calls(line))
+				elif line.startswith('{') and line.endswith('}'):
+					tool_calls.extend(parse_json_tool_calls(line))
+				else:
+					reasoning.append(line)
+			if tool_calls:
+				msg.content = '\n'.join(reasoning).strip()
+				msg.tool_calls = tool_calls
+				# msg.model_extra['reasoning_content'] = '\n'.join(reasoning).strip()
 		return resp
 
 	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:

@@ -37,8 +37,8 @@ addr: 8001
 
 #client._mod.logged: yes
 
-#max-tokens: 1024
-max-tokens: 4096 # needed for qwen3-8b due to reasoning
+max-tokens: 1024
+#max-tokens: 4096 # needed for qwen3-8b due to reasoning
 #max-tokens: 1024
 
 #temperature: 0.6

@@ -76,6 +76,47 @@ def parse_pythonic_tool_calls(raw_string: str) -> List[ToolCall]:
 	return tool_calls
 
 
+def parse_json_tool_calls(raw_string: str) -> List[ToolCall]:
+	"""
+	Parses a string of semicolon-separated JSON tool calls into a list of
+	OpenAI-compatible ChatCompletionMessageToolCall Pydantic objects.
+
+	Each JSON object should have a "name" and "parameters" key.
+
+	Args:
+		raw_string: A string of semicolon-separated JSON objects.
+					e.g., '{"name": "func1", "parameters": {"a": 1}}; {"name": "func2", "parameters": {"b": 2}}'
+
+	Returns:
+		A list of ToolCall Pydantic objects.
+	"""
+	# Split the raw string by the semicolon to get individual JSON strings.
+	json_strings = [s.strip() for s in raw_string.split(';') if s.strip()]
+	if not json_strings:
+		return []
+
+	tool_calls = []
+	for json_str in json_strings:
+		try:
+			data = json.loads(json_str)
+			function_name = data.get("name")
+			# The input format uses "parameters", which we map to "arguments"
+			arguments_dict = data.get("parameters", {})
+
+			if not function_name:
+				print(f"Warning: JSON object is missing 'name': {json_str}")
+				continue
+
+			function_obj = Function(name=function_name, arguments=json.dumps(arguments_dict))
+			tool_call_obj = ToolCall(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
+			tool_calls.append(tool_call_obj)
+
+		except json.JSONDecodeError:
+			print(f"Warning: Could not decode JSON for part: {json_str}")
+			continue
+
+	return tool_calls
+
 
 # class SimpleTool(ToolBase):
 

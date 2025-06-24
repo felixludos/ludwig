@@ -97,7 +97,8 @@ class ClientJudge(JudgeBase):
 			response=response
 		)
 
-		resp = self._client.send(self._client.wrap_prompt(prompt, temperature=0, max_tokens=5, grammar=self._grammar))
+		resp = self._client.send(self._client.wrap_prompt(prompt,
+														  dict(temperature=0, max_tokens=5, grammar=self._grammar)))
 
 		verdict = self._client.extract_response(resp)
 		words = verdict.strip().lower().split()
