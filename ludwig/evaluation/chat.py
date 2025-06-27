@@ -56,6 +56,8 @@ class ChatInterface(fig.Configurable):
 def launch_chat(cfg: fig.Configuration):
 	"""
 	Launch a chat interface for the given configuration.
+
+	For using vllm, you just need to specify the address with `--addr`
 	"""
 
 	client = cfg.pull('client', None, silent=True)
