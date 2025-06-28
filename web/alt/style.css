@@ -2,16 +2,16 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     margin: 0;
     padding: 20px;
-    background-color: #f4f7f9; /* Lighter, cleaner background */
-    color: #333d47; /* Softer black for text */
-    font-size: 15px; /* Slightly larger base font */
+    background-color: #f4f7f9;
+    color: #333d47;
+    font-size: 15px;
     line-height: 1.65;
 }
 
 h1 {
     text-align: center;
     margin-bottom: 25px;
-    color: #1c3d5a; /* Dark blue heading */
+    color: #1c3d5a;
     font-size: 2.2em;
     font-weight: 600;
 }
@@ -61,11 +61,11 @@ h3 {
     align-items: flex-start;
 }
 
-/* Game Area (Board + Info) */
+/* Game Area (Board + Info + Navigation) */
 #gameArea {
-    flex: 2 1 380px; /* Can grow, basis around typical board size */
-    max-width: 450px; /* Max size of the board area */
-    min-width: 300px; /* Prevent it from becoming too small */
+    flex: 2 1 380px;
+    max-width: 450px;
+    min-width: 300px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -81,7 +81,6 @@ h3 {
     display: flex;
     justify-content: center;
 }
-
 
 #gameInfo {
     text-align: center;
@@ -103,6 +102,49 @@ h3 {
 #gameStateLabel { font-weight: 500; }
 #status { font-weight: bold; color: #007bff; font-size: 1.1em;}
 
+/* New Navigation Controls */
+#navigationControls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    width: 100%;
+}
+#navigationControls button {
+    font-size: 1.2em;
+    font-weight: bold;
+    width: 50px;
+    height: 50px;
+    padding: 0;
+    margin: 0;
+    line-height: 50px; /* Vertically center icon */
+    text-align: center;
+    border-radius: 50%; /* Circular buttons */
+    background-color: #6c757d;
+}
+#navigationControls button:hover {
+    background-color: #5a6268;
+}
+#navigationControls button#navPlayPause {
+    background-color: #28a745; /* Green for play */
+}
+#navigationControls button#navPlayPause:hover {
+    background-color: #218838;
+}
+#navigationControls button#navPlayPause.playing {
+    background-color: #ffc107; /* Yellow for pause */
+}
+#navigationControls button#navPlayPause.playing:hover {
+    background-color: #e0a800;
+}
+#navigationControls button:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    color: #adb5bd;
+}
+
+
 /* Game Controls (Settings + Editor) */
 #gameControls {
     flex: 1 1 320px;
@@ -114,8 +156,8 @@ h3 {
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
-#gameControls div:not(.fen-input-area):not(.board-state-input-area):not(#conversationToggleButtonsContainer),
-#editorControlsContainer div:not(.fen-input-area):not(.board-state-input-area) {
+#gameControls div:not(.fen-input-area):not(.board-state-input-area):not(.save-load-area):not(#conversationToggleButtonsContainer),
+#editorControlsContainer div:not(.fen-input-area):not(.board-state-input-area):not(.save-load-area) {
     margin-bottom: 20px;
 }
 #conversationToggleButtonsContainer {
@@ -163,17 +205,6 @@ button:active { background-color: #005cbf; }
 #toggleEditorButton.active-editor { background-color: #d9534f; }
 #toggleEditorButton.active-editor:hover { background-color: #c9302c; }
 
-.clear-log-button {
-    background-color: #6c757d;
-    position: absolute;
-    top: 20px;
-    right: 25px;
-    font-size: 0.85em;
-    padding: 6px 12px;
-    margin-top: 0;
-    margin-right: 0;
-}
-.clear-log-button:hover { background-color: #5a6268; }
 
 input[type="text"], select {
     padding: 10px 12px;
@@ -200,8 +231,8 @@ input[type="radio"] { margin-right: 4px; vertical-align: middle; transform: scal
 hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
 
 
-/* Game-Specific Editor Input Areas */
-.fen-input-area, .board-state-input-area {
+/* Game-Specific Editor Input Areas & Save/Load */
+.fen-input-area, .board-state-input-area, .save-load-area {
     margin-top: 20px;
     margin-bottom: 20px;
     padding: 15px;
@@ -209,25 +240,29 @@ hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
     border-radius: 6px;
     background-color: #f8f9fa;
 }
-.fen-input-area label, .board-state-input-area label { font-weight: bold; margin-bottom: 10px; }
+.fen-input-area label, .board-state-input-area label, .save-load-area h4 { font-weight: bold; margin-bottom: 10px; margin-top: 0;}
 .fen-input-area input[type="text"], .board-state-input-area input[type="text"] {
     margin-bottom: 12px;
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
 }
-.board-state-input-area input[type="text"] { /* TTT specific */
+.board-state-input-area input[type="text"] {
     text-align: center;
     letter-spacing: 3px;
     font-size: 1.15em;
 }
-.fen-input-area button, .board-state-input-area button { margin-top: 0; }
+.fen-input-area button, .board-state-input-area button, .save-load-area button { margin-top: 0; }
 #fenValidationMessage, #boardStateValidationMessage {
     font-size:0.9em;
     margin-top: 10px;
     min-height: 1.3em;
     font-weight: 500;
 }
-#fenValidationMessage.success, #boardStateValidationMessage.success { color: #28a745; }
-#fenValidationMessage.error, #boardStateValidationMessage.error { color: #dc3545; }
+.save-controls { display: flex; gap: 10px; margin-bottom: 10px; }
+.save-controls input { flex-grow: 1; }
+.save-controls button { flex-shrink: 0; }
+.load-controls select { width: 100%; }
+.validation-message.success { color: #28a745; }
+.validation-message.error { color: #dc3545; }
 
 
 /* LLM Conversation Log Actual Area Styling */
@@ -278,9 +313,8 @@ hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
     cursor: pointer;
     border-radius: 6px;
     transition: background-color 0.2s ease, transform 0.1s ease;
-    /* FIXES APPLIED HERE */
-    line-height: 1;     /* Control vertical space of the text */
-    overflow: hidden;   /* Prevent content from visually pushing boundaries */
+    line-height: 1;
+    overflow: hidden;
 }
 .ttt-cell:hover {
     background-color: #cfd8dc;
@@ -295,8 +329,8 @@ hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
     color: #fff !important;
 }
 
-/* --- Chess Board Specific Styles (Minimal as chessboard.js handles most) --- */
-#chessBoardUiElement { /* Updated ID to match JS if it was changed */
+/* --- Chess Board Specific Styles --- */
+#chessBoardUiElement {
     width: 100%;
     max-width: 400px;
 }
@@ -322,7 +356,8 @@ hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
     h3 {font-size: 1.1em;}
 
     button { padding: 10px 14px; font-size: 0.95em; }
-    .clear-log-button { padding: 5px 10px; font-size: 0.8em; top: 22px; right: 15px;}
+
+    #navigationControls button { width: 45px; height: 45px; line-height: 45px; font-size: 1.1em; }
 
     input[type="text"], select, #currentGameStateDisplay { padding: 9px; font-size: 0.95em; }
 
@@ -333,11 +368,11 @@ hr { margin: 25px 0; border: 0; border-top: 1px solid #dee2e6; }
     #ticTacToeBoard { width: 240px; height: 240px; gap: 6px; padding: 6px;}
     .ttt-cell {
         font-size: 3.2em;
-        line-height: 1;    /* Ensure fix is applied here too */
-        overflow: hidden;  /* Ensure fix is applied here too */
+        line-height: 1;
+        overflow: hidden;
     }
     .board-state-input-area input[type="text"] { font-size: 1em;}
 
-    /* Chess specific small screen (if #chessBoard needs it) */
-    #chessBoardUiElement { max-width: 90vw; } /* Ensure this matches the ID used in JS */
+    /* Chess specific small screen */
+    #chessBoardUiElement { max-width: 90vw; }
 }
