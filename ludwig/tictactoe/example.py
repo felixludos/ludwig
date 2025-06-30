@@ -53,6 +53,8 @@ class TakeTheMiddle(TaskBase):
 					"Now Alice played at {4}. I think I should play in the center-middle "
 					"because it's a good spot in general. "
 					"Is that my best move?")
+		template = ("Alice started with {0} and I played {1}. She took {2}, so I responded with {3}. "
+					"Now Alice played at {4}. Should I play in the center-middle - is that my best move?")
 		return template.format(*problem)
 
 

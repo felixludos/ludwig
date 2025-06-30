@@ -1,0 +1,11 @@
+
+clients:
+  - 8001
+  - 8002
+#  - 8003
+
+players:
+  direct:
+    tictactoe: {_type: ttt/simple}
+    chess: {_type: chess/simple}
+

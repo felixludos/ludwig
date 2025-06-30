@@ -168,7 +168,7 @@ $(document).ready(function() {
             if(msg.type) messageDiv.append($('<span>').addClass('type').text(`Type: ${msg.type}`));
             let content = msg.content;
             if (typeof content === 'object') content = JSON.stringify(content, null, 2);
-            if (msg.type && (msg.type.includes('prompt') || msg.type.includes('response') || msg.type.includes('board_state') || msg.type.includes('fen') || msg.type.includes('raw_script_output'))) {
+            if (msg.type && (msg.type.includes('prompt') || msg.type.includes('response') || msg.type.includes('game_state') || msg.type.includes('fen') || msg.type.includes('raw_script_output'))) {
                  messageDiv.append($('<pre>').text(content));
             } else {
                  messageDiv.append($('<div>').html(String(content).replace(/\n/g, '<br>')));
@@ -449,6 +449,7 @@ $(document).ready(function() {
             const selectedModel = $(`input[name="${currentGameId}_model"]:checked`).val();
             const selectedPrompt = $(`input[name="${currentGameId}_prompting_method"]:checked`).val();
             let llmMoveIndex = -1;
+            let new_state = null;
 
             if (ui.useFrontendStubCheckbox.is(':checked')) {
                 turnSpecificLog.push({sender: "System", type: "info", content: `Frontend LLM Stub for ${llmPlayerForTurn} (TTT).`});
@@ -460,21 +461,37 @@ $(document).ready(function() {
                 if(llmMoveIndex !== -1) turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurn})`, type: "decision", content: `Decided to play at index ${llmMoveIndex}.`});
             } else {
                 const backendUrl = ui.backendUrlInput.val();
-                if (!backendUrl) { turnSpecificLog.push({sender:"Frontend", type:"error", content:"Backend URL missing"}); }
-                else {
-                    turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting TTT LLM move for ${llmPlayerForTurn}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
-                    turnSpecificLog.push({sender: "Frontend", type: "request_board_state", content: ttt_boardStateToString()});
+                if (!backendUrl) {
+                    turnSpecificLog.push({sender:"Frontend", type:"error", content:"Backend URL missing"});
+                } else {
+                    // turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting TTT LLM move for ${llmPlayerForTurn}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
+                    // turnSpecificLog.push({sender: "Frontend", type: "request_board_state", content: ttt_boardStateToString()});
                     try {
                         const response = await fetch(`${backendUrl}/get-llm-move`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ game_id: 'tictactoe', board_state: ttt_boardStateToString(), player_to_move: llmPlayerForTurn, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
+                            body: JSON.stringify({ game_id: 'tictactoe', game_state: {board: ttt_boardStateToString(), player_to_move: llmPlayerForTurn}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
                         });
                         const data = await response.json();
                         if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
-                        if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
-                        llmMoveIndex = data.move_index;
-                        if (llmMoveIndex === undefined || llmMoveIndex < 0 || llmMoveIndex > 8) throw new Error("Backend returned invalid move index.");
-                        turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `Suggests move at index: ${llmMoveIndex}`});
+                        if (!response.ok) {
+                            const errorMsg = data.error || `HTTP error! Status: ${response.status}`;
+                            turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg);
+                        }
+                        llmMoveIndex = data.action;
+                        new_state = data.new_state;
+                        if (new_state) {
+                            let new_boardState = new_state.board;
+                            if (new_boardState.length === 9 && /^[XO_]{9}$/.test(new_boardState)) {
+                                ttt_boardState = ttt_stringToBoardState(new_boardState);
+                                // turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `New board state: ${ttt_boardStateToString()}`});
+                            } else {
+                                throw new Error("Backend returned invalid board state.");
+                            }
+                            ttt_currentPlayer = new_state.player_to_move;
+                        } else {
+                            llmMoveIndex = -1;
+                            turnSpecificLog.push({sender: "Backend", type: "error-log", content: "No valid move index returned."});
+                        }
                     } catch (error) {
                         console.error(`Error getting TTT LLM move for ${llmPlayerForTurn}:`, error);
                         ui.statusEl.text(`Error for ${llmPlayerForTurn}: ${error.message}.`);
@@ -484,14 +501,19 @@ $(document).ready(function() {
                     }
                 }
             }
+            // console.log(`${llmMoveIndex}, ${ttt_boardStateToString()}`);
+
+            const winInfo = ttt_checkWin();
+            if (winInfo) ttt_gameActive = false;
+            else if (ttt_checkDraw()) ttt_gameActive = false;
+
             if (llmMoveIndex !== -1 && ttt_boardState[llmMoveIndex] === TTT_EMPTY) {
                 ttt_boardState[llmMoveIndex] = llmPlayerForTurn;
-                const winInfo = ttt_checkWin(); if (winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
-                else ttt_currentPlayer = (llmPlayerForTurn === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
-            } else if (llmMoveIndex !== -1) {
-                 turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) chose occupied/invalid cell: ${llmMoveIndex}. State: ${ttt_boardStateToString()}`});
-            } else if (ttt_gameActive) {
-                 turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) failed to provide a move.`});
+                ttt_currentPlayer = (llmPlayerForTurn === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
+            // } else if (llmMoveIndex !== -1) {
+            //      turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) chose occupied/invalid cell: ${llmMoveIndex}. State: ${ttt_boardStateToString()}`});
+            // } else if (ttt_gameActive) {
+            //      turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) failed to provide a move.`});
             }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
             updateDisplayElements();
@@ -650,6 +672,7 @@ $(document).ready(function() {
             const selectedModel = $(`input[name="${currentGameId}_model"]:checked`).val();
             const selectedPrompt = $(`input[name="${currentGameId}_prompting_method"]:checked`).val();
             let llmMoveData = null;
+            let new_state = null;
 
             if (ui.useFrontendStubCheckbox.is(':checked')) {
                 turnSpecificLog.push({sender: "System", type: "info", content: `Frontend LLM Stub for ${llmPlayerForTurnColor} (Chess).`});
@@ -668,13 +691,39 @@ $(document).ready(function() {
                     try {
                         const response = await fetch(`${backendUrl}/get-llm-move`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ game_id: 'chess', fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
+                            body: JSON.stringify({ game_id: 'chess', game_state: {fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
                         });
                         const data = await response.json();
                         if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
                         if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
-                        llmMoveData = data.move;
-                        if (!llmMoveData) throw new Error("Backend returned no move.");
+                        new_state = data.new_state;
+                        llmMoveData = data.action;
+                        if (new_state) {
+                            const tempGame = new Chess();
+                            const new_fen = new_state.fen;
+                            if (tempGame.load(new_fen)) {
+                                chess_game.load(new_fen);
+                                this.updateBoardUIVisuals();
+                                if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
+                                updateDisplayElements();
+                                turnSpecificLog.push({
+                                    sender: "Backend",
+                                    type: "response_to_frontend",
+                                    content: `New state set: ${new_fen}`
+                                });
+                            } else {
+                                throw new Error(`Invalid FEN in new state: ${tempGame.validate_fen(new_fen).error || 'Unknown reason'}`);
+                            }
+                        } else if (llmMoveData) {
+                            const moveResult = chess_game.move(llmMoveData, { sloppy: true });
+                            if (!moveResult) {
+                                turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`});
+                                throw new Error(`Invalid move: ${llmMoveData}`);
+                            }
+                        } else {
+                            throw new Error("Backend returned no new state or move.");
+                        }
+                        // if (!llmMoveData) throw new Error("Backend returned no move.");
                         turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `Suggests move: ${llmMoveData}`});
                     } catch (error) {
                          console.error(`Error getting Chess LLM move for ${llmPlayerForTurnColor}:`, error);
@@ -685,8 +734,8 @@ $(document).ready(function() {
                     }
                 }
             }
-            if (llmMoveData) { const moveResult = chess_game.move(llmMoveData, { sloppy: true }); if (!moveResult) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`});}}
-            else if(chess_game.game_over() == false) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) failed to provide a move.`}); }
+            // if (llmMoveData) { const moveResult = chess_game.move(llmMoveData, { sloppy: true }); if (!moveResult) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`});}}
+            // else if(chess_game.game_over() == false) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) failed to provide a move.`}); }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
             updateDisplayElements();
             if (ui[logTargetIdentifier === 'player1' ? 'llmConversationLogContainerPlayer1' : 'llmConversationLogContainerPlayer2'].is(':visible')) displayConversationLog(logTargetIdentifier);

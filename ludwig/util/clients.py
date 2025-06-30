@@ -465,6 +465,8 @@ class vllm_Client(OpenaiClientBase):
 			# TODO: check if grammar is valid
 			elif isinstance(grammar, dict):
 				grammar =  {'guided_json': grammar}
+			elif isinstance(grammar, list):
+				grammar = {'guided_choice': grammar}
 			args['extra_body'] = grammar
 			del args['grammar']
 

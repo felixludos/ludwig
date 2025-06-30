@@ -4,5 +4,6 @@ from .base import TaskBase, ClientStrategy, ProtocolBase
 from . import baselines
 from . import evaluation
 from . import dpp
+from . import servers
 from .tictactoe import *
 # from . import recsys
