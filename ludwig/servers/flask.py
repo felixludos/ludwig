@@ -78,7 +78,8 @@ class TicTacToeGame(GameBase):
 class PlayerBase(fig.Configurable):
 	def prepare(self):
 		pass
-	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str,str]]):
+	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str,str]],
+				   judge: Optional[AbstractClient] = None):
 		raise NotImplementedError
 
 	def encode_state(self, state: JSONDATA) -> str:
@@ -90,10 +91,8 @@ class PlayerBase(fig.Configurable):
 
 # @fig.component('player/state')
 class SimplePlayer(PlayerBase):
-	def __init__(self, params: JSONOBJ = {}, template: str = 'The current state is: {state}\n\n'
-									   'What is the best next move? '
-									   'Output the corresponding next state?',
-				 judge_template: str = None, **kwargs):
+	def __init__(self, template: str = '{state}', params: JSONOBJ = {},
+				 judge_template: str = None, judge_continue: bool = True, **kwargs):
 		if not isinstance(template, PromptTemplate):
 			template = PromptTemplate(template)
 		if judge_template is not None and not isinstance(judge_template, PromptTemplate):
@@ -101,7 +100,8 @@ class SimplePlayer(PlayerBase):
 		super().__init__(**kwargs)
 		self.params = params
 		self.template = template
-		self.judge_template = judge_template if judge_template is not None else template
+		self.judge_template = judge_template
+		self.judge_continue = judge_continue
 
 	def encode_state(self, state: JSONDATA) -> str:
 		raise NotImplementedError
@@ -112,7 +112,8 @@ class SimplePlayer(PlayerBase):
 	def validate_action(self, action: JSONDATA, actions: List[JSONDATA]) -> JSONDATA:
 		raise NotImplementedError
 
-	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str, str]]):
+	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str, str]],
+				   judge: Optional[AbstractClient] = None):
 		state_str = self.encode_state(state)
 		player = state['player_to_move']
 		actions = game.possible_actions(state)
@@ -126,14 +127,27 @@ class SimplePlayer(PlayerBase):
 		log.append({"sender": "LLM", "type": "response", "content": response})
 
 		if self.judge_template:
+			if judge is None:
+				judge = client
 			judge_prompt = self.judge_template.fill(response=response, state=state_str, player=player, actions=actions)
-			chat.append({'role': 'user', 'content': judge_prompt})
-			client.step(chat, grammar=[str(a) for a in actions], max_tokens=10)
-			judge_response = chat[-1]['content']
+			judge_params = dict(grammar=[str(a) for a in actions], max_tokens=10)
+			if self.judge_continue:
+				chat.append({'role': 'user', 'content': judge_prompt})
+				judge.step(chat, **judge_params)
+				judge_response = chat[-1]['content']
+			else:
+				judge_response = judge.get_response(judge_prompt, **judge_params)
 			log.append({"sender": "Judge", "type": "judge", "content": judge_response})
 			raw_action = judge_response
 		else:
-			raw_action = response.strip()
+			# use regex to find the action (defined as the last digit in the response)
+			import re
+			match = re.search(r'\b(\d+)\b', response[::-1])
+			if match:
+				raw_action = match.group(1)
+				log.append({"sender": "Judge", "type": "judge", "content": raw_action})
+			else:
+				raw_action = response.strip()
 
 		action = self.validate_action(raw_action, actions)
 		new_state = game.update_state(state, action)
@@ -142,9 +156,10 @@ class SimplePlayer(PlayerBase):
 
 @fig.component('ttt/simple')
 class TTT_Simple(SimplePlayer):
-	def __init__(self, params: JSONOBJ = {}, template: str = 'game/ttt',
-				 judge_template: str = 'game/ttt-judge', **kwargs):
-		super().__init__(params=params, template=template, judge_template=judge_template, **kwargs)
+	def __init__(self, params: JSONOBJ = {}, template: str = 'game/ttt/simple',
+				 judge_template: str = 'game/ttt/judge', judge_continue = False, **kwargs):
+		super().__init__(params=params, template=template, judge_template=judge_template,
+						 judge_continue=judge_continue, **kwargs)
 
 	def encode_state(self, state: JSONDATA) -> str:
 		options = []
@@ -199,6 +214,12 @@ def launch_backend(cfg: fig.Configuration):
 		clients[ident] = client
 
 	print(f'{len(clients)} clients: {", ".join(clients.keys())}')
+
+	judge = cfg.pull('judge', None)
+	if judge is not None and not isinstance(judge, AbstractClient):
+		judge = vllm_Client(addr=judge)
+	if judge is not None:
+		judge.prepare()
 
 	games = {
 		'chess': ChessGame(),
@@ -283,7 +304,7 @@ def launch_backend(cfg: fig.Configuration):
 													"content": f"Unknown strategy: {selected_strategy_id}"}]}), 400
 
 			game_state = data.get('game_state')
-			new_state = player.next_state(client, game, game_state, conversation_log)
+			new_state = player.next_state(client, game, game_state, conversation_log, judge=judge)
 
 			return jsonify({'new_state': new_state, 'conversationLog': conversation_log})
 

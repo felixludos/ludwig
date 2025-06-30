@@ -2,10 +2,14 @@
 clients:
   - 8001
   - 8002
-#  - 8003
+  - 8003
+
+judge: 8001
+judge-continue: no
 
 players:
   direct:
-    tictactoe: {_type: ttt/simple}
-    chess: {_type: chess/simple}
+#    tictactoe: {_type: ttt/simple, judge-template: game/ttt/judge}
+    tictactoe: {_type: ttt/simple, judge-template: null}
+#    chess: {_type: chess/simple}
 

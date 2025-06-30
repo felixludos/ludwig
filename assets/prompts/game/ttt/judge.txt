@@ -1,0 +1,5 @@
+The player responded with this message:
+```
+{'\n'.join(response.split('\n')[-3:])}
+```
+What move did the player want to make? It should be a number between 1 and 9. Respond only the the number the player selected.

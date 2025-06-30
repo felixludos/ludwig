@@ -262,7 +262,10 @@ class OpenaiClientBase(ClientBase):
 	def ident(self) -> str:
 		if self._model_name is None:
 			return f'{self.endpoint.base_url}'
-		return f'{self._model_name}'
+		name = self._model_name
+		if 'hub/models--' in name:
+			name = name.split('hub/models--')[-1].split('/')[0].replace('--', '/')
+		return name
 
 	def prepare(self) -> Self:
 		self.history = []
