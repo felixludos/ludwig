@@ -4,4 +4,4 @@ It's your turn in a game of Chess. You playing as "{state['active']}". Here is c
 You can take any of the following actions:
 {state['options']}
 
-Consider your options carefully and end your response with the FEN string representing the board state after your move. Make sure the last line of your response is a valid FEN string and nothing else. Make sure that in the resulting FEN string, the active player is "{'white' if state['active'] == 'black' else 'black'}", since "{state['active']}" just made a move.
+Consider your options carefully and end your response with the FEN string representing the board state after your move. Make sure the last line of your response is a valid FEN string and nothing else. Make sure that in the resulting FEN string, the active player is "{'white' if state['active'] == 'black' else 'black'}", since "{state['active']}" just made a move. Also, make sure to update the en passant square if necessary, and to update the castling rights correctly based on the move made. If the game is over, make sure to indicate that in the FEN string as well.
