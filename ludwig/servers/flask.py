@@ -143,7 +143,7 @@ class TicTacToeGame(GameBase):
 		return str(actions.index(action) + 1)
 
 	def decode_action(self, choice: str, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
-		return int(choice.strip()) - 1  # Convert to zero-based index
+		return actions[int(choice.strip()) - 1]  # Convert to zero-based index
 
 
 
