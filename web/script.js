@@ -512,8 +512,8 @@ $(document).ready(function() {
                 else { turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurnColor})`, type: "error-log", content: "No legal moves."}); }
                 if(llmMoveData) turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurnColor})`, type: "decision", content: `Decided to play ${llmMoveData}.`});
             } else {
-                turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting Chess LLM move for ${llmPlayerForTurnColor}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
-                turnSpecificLog.push({sender: "Frontend", type: "request_fen", content: chess_game.fen()});
+                // turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting Chess LLM move for ${llmPlayerForTurnColor}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
+                // turnSpecificLog.push({sender: "Frontend", type: "request_fen", content: chess_game.fen()});
                 try {
                     const response = await fetch(`${BACKEND_URL}/get-llm-move`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
