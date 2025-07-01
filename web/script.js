@@ -24,9 +24,14 @@ $(document).ready(function() {
         player1LogTitle: $('#player1LogTitle'),
         player2LogTitle: $('#player2LogTitle'),
         clearLogButtons: $('.clear-log-button'),
-        llmModelSelectionEl: $('#llmModelSelection'),
-        promptMethodSelectionEl: $('#promptMethodSelection'),
-        llmPlayerControlSelect: $('#llmPlayerControl'),
+        // NEW player-specific settings elements
+        player1SettingsTitle: $('#player1SettingsTitle'),
+        player2SettingsTitle: $('#player2SettingsTitle'),
+        player1ModelSelection: $('#player1ModelSelection'),
+        player2ModelSelection: $('#player2ModelSelection'),
+        player1PromptMethodSelection: $('#player1PromptMethodSelection'),
+        player2PromptMethodSelection: $('#player2PromptMethodSelection'),
+        gameControls: $('#gameControls'), // For event delegation
         toggleEditorButton: $('#toggleEditorButton'),
         editorControlsContainer: $('#editorControlsContainer'),
         editorClearBoardButton: $('#editorClearBoard'),
@@ -50,21 +55,14 @@ $(document).ready(function() {
         loadedAssets.css[url] = true;
     }
 
+    // REMOVED getLLMPlayerControlOptions from game configs as it's no longer needed
     const gamesConfig = {
         tictactoe: {
             name: "Tic-Tac-Toe", player1Name: "X", player2Name: "O", assets: { js: [], css: [] },
             initGame: null, handleCellClick: null, getGameStateString: null, isLLMsTurnLogic: null,
             makeLLMMoveLogic: null, checkWinLogic: null, checkDrawLogic: null, resetGameLogic: null,
             setupEditorControls: null, getEditorBoardState: null, setBoardFromEditorState: null,
-            clearEditorBoard: null, updateBoardUIVisuals: null,
-            getLLMPlayerControlOptions: function() {
-                return [
-                    { value: this.player2Name, text: `${this.player2Name} (Player 2)` },
-                    { value: this.player1Name, text: `${this.player1Name} (Player 1)` },
-                    { value: 'both', text: `Both ${this.player1Name} & ${this.player2Name}` },
-                    { value: 'neither', text: `Neither (Human vs Human)` }
-                ];
-            }
+            clearEditorBoard: null, updateBoardUIVisuals: null
         },
         chess: {
             name: "Chess", player1Name: "White", player2Name: "Black",
@@ -77,15 +75,7 @@ $(document).ready(function() {
             checkWinLogic: null, checkDrawLogic: null, resetGameLogic: null, setupEditorControls: null,
             getEditorBoardState: null, setBoardFromEditorState: null, clearEditorBoard: null,
             flipBoardEditor: null, startPositionEditor: null, updateBoardUIVisuals: null,
-            handleResize: null,
-            getLLMPlayerControlOptions: function() {
-                 return [
-                    { value: this.player2Name.toLowerCase(), text: `${this.player2Name}` },
-                    { value: this.player1Name.toLowerCase(), text: `${this.player1Name}` },
-                    { value: 'both', text: `Both ${this.player1Name} & ${this.player2Name}` },
-                    { value: 'neither', text: `Neither (Human vs Human)` }
-                ];
-            }
+            handleResize: null
         }
     };
 
@@ -106,10 +96,10 @@ $(document).ready(function() {
         currentGameId = newGameId; currentGame = gamesConfig[newGameId];
         ui.gameSelector.val(newGameId);
         ui.gameStateLabel.text(currentGameId === 'chess' ? "Current FEN:" : "Board State:");
-        ui.llmPlayerControlSelect.empty();
-        const playerOptions = currentGame.getLLMPlayerControlOptions();
-        playerOptions.forEach(opt => ui.llmPlayerControlSelect.append($('<option>').val(opt.value).text(opt.text)));
-        ui.llmPlayerControlSelect.val('neither');
+
+        // Update titles for logs, buttons, and new settings panels
+        ui.player1SettingsTitle.text(`${currentGame.player1Name} Settings`);
+        ui.player2SettingsTitle.text(`${currentGame.player2Name} Settings`);
         ui.player1LogTitle.text(`${currentGame.player1Name}'s LLM Convo`);
         ui.player2LogTitle.text(`${currentGame.player2Name}'s LLM Convo`);
         ui.togglePlayer1ConversationButton.text(`View ${currentGame.player1Name}'s Convo`);
@@ -130,16 +120,13 @@ $(document).ready(function() {
             if (currentGame.setupEditorControls) currentGame.setupEditorControls();
 
             if (currentGame.initGame) {
-                 // For chess, ensure it starts with the initial position by default
                 if (newGameId === 'chess') {
                     currentGame.initGame(''); // Explicitly pass 'start'
                 } else {
                     currentGame.initGame();
                 }
-            } else {
-                console.error(`initGame function not defined for ${newGameId}`);
-            }
-            fetchLLMSettingsOptions();
+            } else { console.error(`initGame function not defined for ${newGameId}`); }
+            fetchLLMSettingsOptions(); // This will now set defaults to "Human"
         });
     }
 
@@ -177,36 +164,96 @@ $(document).ready(function() {
         });
         logEl.scrollTop(logEl[0].scrollHeight);
     }
+
+    // MODIFIED: Fetches settings and populates controls for EACH player
     async function fetchLLMSettingsOptions() {
         const baseUrl = ui.backendUrlInput.val();
-        if (!baseUrl) { ui.llmModelSelectionEl.html('<h3>Select Model:</h3><p>Backend URL not set.</p>'); ui.promptMethodSelectionEl.html('<h3>Select Prompting Method:</h3><p>Backend URL not set.</p>'); return; }
+        const playerPanels = [
+            { player: 'player1', modelEl: ui.player1ModelSelection, promptEl: ui.player1PromptMethodSelection },
+            { player: 'player2', modelEl: ui.player2ModelSelection, promptEl: ui.player2PromptMethodSelection }
+        ];
+
+        playerPanels.forEach(p => {
+            p.modelEl.html('<p>Loading...</p>');
+            p.promptEl.hide().find('.option-group').remove();
+        });
+
+        if (!baseUrl) {
+            playerPanels.forEach(p => p.modelEl.html('<p>Backend URL not set.</p>'));
+            return;
+        }
+
         try {
             const response = await fetch(`${baseUrl}/get-llm-settings-options?game=${currentGameId}`);
             if (!response.ok) throw new Error(`Failed to fetch LLM settings: ${response.status} ${response.statusText}`);
             const options = await response.json();
-            ['llmModelSelectionEl', 'promptMethodSelectionEl'].forEach(elKey => {
-                const targetEl = ui[elKey];
-                const optionType = elKey === 'llmModelSelectionEl' ? 'models' : 'prompting_methods';
-                const radioName = elKey === 'llmModelSelectionEl' ? `${currentGameId}_model` : `${currentGameId}_prompting_method`;
-                const title = elKey === 'llmModelSelectionEl' ? 'Select Model:' : 'Select Prompting Method:';
-                targetEl.empty().append($('<h3>').text(title));
-                if (options[optionType] && options[optionType].length > 0) {
-                    const group = $('<div>').addClass('option-group');
-                    options[optionType].forEach((opt, index) => {
-                        const radioId = `${radioName}_opt_${opt.id.replace(/[^a-zA-Z0-9_]/g, "")}`;
-                        group.append($('<input type="radio" required>').attr('name', radioName).attr('id', radioId).val(opt.id).prop('checked', index === 0));
-                        group.append($('<label>').attr('for', radioId).addClass('radio-label').text(opt.name)); group.append($('<br>'));
+
+            playerPanels.forEach(p => {
+                // Populate Models
+                const modelGroup = $('<div>').addClass('option-group');
+                const modelRadioName = `${p.player}_model`;
+                // Add Human radio button, checked by default
+                modelGroup.append(
+                    $('<input type="radio" required>')
+                        .attr('name', modelRadioName).attr('id', `${modelRadioName}_human`).val('human').prop('checked', true)
+                );
+                modelGroup.append($('<label>').attr('for', `${modelRadioName}_human`).addClass('radio-label').text('Human'));
+                modelGroup.append($('<br>'));
+
+                if (options.models && options.models.length > 0) {
+                    options.models.forEach(opt => {
+                        const radioId = `${modelRadioName}_${opt.id.replace(/[^a-zA-Z0-9_]/g, "")}`;
+                        modelGroup.append($('<input type="radio" required>').attr('name', modelRadioName).attr('id', radioId).val(opt.id));
+                        modelGroup.append($('<label>').attr('for', radioId).addClass('radio-label').text(opt.name));
+                        modelGroup.append($('<br>'));
                     });
-                    targetEl.append(group);
-                } else { targetEl.append($('<p>No options available.</p>'));}
+                }
+                p.modelEl.empty().append(modelGroup);
+
+                // Populate Prompting Methods
+                const promptGroup = $('<div>').addClass('option-group');
+                const promptRadioName = `${p.player}_prompting_method`;
+                 if (options.prompting_methods && options.prompting_methods.length > 0) {
+                    options.prompting_methods.forEach((opt, index) => {
+                        const radioId = `${promptRadioName}_${opt.id.replace(/[^a-zA-Z0-9_]/g, "")}`;
+                        promptGroup.append($('<input type="radio" required>').attr('name', promptRadioName).attr('id', radioId).val(opt.id).prop('checked', index === 0));
+                        promptGroup.append($('<label>').attr('for', radioId).addClass('radio-label').text(opt.name));
+                        promptGroup.append($('<br>'));
+                    });
+                    p.promptEl.append(promptGroup); // Append to the container
+                } else {
+                    p.promptEl.append($('<p>No prompt methods available.</p>'));
+                }
             });
+
         } catch (error) {
             console.error("Error fetching LLM settings:", error);
-            ui.llmModelSelectionEl.html('<h3>Select Model:</h3><p>Error loading models.</p>');
-            ui.promptMethodSelectionEl.html('<h3>Select Prompting Method:</h3><p>Error loading prompt methods.</p>');
+            playerPanels.forEach(p => {
+                p.modelEl.html('<p>Error loading models.</p>');
+                p.promptEl.hide();
+            });
         }
     }
     ui.backendUrlInput.on('change', fetchLLMSettingsOptions);
+
+    // NEW: Event delegation for model selection change
+    ui.gameControls.on('change', 'input[name="player1_model"], input[name="player2_model"]', function() {
+        const player = $(this).attr('name').split('_')[0]; // 'player1' or 'player2'
+        const promptContainer = $(`#${player}PromptMethodSelection`);
+        if ($(this).val() !== 'human') {
+            promptContainer.slideDown();
+        } else {
+            promptContainer.slideUp();
+        }
+        triggerLLMMoveIfNeeded();
+    });
+
+    // Helper to check if it's an LLM vs LLM game
+    function isLLMvsLLM() {
+        const p1_model = $('input[name="player1_model"]:checked').val();
+        const p2_model = $('input[name="player2_model"]:checked').val();
+        return p1_model !== 'human' && p2_model !== 'human';
+    }
 
     async function makeLLMMove() {
         if (!currentGame || !currentGame.makeLLMMoveLogic || isEditorMode) return;
@@ -216,7 +263,8 @@ $(document).ready(function() {
     function triggerLLMMoveIfNeeded() {
         if (!currentGame || !currentGame.isLLMsTurnLogic || isEditorMode) return;
         if (currentGame.isLLMsTurnLogic()) {
-            const delay = ui.llmPlayerControlSelect.val() === 'both' ? (700 + Math.random() * 300) : (300 + Math.random() * 200);
+            // Use helper to determine delay
+            const delay = isLLMvsLLM() ? (700 + Math.random() * 300) : (300 + Math.random() * 200);
             window.setTimeout(makeLLMMove, delay);
         }
     }
@@ -249,11 +297,12 @@ $(document).ready(function() {
     // --- Reset Button & Log Toggling/Clearing ---
     ui.resetButton.on('click', function() {
         if (isEditorMode) { isEditorMode = false; ui.toggleEditorButton.text('Enter Editor Mode').removeClass('active-editor'); ui.editorControlsContainer.hide(); }
-        if (currentGame && currentGame.resetGameLogic) {
-            currentGame.resetGameLogic();
+        // Re-run switchGame to reset everything including settings to default
+        if (currentGameId) {
+            switchGame(currentGameId);
             conversationLogs = { player1: [], player2: [] };
-            ui.llmConversationLogContainerPlayer1.hide(); ui.togglePlayer1ConversationButton.text(`View ${currentGame.player1Name}'s Convo`);
-            ui.llmConversationLogContainerPlayer2.hide(); ui.togglePlayer2ConversationButton.text(`View ${currentGame.player2Name}'s Convo`);
+            ui.llmConversationLogContainerPlayer1.hide();
+            ui.llmConversationLogContainerPlayer2.hide();
         }
     });
     ui.togglePlayer1ConversationButton.on('click', function() {
@@ -274,12 +323,6 @@ $(document).ready(function() {
             if (logContainer.is(':visible')) displayConversationLog(playerToClear);
         }
     });
-    ui.llmPlayerControlSelect.on('change', function() {
-        if (!isEditorMode && currentGame) {
-            if(currentGame.updateStatusLogic) currentGame.updateStatusLogic();
-            triggerLLMMoveIfNeeded();
-        }
-    });
 
     // --- Resize Observer ---
     if (window.ResizeObserver && ui.dynamicBoardContainer.length) {
@@ -298,21 +341,14 @@ $(document).ready(function() {
             .addClass('saved-states-area')
             .html(`<h4>Load Saved Position:</h4><select id="${gameId}SavedStatesSelect"><option value="">-- Select a position --</option></select>`);
 
-        // Prepend to gameSpecificEditorControls so it appears before other inputs if desired
         ui.gameSpecificEditorControls.prepend(savedStatesContainer);
         const selectEl = $(`#${gameId}SavedStatesSelect`);
 
         try {
-            // Conceptual Backend Endpoint (replace with your actual endpoint)
-            // const response = await fetch(`${ui.backendUrlInput.val()}/get-saved-board-states?game=${gameId}`);
-            // if (!response.ok) throw new Error('Failed to fetch saved states.');
-            // const data = await response.json();
-
-            // STUBBED DATA for now:
             let data = { savedStates: [] };
             if (gameId === 'chess') {
                 data.savedStates = [
-                    { name: "Queen's Gambit Declined", state: "rnbqkb1r/pp2pp1p/3p1np1/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" }, // Example FEN
+                    { name: "Queen's Gambit Declined", state: "rnbqkb1r/pp2pp1p/3p1np1/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" },
                     { name: "Sicilian Dragon, Yugoslav Attack", state: "r2qk2r/pb1nbppp/4p3/1pp1P1P1/2BP3P/2N1BN2/PP3P2/R2QK2R w KQkq - 0 14" }
                 ];
             } else if (gameId === 'tictactoe') {
@@ -321,7 +357,6 @@ $(document).ready(function() {
                     { name: "Almost Draw", state: "XOXOX_O_X" }
                 ];
             }
-            // END STUBBED DATA
 
             if (data.savedStates && data.savedStates.length > 0) {
                 data.savedStates.forEach(savedState => {
@@ -332,11 +367,10 @@ $(document).ready(function() {
                     const selectedState = $(this).val();
                     if (selectedState && currentGame && currentGame.setBoardFromEditorState) {
                         currentGame.setBoardFromEditorState(selectedState);
-                        if(currentGame.updateBoardUIVisuals) currentGame.updateBoardUIVisuals(); // Ensure visuals update
-                        updateDisplayElements(); // Update status and main state display
-                         // Also update the manual FEN/state input field if it exists for this game
+                        if(currentGame.updateBoardUIVisuals) currentGame.updateBoardUIVisuals();
+                        updateDisplayElements();
                         if (gameId === 'chess' && $('#chessEditorFenInput').length) {
-                            $('#chessEditorFenInput').val(selectedState.split(' ')[0]); // Show piece part for chess
+                            $('#chessEditorFenInput').val(selectedState.split(' ')[0]);
                         } else if (gameId === 'tictactoe' && $('#tttEditorBoardStateInput').length) {
                             $('#tttEditorBoardStateInput').val(selectedState);
                         }
@@ -380,12 +414,11 @@ $(document).ready(function() {
 
         gamesConfig.tictactoe.updateBoardUIVisuals = function() {
             const boardEl = ui.dynamicBoardContainer.find('#ticTacToeBoard');
-            if (!boardEl.length) return; // Board not injected yet
+            if (!boardEl.length) return;
             boardEl.empty();
             ttt_boardState.forEach((cell, index) => {
                 const cellDiv = $('<div></div>').addClass('ttt-cell').attr('data-index', index).text(cell === TTT_EMPTY ? '' : cell);
                 if (cell === TTT_PLAYER_X) cellDiv.addClass('X'); if (cell === TTT_PLAYER_O) cellDiv.addClass('O');
-                // Click handler is now added in initGame or enterEditorMode
                 boardEl.append(cellDiv);
             });
             if (!ttt_gameActive) {
@@ -408,7 +441,7 @@ $(document).ready(function() {
 
         gamesConfig.tictactoe.initGame = function(initialBoardStr = "_________") {
             ui.dynamicBoardContainer.html('<div id="ticTacToeBoard"></div>');
-            $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() { // Game mode click handler
+            $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() {
                 if (currentGameId === 'tictactoe') gamesConfig.tictactoe.handleCellClick($(this).data('index'));
             });
             ttt_boardState = ttt_stringToBoardState(initialBoardStr.replace(/ /g, TTT_EMPTY));
@@ -421,11 +454,11 @@ $(document).ready(function() {
         gamesConfig.tictactoe.resetGameLogic = function() { this.initGame("_________"); };
         gamesConfig.tictactoe.getGameStateString = () => ttt_boardStateToString();
 
+        // MODIFIED: Checks per-player model selection
         gamesConfig.tictactoe.isLLMsTurnLogic = function() {
             if (!ttt_gameActive || isEditorMode) return false;
-            const controlMode = ui.llmPlayerControlSelect.val();
-            if (controlMode === 'neither') return false; if (controlMode === 'both') return true;
-            return controlMode === ttt_currentPlayer;
+            const playerModelRadio = (ttt_currentPlayer === TTT_PLAYER_X) ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
+            return $(playerModelRadio).val() !== 'human';
         };
 
         gamesConfig.tictactoe.handleCellClick = function(clickedIndex) {
@@ -440,14 +473,16 @@ $(document).ready(function() {
             }
         };
 
+        // MODIFIED: Gets model/prompt for the correct player
         gamesConfig.tictactoe.makeLLMMoveLogic = async function() {
             const llmPlayerForTurn = ttt_currentPlayer;
             const logTargetIdentifier = llmPlayerForTurn === TTT_PLAYER_X ? 'player1' : 'player2';
             if (!ttt_gameActive || !gamesConfig.tictactoe.isLLMsTurnLogic()) return;
             ui.statusEl.text(`LLM (${llmPlayerForTurn}) is thinking...`);
             let turnSpecificLog = [];
-            const selectedModel = $(`input[name="${currentGameId}_model"]:checked`).val();
-            const selectedPrompt = $(`input[name="${currentGameId}_prompting_method"]:checked`).val();
+
+            const selectedModel = $(`input[name="${logTargetIdentifier}_model"]:checked`).val();
+            const selectedPrompt = $(`input[name="${logTargetIdentifier}_prompting_method"]:checked`).val();
             let llmMoveIndex = -1;
             let new_state = null;
 
@@ -464,8 +499,6 @@ $(document).ready(function() {
                 if (!backendUrl) {
                     turnSpecificLog.push({sender:"Frontend", type:"error", content:"Backend URL missing"});
                 } else {
-                    // turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting TTT LLM move for ${llmPlayerForTurn}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
-                    // turnSpecificLog.push({sender: "Frontend", type: "request_board_state", content: ttt_boardStateToString()});
                     try {
                         const response = await fetch(`${backendUrl}/get-llm-move`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -483,7 +516,6 @@ $(document).ready(function() {
                             let new_boardState = new_state.board;
                             if (new_boardState.length === 9 && /^[XO_]{9}$/.test(new_boardState)) {
                                 ttt_boardState = ttt_stringToBoardState(new_boardState);
-                                // turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `New board state: ${ttt_boardStateToString()}`});
                             } else {
                                 throw new Error("Backend returned invalid board state.");
                             }
@@ -501,7 +533,6 @@ $(document).ready(function() {
                     }
                 }
             }
-            // console.log(`${llmMoveIndex}, ${ttt_boardStateToString()}`);
 
             const winInfo = ttt_checkWin();
             if (winInfo) ttt_gameActive = false;
@@ -510,10 +541,6 @@ $(document).ready(function() {
             if (llmMoveIndex !== -1 && ttt_boardState[llmMoveIndex] === TTT_EMPTY) {
                 ttt_boardState[llmMoveIndex] = llmPlayerForTurn;
                 ttt_currentPlayer = (llmPlayerForTurn === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
-            // } else if (llmMoveIndex !== -1) {
-            //      turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) chose occupied/invalid cell: ${llmMoveIndex}. State: ${ttt_boardStateToString()}`});
-            // } else if (ttt_gameActive) {
-            //      turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurn}) failed to provide a move.`});
             }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
             updateDisplayElements();
@@ -535,22 +562,20 @@ $(document).ready(function() {
                     <p id="tttBoardStateValidationMessage" class="validation-message"></p>
                 </div>`;
             ui.gameSpecificEditorControls.html(editorHtml);
-            // Fetch and display saved states for TTT
-            fetchAndDisplaySavedStates('tictactoe'); // NEW
+            fetchAndDisplaySavedStates('tictactoe');
             $('#tttEditorSetBoardStateButton').on('click', function() {
                 const inputState = $('#tttEditorBoardStateInput').val().trim().toUpperCase().replace(/ /g, TTT_EMPTY);
                 gamesConfig.tictactoe.setBoardFromEditorState(inputState, '#tttBoardStateValidationMessage');
             });
         };
-        gamesConfig.tictactoe.setBoardFromEditorState = function(stateString, validationMsgSelector) { // NEW helper
-            const validationMsgEl = validationMsgSelector ? $(validationMsgSelector) : $('#tttBoardStateValidationMessage'); // Default if not passed
+        gamesConfig.tictactoe.setBoardFromEditorState = function(stateString, validationMsgSelector) {
+            const validationMsgEl = validationMsgSelector ? $(validationMsgSelector) : $('#tttBoardStateValidationMessage');
             validationMsgEl.removeClass('success error').text('');
             if (stateString.length === 9 && /^[XO_]{9}$/.test(stateString)) {
                 ttt_boardState = ttt_stringToBoardState(stateString);
                 this.updateBoardUIVisuals();
                 updateGameStateDisplay();
                 validationMsgEl.text('Board state set!').addClass('success');
-                // Sync editor input if it exists and is different
                 if ($('#tttEditorBoardStateInput').val() !== stateString) {
                     $('#tttEditorBoardStateInput').val(stateString);
                 }
@@ -597,8 +622,8 @@ $(document).ready(function() {
     function initChessModule() {
         let chess_game;
         let chess_board_ui;
-        const CHESS_PLAYER1 = gamesConfig.chess.player1Name.toLowerCase();
-        const CHESS_PLAYER2 = gamesConfig.chess.player2Name.toLowerCase();
+        const CHESS_PLAYER1_NAME = gamesConfig.chess.player1Name;
+        const CHESS_PLAYER2_NAME = gamesConfig.chess.player2Name;
         const chess_pieceThemeUrl = 'chess/img/chesspieces/alpha/{piece}.png';
 
         gamesConfig.chess.updateBoardUIVisuals = function() {
@@ -607,15 +632,15 @@ $(document).ready(function() {
             }
         };
 
-        gamesConfig.chess.initGame = function(fen = 'start') { // Ensure 'start' is default
+        gamesConfig.chess.initGame = function(fen = 'start') {
             if (typeof Chess === "undefined" || typeof Chessboard === "undefined") {
                 ui.dynamicBoardContainer.html("<p>Loading Chess components...</p>");
                 loadGameAssets('chess', () => this.initGame(fen));
                 return;
             }
-            fen = fen == 'start' || fen == '' ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : fen.trim(); // Ensure valid FEN or default to 'start'
+            fen = fen == 'start' || fen == '' ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : fen.trim();
             console.log(`Initializing Chess game with FEN: ${fen}`);
-            chess_game = new Chess(fen); // Uses 'start' by default from chess.js if fen is 'start'
+            chess_game = new Chess(fen);
             if (chess_board_ui) chess_board_ui.destroy();
             ui.dynamicBoardContainer.html('<div id="chessBoardUiElement" style="width:100%; max-width:400px;"></div>');
 
@@ -623,11 +648,13 @@ $(document).ready(function() {
                 draggable: true, position: chess_game.fen(), pieceTheme: chess_pieceThemeUrl,
                 onDragStart: (source, piece) => {
                     if (!currentGame || currentGameId !== 'chess' || isEditorMode || chess_game.game_over()) return false;
-                    if ((chess_game.turn() === 'w' && piece.search(/^b/) !== -1) || (chess_game.turn() === 'b' && piece.search(/^w/) !== -1)) return false;
-                    const controlMode = ui.llmPlayerControlSelect.val();
-                    if (controlMode === 'both') return false;
-                    if (controlMode === CHESS_PLAYER1 && chess_game.turn() === 'w') return false;
-                    if (controlMode === CHESS_PLAYER2 && chess_game.turn() === 'b') return false;
+                    const turn = chess_game.turn();
+                    if ((turn === 'w' && piece.search(/^b/) !== -1) || (turn === 'b' && piece.search(/^w/) !== -1)) return false;
+
+                    // MODIFIED: Check current player's model
+                    const playerModelRadio = (turn === 'w') ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
+                    if ($(playerModelRadio).val() !== 'human') return false;
+
                     return true;
                 },
                 onDrop: (source, target) => {
@@ -643,34 +670,36 @@ $(document).ready(function() {
             updateDisplayElements();
             triggerLLMMoveIfNeeded();
         };
-        gamesConfig.chess.resetGameLogic = function() { this.initGame('start'); }; // Explicitly reset to 'start'
+        gamesConfig.chess.resetGameLogic = function() { this.initGame('start'); };
         gamesConfig.chess.getGameStateString = () => chess_game ? chess_game.fen() : 'Chess not initialized';
         gamesConfig.chess.updateStatusLogic = function() {
             if (!chess_game) { ui.statusEl.text("Chess game not loaded."); return;}
             let statusText = '';
-            const moveColor = chess_game.turn() === 'w' ? gamesConfig.chess.player1Name : gamesConfig.chess.player2Name;
+            const moveColor = chess_game.turn() === 'w' ? CHESS_PLAYER1_NAME : CHESS_PLAYER2_NAME;
             if (chess_game.game_over()) {
-                if (chess_game.in_checkmate()) statusText = `CHECKMATE! ${moveColor === gamesConfig.chess.player1Name ? gamesConfig.chess.player2Name : gamesConfig.chess.player1Name} wins.`;
+                if (chess_game.in_checkmate()) statusText = `CHECKMATE! ${moveColor === CHESS_PLAYER1_NAME ? CHESS_PLAYER2_NAME : CHESS_PLAYER1_NAME} wins.`;
                 else if (chess_game.in_draw()) statusText = 'DRAW.'; else if (chess_game.in_stalemate()) statusText = 'STALEMATE.';
                 else statusText = 'GAME OVER.';
             } else { statusText = `${moveColor} to move.`; if (chess_game.in_check()) statusText += ` ${moveColor} is in check.`;}
             ui.statusEl.text(statusText);
         };
+        // MODIFIED: Checks per-player model selection
         gamesConfig.chess.isLLMsTurnLogic = function() {
             if (!chess_game || chess_game.game_over() || isEditorMode) return false;
-            const controlMode = ui.llmPlayerControlSelect.val();
-            if (controlMode === 'neither') return false; if (controlMode === 'both') return true;
-            const currentTurnColor = chess_game.turn() === 'w' ? CHESS_PLAYER1 : CHESS_PLAYER2;
-            return controlMode === currentTurnColor;
+            const playerModelRadio = (chess_game.turn() === 'w') ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
+            return $(playerModelRadio).val() !== 'human';
         };
+        // MODIFIED: Gets model/prompt for the correct player
         gamesConfig.chess.makeLLMMoveLogic = async function() {
             if (!chess_game || !gamesConfig.chess.isLLMsTurnLogic()) return;
-            const llmPlayerForTurnColor = chess_game.turn() === 'w' ? CHESS_PLAYER1 : CHESS_PLAYER2;
-            const logTargetIdentifier = chess_game.turn() === 'w' ? 'player1' : 'player2';
+            const turn = chess_game.turn();
+            const llmPlayerForTurnColor = turn === 'w' ? CHESS_PLAYER1_NAME : CHESS_PLAYER2_NAME;
+            const logTargetIdentifier = turn === 'w' ? 'player1' : 'player2';
             ui.statusEl.text(`LLM (${llmPlayerForTurnColor}) is thinking...`);
             let turnSpecificLog = [];
-            const selectedModel = $(`input[name="${currentGameId}_model"]:checked`).val();
-            const selectedPrompt = $(`input[name="${currentGameId}_prompting_method"]:checked`).val();
+
+            const selectedModel = $(`input[name="${logTargetIdentifier}_model"]:checked`).val();
+            const selectedPrompt = $(`input[name="${logTargetIdentifier}_prompting_method"]:checked`).val();
             let llmMoveData = null;
             let new_state = null;
 
@@ -691,7 +720,7 @@ $(document).ready(function() {
                     try {
                         const response = await fetch(`${backendUrl}/get-llm-move`, {
                             method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ game_id: 'chess', game_state: {fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
+                            body: JSON.stringify({ game_id: 'chess', game_state: {fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor.toLowerCase()}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
                         });
                         const data = await response.json();
                         if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
@@ -707,8 +736,7 @@ $(document).ready(function() {
                                 if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
                                 updateDisplayElements();
                                 turnSpecificLog.push({
-                                    sender: "Backend",
-                                    type: "response_to_frontend",
+                                    sender: "Backend", type: "response_to_frontend",
                                     content: `New state set: ${new_fen}`
                                 });
                             } else {
@@ -723,7 +751,6 @@ $(document).ready(function() {
                         } else {
                             throw new Error("Backend returned no new state or move.");
                         }
-                        // if (!llmMoveData) throw new Error("Backend returned no move.");
                         turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `Suggests move: ${llmMoveData}`});
                     } catch (error) {
                          console.error(`Error getting Chess LLM move for ${llmPlayerForTurnColor}:`, error);
@@ -734,8 +761,6 @@ $(document).ready(function() {
                     }
                 }
             }
-            // if (llmMoveData) { const moveResult = chess_game.move(llmMoveData, { sloppy: true }); if (!moveResult) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`});}}
-            // else if(chess_game.game_over() == false) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) failed to provide a move.`}); }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
             updateDisplayElements();
             if (ui[logTargetIdentifier === 'player1' ? 'llmConversationLogContainerPlayer1' : 'llmConversationLogContainerPlayer2'].is(':visible')) displayConversationLog(logTargetIdentifier);
@@ -751,11 +776,9 @@ $(document).ready(function() {
                     <button id="chessEditorSetFenButton">Set from FEN</button>
                     <p id="chessFenValidationMessage" class="validation-message"></p>
                 </div>
-                <div id="chessSavedStatesContainerPlaceholder"></div> <!-- Placeholder for saved states -->
-                `;
+                <div id="chessSavedStatesContainerPlaceholder"></div>`;
             ui.gameSpecificEditorControls.html(editorHtml);
-             // Fetch and display saved states for Chess
-            fetchAndDisplaySavedStates('chess'); // NEW
+            fetchAndDisplaySavedStates('chess');
             $('#chessEditorStartPosition').on('click', gamesConfig.chess.startPositionEditor);
             $('#chessEditorFlipBoard').on('click', gamesConfig.chess.flipBoardEditor);
             $('#chessEditorSetFenButton').on('click', function() {
@@ -763,7 +786,7 @@ $(document).ready(function() {
                 gamesConfig.chess.setBoardFromEditorState(fen, '#chessFenValidationMessage');
             });
         };
-         gamesConfig.chess.setBoardFromEditorState = function(fen, validationMsgSelector) { // NEW Helper
+         gamesConfig.chess.setBoardFromEditorState = function(fen, validationMsgSelector) {
             const validationMsgEl = validationMsgSelector ? $(validationMsgSelector) : $('#chessFenValidationMessage');
             validationMsgEl.removeClass('success error').text('');
             const tempGame = new Chess();
@@ -772,23 +795,20 @@ $(document).ready(function() {
                 this.updateBoardUIVisuals();
                 if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
                 updateDisplayElements(); validationMsgEl.text('FEN set successfully!').addClass('success');
-                // Sync editor input if it exists and is different
                 if ($('#chessEditorFenInput').val() !== fen) {
-                     $('#chessEditorFenInput').val(fen); // Show full FEN
+                     $('#chessEditorFenInput').val(fen);
                 }
             } else { validationMsgEl.text(`Invalid FEN: ${tempGame.validate_fen(fen).error || 'Unknown reason'}`).addClass('error');}
         };
         gamesConfig.chess.enterEditorMode = function() {
             if (!chess_board_ui) { this.initGame(chess_game ? chess_game.fen() : 'start'); }
             chess_board_ui.draggable(true); chess_board_ui.dropOffBoard('trash'); chess_board_ui.sparePieces(true);
-            // Detach previous game-mode drop handler and attach editor-mode drop handler
-            chess_board_ui.off('drop'); // Remove previous onDrop
+            chess_board_ui.off('drop');
             chess_board_ui.on('drop', function(source, target, piece, newPosFenObj, oldPosFenObj) {
                 if (isEditorMode) {
                      const boardFenOnly = Chessboard.objToFen(newPosFenObj);
                      $('#chessEditorFenInput').val(boardFenOnly);
                      ui.currentGameStateDisplay.val(boardFenOnly + " (Editor: pieces only)");
-                     // Update chess_game with piece placement for consistency if FEN input is used later
                      const currentTurnEditor = ui.editorTurnPlayer1Radio.is(':checked') ? 'w' : 'b';
                      chess_game.load(boardFenOnly + " " + currentTurnEditor + " - - 0 1");
                 }
@@ -804,17 +824,15 @@ $(document).ready(function() {
         };
         gamesConfig.chess.clearEditorBoard = function() {
             if (chess_board_ui) chess_board_ui.clear(false);
-            // chess_game.load('8/8/8/8/8/8/8/8 w - - 0 1');
             chess_game.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
             $('#chessEditorFenInput').val(chess_board_ui ? chess_board_ui.fen() : '');
             updateDisplayElements();
         };
         gamesConfig.chess.startPositionEditor = function() {
-            // const startFen = new Chess().fen(); // Standard start FEN
             const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-            if (chess_board_ui) chess_board_ui.position(startFen, false); // Update visual
-            chess_game.load(startFen); // Update logic
-            $('#chessEditorFenInput').val(startFen.split(' ')[0]); // Show piece part
+            if (chess_board_ui) chess_board_ui.position(startFen, false);
+            chess_game.load(startFen);
+            $('#chessEditorFenInput').val(startFen.split(' ')[0]);
             if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
             updateDisplayElements();
         };

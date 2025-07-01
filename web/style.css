@@ -31,6 +31,23 @@ h3 {
     font-size: 1.25em;
     font-weight: 500;
 }
+/* ADDED: Styling for new settings containers */
+.player-settings-panel h3 {
+    margin-top: 0;
+}
+.prompt-method-container {
+    padding-left: 15px;
+    border-left: 3px solid #f0f0f0;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+.prompt-method-container h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.05em;
+    color: #333d47;
+}
+
 
 #gameSelectionContainer {
     text-align: center;
@@ -114,7 +131,7 @@ h3 {
     box-shadow: 0 4px 15px rgba(0,0,0,0.08);
 }
 
-#gameControls div:not(.fen-input-area):not(.board-state-input-area):not(#conversationToggleButtonsContainer),
+#gameControls div:not(.fen-input-area):not(.board-state-input-area):not(#conversationToggleButtonsContainer):not(.player-settings-panel):not(.prompt-method-container),
 #editorControlsContainer div:not(.fen-input-area):not(.board-state-input-area) {
     margin-bottom: 20px;
 }
