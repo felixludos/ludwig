@@ -4,7 +4,7 @@ $(document).ready(function() {
     let currentGame = null;
     let isEditorMode = false;
     let conversationLogs = { player1: [], player2: [] };
-    const BACKEND_URL = 'http://localhost:5001'; // Hardcoded backend URL
+    const BACKEND_URL = 'http://wagner.is.localnet:5001'; // Hardcoded backend URL
 
     // --- UI Elements Cache (Common) ---
     const ui = {
