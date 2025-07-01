@@ -1,11 +1,11 @@
 
-clients:
-  - 8001
-  - 8002
-  - 8003
+#clients:
+#  - 8001
+#  - 8002
+##  - 8003
 
-judge: 8001
-judge-continue: no
+#judge: 8001
+judge-chat: no
 
 players:
 

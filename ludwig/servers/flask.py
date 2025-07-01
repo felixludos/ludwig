@@ -269,6 +269,7 @@ class SimplePlayer(PlayerBase):
 				line = response.replace('`', '').strip().split('\n')[-1].replace('**', '').replace(':', '')
 				if 'fen' in line.lower():
 					line = line.split('fen')[-1].split('FEN')[-1].strip()
+
 				verdict = line.strip()
 			else:
 				verdict = self._find_last(pattern, response)
@@ -454,6 +455,11 @@ def launch_backend(cfg: fig.Configuration):
 		conversation_log = []
 		try:
 			data = request.json
+
+			apikey = data.get('key')
+			if apikey != 'retreat':
+				return jsonify({'error': 'Invalid API key'}), 403
+
 			game_id = data.get('game_id')  # Expect 'game_id' from frontend
 			if not game_id or game_id not in games_map:
 				return jsonify({'error': f'Invalid or missing game_id: {game_id}', 'conversationLog': [

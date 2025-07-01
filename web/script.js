@@ -4,6 +4,7 @@ $(document).ready(function() {
     let currentGame = null;
     let isEditorMode = false;
     let conversationLogs = { player1: [], player2: [] };
+    const BACKEND_URL = 'http://localhost:5001'; // Hardcoded backend URL
 
     // --- UI Elements Cache (Common) ---
     const ui = {
@@ -13,7 +14,7 @@ $(document).ready(function() {
         gameStateLabel: $('#gameStateLabel'),
         currentGameStateDisplay: $('#currentGameStateDisplay'),
         useFrontendStubCheckbox: $('#useFrontendStub'),
-        backendUrlInput: $('#backendUrl'),
+        apiKeyInput: $('#apiKey'), // UPDATED from backendUrlInput
         resetButton: $('#resetButton'),
         togglePlayer1ConversationButton: $('#togglePlayer1ConversationButton'),
         togglePlayer2ConversationButton: $('#togglePlayer2ConversationButton'),
@@ -123,14 +124,11 @@ $(document).ready(function() {
         });
     }
 
-    // --- Game-Agnostic UI & LLM Functions ---
     function updateStatus() { if (currentGame && currentGame.updateStatusLogic) currentGame.updateStatusLogic(); }
     function updateGameStateDisplay() { if (currentGame && currentGame.getGameStateString) ui.currentGameStateDisplay.val(currentGame.getGameStateString());}
 
     function updateDisplayElements() {
-        if (currentGame && currentGame.updateBoardUIVisuals) {
-            currentGame.updateBoardUIVisuals();
-        }
+        if (currentGame && currentGame.updateBoardUIVisuals) { currentGame.updateBoardUIVisuals(); }
         updateStatus();
         updateGameStateDisplay();
     }
@@ -158,9 +156,8 @@ $(document).ready(function() {
         logEl.scrollTop(logEl[0].scrollHeight);
     }
 
-    // MODIFIED: Improved error handling and always-visible prompts
+    // MODIFIED: Uses hardcoded BACKEND_URL constant
     async function fetchLLMSettingsOptions() {
-        const baseUrl = ui.backendUrlInput.val();
         const playerPanels = [
             { player: 'player1', modelEl: ui.player1ModelSelection, promptEl: ui.player1PromptMethodSelection },
             { player: 'player2', modelEl: ui.player2ModelSelection, promptEl: ui.player2PromptMethodSelection }
@@ -171,25 +168,17 @@ $(document).ready(function() {
             p.promptEl.empty().append('<h4>Select Prompting Method:</h4>');
         });
 
-        if (!baseUrl) {
-            playerPanels.forEach(p => p.modelEl.html('<p>Backend URL not set.</p>'));
-            return;
-        }
-
         try {
-            const response = await fetch(`${baseUrl}/get-llm-settings-options?game=${currentGameId}`);
+            const response = await fetch(`${BACKEND_URL}/get-llm-settings-options?game=${currentGameId}`);
             if (!response.ok) throw new Error(`Failed to fetch LLM settings: ${response.status} ${response.statusText}`);
             const options = await response.json();
 
             playerPanels.forEach(p => {
-                // Populate Models
                 const modelGroup = $('<div>').addClass('option-group');
                 const modelRadioName = `${p.player}_model`;
-                // Add Human radio button, checked by default
                 modelGroup.append($('<input type="radio" required>').attr('name', modelRadioName).attr('id', `${modelRadioName}_human`).val('human').prop('checked', true));
                 modelGroup.append($('<label>').attr('for', `${modelRadioName}_human`).addClass('radio-label').text('Human'));
                 modelGroup.append($('<br>'));
-
                 if (options.models && options.models.length > 0) {
                     options.models.forEach(opt => {
                         const radioId = `${modelRadioName}_${opt.id.replace(/[^a-zA-Z0-9_]/g, "")}`;
@@ -200,7 +189,6 @@ $(document).ready(function() {
                 }
                 p.modelEl.empty().append(modelGroup);
 
-                // Populate Prompting Methods
                 const promptGroup = $('<div>').addClass('option-group');
                 const promptRadioName = `${p.player}_prompting_method`;
                  if (options.prompting_methods && options.prompting_methods.length > 0) {
@@ -215,10 +203,8 @@ $(document).ready(function() {
                     p.promptEl.append($('<p>No prompt methods available.</p>'));
                 }
             });
-
         } catch (error) {
             console.error("Error fetching LLM settings:", error);
-            // MODIFIED: On error, create a clean "Human"-only fallback state.
             playerPanels.forEach(p => {
                 const modelRadioName = `${p.player}_model`;
                 const modelGroup = $('<div>').addClass('option-group');
@@ -231,17 +217,13 @@ $(document).ready(function() {
             });
         }
     }
-    ui.backendUrlInput.on('change', fetchLLMSettingsOptions);
 
-    // MODIFIED: Event handler no longer needs to hide/show prompts.
     ui.gameControls.on('change', 'input[name="player1_model"], input[name="player2_model"]', function() {
         triggerLLMMoveIfNeeded();
     });
 
     function isLLMvsLLM() {
-        const p1_model = $('input[name="player1_model"]:checked').val();
-        const p2_model = $('input[name="player2_model"]:checked').val();
-        return p1_model !== 'human' && p2_model !== 'human';
+        return $('input[name="player1_model"]:checked').val() !== 'human' && $('input[name="player2_model"]:checked').val() !== 'human';
     }
 
     async function makeLLMMove() {
@@ -249,6 +231,7 @@ $(document).ready(function() {
         await currentGame.makeLLMMoveLogic();
         triggerLLMMoveIfNeeded();
     }
+
     function triggerLLMMoveIfNeeded() {
         if (!currentGame || !currentGame.isLLMsTurnLogic || isEditorMode) return;
         if (currentGame.isLLMsTurnLogic()) {
@@ -269,9 +252,7 @@ $(document).ready(function() {
             if (currentGame && currentGame.exitEditorModeAndPlay) currentGame.exitEditorModeAndPlay();
         }
     });
-    ui.editorClearBoardButton.on('click', function() {
-        if (isEditorMode && currentGame && currentGame.clearEditorBoard) currentGame.clearEditorBoard();
-    });
+    ui.editorClearBoardButton.on('click', function() { if (isEditorMode && currentGame && currentGame.clearEditorBoard) currentGame.clearEditorBoard(); });
     ui.llmPlayFromPositionButton.on('click', function() {
         if (isEditorMode && currentGame && currentGame.exitEditorModeAndPlay) {
             isEditorMode = false;
@@ -316,120 +297,76 @@ $(document).ready(function() {
     async function fetchAndDisplaySavedStates(gameId) {
         const savedStatesContainerId = `${gameId}SavedStatesContainer`;
         $(`#${savedStatesContainerId}`).remove();
-
         const savedStatesContainer = $('<div>').attr('id', savedStatesContainerId).addClass('saved-states-area').html(`<h4>Load Saved Position:</h4><select id="${gameId}SavedStatesSelect"><option value="">-- Select a position --</option></select>`);
         ui.gameSpecificEditorControls.prepend(savedStatesContainer);
         const selectEl = $(`#${gameId}SavedStatesSelect`);
-
         try {
             let data = { savedStates: [] };
-            if (gameId === 'chess') {
-                data.savedStates = [ { name: "Queen's Gambit Declined", state: "rnbqkb1r/pp2pp1p/3p1np1/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" }, { name: "Sicilian Dragon, Yugoslav Attack", state: "r2qk2r/pb1nbppp/4p3/1pp1P1P1/2BP3P/2N1BN2/PP3P2/R2QK2R w KQkq - 0 14" }];
-            } else if (gameId === 'tictactoe') {
-                data.savedStates = [ { name: "Center X, Corner O", state: "O___X___X" }, { name: "Almost Draw", state: "XOXOX_O_X" } ];
-            }
-
+            if (gameId === 'chess') { data.savedStates = [ { name: "Queen's Gambit Declined", state: "rnbqkb1r/pp2pp1p/3p1np1/8/3NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 0 6" }, { name: "Sicilian Dragon, Yugoslav Attack", state: "r2qk2r/pb1nbppp/4p3/1pp1P1P1/2BP3P/2N1BN2/PP3P2/R2QK2R w KQkq - 0 14" }];
+            } else if (gameId === 'tictactoe') { data.savedStates = [ { name: "Center X, Corner O", state: "O___X___X" }, { name: "Almost Draw", state: "XOXOX_O_X" } ]; }
             if (data.savedStates && data.savedStates.length > 0) {
-                data.savedStates.forEach(savedState => {
-                    selectEl.append($('<option>').val(savedState.state).text(savedState.name));
-                });
+                data.savedStates.forEach(savedState => { selectEl.append($('<option>').val(savedState.state).text(savedState.name)); });
                 selectEl.on('change', function() {
                     const selectedState = $(this).val();
                     if (selectedState && currentGame && currentGame.setBoardFromEditorState) {
                         currentGame.setBoardFromEditorState(selectedState);
                         if(currentGame.updateBoardUIVisuals) currentGame.updateBoardUIVisuals();
                         updateDisplayElements();
-                        if (gameId === 'chess' && $('#chessEditorFenInput').length) {
-                            $('#chessEditorFenInput').val(selectedState.split(' ')[0]);
-                        } else if (gameId === 'tictactoe' && $('#tttEditorBoardStateInput').length) {
-                            $('#tttEditorBoardStateInput').val(selectedState);
-                        }
+                        if (gameId === 'chess' && $('#chessEditorFenInput').length) { $('#chessEditorFenInput').val(selectedState.split(' ')[0]);
+                        } else if (gameId === 'tictactoe' && $('#tttEditorBoardStateInput').length) { $('#tttEditorBoardStateInput').val(selectedState); }
                     }
                 });
             } else { selectEl.replaceWith($('<p>No saved positions available for this game.</p>')); }
-        } catch (error) {
-            console.error("Error fetching or displaying saved states:", error);
-            selectEl.replaceWith($('<p>Error loading saved positions.</p>'));
-        }
+        } catch (error) { console.error("Error fetching or displaying saved states:", error); selectEl.replaceWith($('<p>Error loading saved positions.</p>')); }
     }
 
     // =======================================================================================
     // TIC-TAC-TOE SPECIFIC LOGIC
     // =======================================================================================
     function initTicTacToeModule() {
-        const TTT_PLAYER_X = gamesConfig.tictactoe.player1Name;
-        const TTT_PLAYER_O = gamesConfig.tictactoe.player2Name;
-        const TTT_EMPTY = '_';
-        let ttt_currentPlayer;
-        let ttt_boardState;
-        let ttt_gameActive;
+        const TTT_PLAYER_X = gamesConfig.tictactoe.player1Name, TTT_PLAYER_O = gamesConfig.tictactoe.player2Name, TTT_EMPTY = '_';
+        let ttt_currentPlayer, ttt_boardState, ttt_gameActive;
         const ttt_winningConditions = [ [0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6] ];
-
-        function ttt_checkWin() {
-            for (let i = 0; i < ttt_winningConditions.length; i++) {
-                const [a, b, c] = ttt_winningConditions[i];
-                if (ttt_boardState[a] !== TTT_EMPTY && ttt_boardState[a] === ttt_boardState[b] && ttt_boardState[a] === ttt_boardState[c]) {
-                    return { winner: ttt_boardState[a], line: [a,b,c] };
-                }
-            } return null;
-        }
+        function ttt_checkWin() { for (let i = 0; i < ttt_winningConditions.length; i++) { const [a, b, c] = ttt_winningConditions[i]; if (ttt_boardState[a] !== TTT_EMPTY && ttt_boardState[a] === ttt_boardState[b] && ttt_boardState[a] === ttt_boardState[c]) { return { winner: ttt_boardState[a], line: [a,b,c] }; } } return null; }
         function ttt_checkDraw() { return !ttt_boardState.includes(TTT_EMPTY) && !ttt_checkWin(); }
         function ttt_boardStateToString(stateArray = ttt_boardState) { return stateArray.join(''); }
         function ttt_stringToBoardState(str) { return (typeof str === 'string' && str.length === 9 && /^[XO_]{9}$/.test(str.toUpperCase())) ? str.toUpperCase().split('') : Array(9).fill(TTT_EMPTY); }
-
         gamesConfig.tictactoe.updateBoardUIVisuals = function() {
-            const boardEl = ui.dynamicBoardContainer.find('#ticTacToeBoard');
-            if (!boardEl.length) return;
-            boardEl.empty();
+            const boardEl = ui.dynamicBoardContainer.find('#ticTacToeBoard'); if (!boardEl.length) return; boardEl.empty();
             ttt_boardState.forEach((cell, index) => {
                 const cellDiv = $('<div></div>').addClass('ttt-cell').attr('data-index', index).text(cell === TTT_EMPTY ? '' : cell);
                 if (cell === TTT_PLAYER_X) cellDiv.addClass('X'); if (cell === TTT_PLAYER_O) cellDiv.addClass('O');
                 boardEl.append(cellDiv);
             });
-            if (!ttt_gameActive) {
-                const winInfo = ttt_checkWin();
-                if (winInfo) { winInfo.line.forEach(index => $('#ticTacToeBoard').find(`.ttt-cell[data-index=${index}]`).addClass('winning-cell')); }
-            }
+            if (!ttt_gameActive) { const winInfo = ttt_checkWin(); if (winInfo) { winInfo.line.forEach(index => $('#ticTacToeBoard').find(`.ttt-cell[data-index=${index}]`).addClass('winning-cell')); } }
         };
         gamesConfig.tictactoe.updateStatusLogic = function() {
-            if (!ttt_gameActive) {
-                const winInfo = ttt_checkWin();
-                if (winInfo) ui.statusEl.text(`${winInfo.winner} Wins!`);
-                else if (ttt_checkDraw()) ui.statusEl.text("It's a Draw!");
-                return;
-            }
+            if (!ttt_gameActive) { const winInfo = ttt_checkWin(); if (winInfo) ui.statusEl.text(`${winInfo.winner} Wins!`); else if (ttt_checkDraw()) ui.statusEl.text("It's a Draw!"); return; }
             ui.statusEl.text(`${ttt_currentPlayer} to move.`);
         };
         gamesConfig.tictactoe.initGame = function(initialBoardStr = "_________") {
             ui.dynamicBoardContainer.html('<div id="ticTacToeBoard"></div>');
-            $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() {
-                if (currentGameId === 'tictactoe') gamesConfig.tictactoe.handleCellClick($(this).data('index'));
-            });
-            ttt_boardState = ttt_stringToBoardState(initialBoardStr.replace(/ /g, TTT_EMPTY));
-            ttt_currentPlayer = gamesConfig.tictactoe.player1Name;
-            ttt_gameActive = true;
+            $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() { if (currentGameId === 'tictactoe') gamesConfig.tictactoe.handleCellClick($(this).data('index')); });
+            ttt_boardState = ttt_stringToBoardState(initialBoardStr.replace(/ /g, TTT_EMPTY)); ttt_currentPlayer = gamesConfig.tictactoe.player1Name; ttt_gameActive = true;
             const winInfo = ttt_checkWin(); if (winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
-            updateDisplayElements();
-            triggerLLMMoveIfNeeded();
+            updateDisplayElements(); triggerLLMMoveIfNeeded();
         };
         gamesConfig.tictactoe.resetGameLogic = function() { this.initGame("_________"); };
         gamesConfig.tictactoe.getGameStateString = () => ttt_boardStateToString();
         gamesConfig.tictactoe.isLLMsTurnLogic = function() {
             if (!ttt_gameActive || isEditorMode) return false;
-            const playerModelRadio = (ttt_currentPlayer === TTT_PLAYER_X) ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
-            return $(playerModelRadio).val() !== 'human';
+            return $(ttt_currentPlayer === TTT_PLAYER_X ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked').val() !== 'human';
         };
         gamesConfig.tictactoe.handleCellClick = function(clickedIndex) {
             if (!ttt_gameActive || isEditorMode || gamesConfig.tictactoe.isLLMsTurnLogic()) return;
             if (ttt_boardState[clickedIndex] === TTT_EMPTY) {
-                ttt_boardState[clickedIndex] = ttt_currentPlayer;
-                const winInfo = ttt_checkWin();
+                ttt_boardState[clickedIndex] = ttt_currentPlayer; const winInfo = ttt_checkWin();
                 if (winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
                 else ttt_currentPlayer = (ttt_currentPlayer === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
-                updateDisplayElements();
-                if (ttt_gameActive) triggerLLMMoveIfNeeded();
+                updateDisplayElements(); if (ttt_gameActive) triggerLLMMoveIfNeeded();
             }
         };
+        // MODIFIED: Adds apiKey to the request body
         gamesConfig.tictactoe.makeLLMMoveLogic = async function() {
             const llmPlayerForTurn = ttt_currentPlayer;
             const logTargetIdentifier = llmPlayerForTurn === TTT_PLAYER_X ? 'player1' : 'player2';
@@ -438,8 +375,8 @@ $(document).ready(function() {
             let turnSpecificLog = [];
             const selectedModel = $(`input[name="${logTargetIdentifier}_model"]:checked`).val();
             const selectedPrompt = $(`input[name="${logTargetIdentifier}_prompting_method"]:checked`).val();
-            let llmMoveIndex = -1;
-            let new_state = null;
+            const apiKey = ui.apiKeyInput.val();
+            let llmMoveIndex = -1, new_state = null;
 
             if (ui.useFrontendStubCheckbox.is(':checked')) {
                 turnSpecificLog.push({sender: "System", type: "info", content: `Frontend LLM Stub for ${llmPlayerForTurn} (TTT).`});
@@ -450,38 +387,29 @@ $(document).ready(function() {
                 else { turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurn})`, type: "error-log", content: "No available moves."}); }
                 if(llmMoveIndex !== -1) turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurn})`, type: "decision", content: `Decided to play at index ${llmMoveIndex}.`});
             } else {
-                const backendUrl = ui.backendUrlInput.val();
-                if (!backendUrl) { turnSpecificLog.push({sender:"Frontend", type:"error", content:"Backend URL missing"});
-                } else {
-                    try {
-                        const response = await fetch(`${backendUrl}/get-llm-move`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ game_id: 'tictactoe', game_state: {board: ttt_boardStateToString(), player_to_move: llmPlayerForTurn}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
-                        });
-                        const data = await response.json();
-                        if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
-                        if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
-                        llmMoveIndex = data.action;
-                        new_state = data.new_state;
-                        if (new_state) {
-                            let new_boardState = new_state.board;
-                            if (new_boardState.length === 9 && /^[XO_]{9}$/.test(new_boardState)) { ttt_boardState = ttt_stringToBoardState(new_boardState); }
-                            else { throw new Error("Backend returned invalid board state."); }
-                            ttt_currentPlayer = new_state.player_to_move;
-                        } else { llmMoveIndex = -1; turnSpecificLog.push({sender: "Backend", type: "error-log", content: "No valid move index returned."}); }
-                    } catch (error) {
-                        console.error(`Error getting TTT LLM move for ${llmPlayerForTurn}:`, error);
-                        ui.statusEl.text(`Error for ${llmPlayerForTurn}: ${error.message}.`);
-                        if (!turnSpecificLog.find(m => m.type && m.type.includes('error'))) {
-                             turnSpecificLog.push({sender: "Frontend", type: "error-log", content: `Network/Request Error for ${llmPlayerForTurn}: ${error.message}`});
-                        }
-                    }
+                try {
+                    const response = await fetch(`${BACKEND_URL}/get-llm-move`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: apiKey, game_id: 'tictactoe', game_state: {board: ttt_boardStateToString(), player_to_move: llmPlayerForTurn}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
+                    });
+                    const data = await response.json();
+                    if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
+                    if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
+                    llmMoveIndex = data.action; new_state = data.new_state;
+                    if (new_state) {
+                        let new_boardState = new_state.board;
+                        if (new_boardState.length === 9 && /^[XO_]{9}$/.test(new_boardState)) { ttt_boardState = ttt_stringToBoardState(new_boardState); } else { throw new Error("Backend returned invalid board state."); }
+                        ttt_currentPlayer = new_state.player_to_move;
+                    } else { llmMoveIndex = -1; turnSpecificLog.push({sender: "Backend", type: "error-log", content: "No valid move index returned."}); }
+                } catch (error) {
+                    console.error(`Error getting TTT LLM move for ${llmPlayerForTurn}:`, error);
+                    ui.statusEl.text(`Error for ${llmPlayerForTurn}: ${error.message}.`);
+                    if (!turnSpecificLog.find(m => m.type && m.type.includes('error'))) { turnSpecificLog.push({sender: "Frontend", type: "error-log", content: `Network/Request Error for ${llmPlayerForTurn}: ${error.message}`}); }
                 }
             }
             const winInfo = ttt_checkWin(); if (winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
             if (llmMoveIndex !== -1 && ttt_boardState[llmMoveIndex] === TTT_EMPTY) {
-                ttt_boardState[llmMoveIndex] = llmPlayerForTurn;
-                ttt_currentPlayer = (llmPlayerForTurn === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
+                ttt_boardState[llmMoveIndex] = llmPlayerForTurn; ttt_currentPlayer = (llmPlayerForTurn === TTT_PLAYER_X) ? TTT_PLAYER_O : TTT_PLAYER_X;
             }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
             updateDisplayElements();
@@ -489,8 +417,7 @@ $(document).ready(function() {
         };
         gamesConfig.tictactoe.setupEditorControls = function() {
             const editorHtml = `<div><label>Piece to Place:</label><input type="radio" name="tttEditorPiece" id="tttEditorPieceX" value="X" checked><label for="tttEditorPieceX" class="radio-label">X</label><input type="radio" name="tttEditorPiece" id="tttEditorPieceO" value="O"><label for="tttEditorPieceO" class="radio-label">O</label><input type="radio" name="tttEditorPiece" id="tttEditorPieceEmpty" value="_"><label for="tttEditorPieceEmpty" class="radio-label">Empty</label></div><div class="board-state-input-area"><label for="tttEditorBoardStateInput">Set Board (9 chars, e.g., X_O__XO_X):</label><input type="text" id="tttEditorBoardStateInput" maxlength="9"><button id="tttEditorSetBoardStateButton">Set from State</button><p id="tttBoardStateValidationMessage" class="validation-message"></p></div>`;
-            ui.gameSpecificEditorControls.html(editorHtml);
-            fetchAndDisplaySavedStates('tictactoe');
+            ui.gameSpecificEditorControls.html(editorHtml); fetchAndDisplaySavedStates('tictactoe');
             $('#tttEditorSetBoardStateButton').on('click', function() {
                 const inputState = $('#tttEditorBoardStateInput').val().trim().toUpperCase().replace(/ /g, TTT_EMPTY);
                 gamesConfig.tictactoe.setBoardFromEditorState(inputState, '#tttBoardStateValidationMessage');
@@ -499,8 +426,7 @@ $(document).ready(function() {
         gamesConfig.tictactoe.setBoardFromEditorState = function(stateString, validationMsgSelector) {
             const validationMsgEl = validationMsgSelector ? $(validationMsgSelector) : $('#tttBoardStateValidationMessage');
             validationMsgEl.removeClass('success error').text('');
-            if (stateString.length === 9 && /^[XO_]{9}$/.test(stateString)) {
-                ttt_boardState = ttt_stringToBoardState(stateString); this.updateBoardUIVisuals(); updateGameStateDisplay(); validationMsgEl.text('Board state set!').addClass('success');
+            if (stateString.length === 9 && /^[XO_]{9}$/.test(stateString)) { ttt_boardState = ttt_stringToBoardState(stateString); this.updateBoardUIVisuals(); updateGameStateDisplay(); validationMsgEl.text('Board state set!').addClass('success');
                 if ($('#tttEditorBoardStateInput').val() !== stateString) { $('#tttEditorBoardStateInput').val(stateString); }
             } else { validationMsgEl.text('Invalid state. Must be 9 chars (X, O, or _).').addClass('error'); }
         };
@@ -509,8 +435,7 @@ $(document).ready(function() {
             $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() {
                  if (!isEditorMode) return;
                  const clickedIndex = $(this).data('index'); let pieceToPlace = TTT_EMPTY;
-                 if ($('#tttEditorPieceX').is(':checked')) pieceToPlace = TTT_PLAYER_X;
-                 else if ($('#tttEditorPieceO').is(':checked')) pieceToPlace = TTT_PLAYER_O;
+                 if ($('#tttEditorPieceX').is(':checked')) pieceToPlace = TTT_PLAYER_X; else if ($('#tttEditorPieceO').is(':checked')) pieceToPlace = TTT_PLAYER_O;
                  ttt_boardState[clickedIndex] = pieceToPlace;
                  gamesConfig.tictactoe.updateBoardUIVisuals(); $('#tttEditorBoardStateInput').val(ttt_boardStateToString()); updateGameStateDisplay();
             });
@@ -518,52 +443,37 @@ $(document).ready(function() {
         };
         gamesConfig.tictactoe.exitEditorModeAndPlay = function() {
             ttt_currentPlayer = ui.editorTurnPlayer1Radio.is(':checked') ? gamesConfig.tictactoe.player1Name : gamesConfig.tictactoe.player2Name;
-            ttt_gameActive = true;
-            const winInfo = ttt_checkWin(); if(winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
+            ttt_gameActive = true; const winInfo = ttt_checkWin(); if(winInfo) ttt_gameActive = false; else if (ttt_checkDraw()) ttt_gameActive = false;
             updateDisplayElements();
             $('#ticTacToeBoard').off('click', '.ttt-cell').on('click', '.ttt-cell', function() { if (currentGameId === 'tictactoe') gamesConfig.tictactoe.handleCellClick($(this).data('index')); });
             if(ttt_gameActive) triggerLLMMoveIfNeeded();
         };
-        gamesConfig.tictactoe.clearEditorBoard = function() {
-            ttt_boardState = Array(9).fill(TTT_EMPTY); this.updateBoardUIVisuals(); $('#tttEditorBoardStateInput').val(ttt_boardStateToString()); updateGameStateDisplay();
-        };
+        gamesConfig.tictactoe.clearEditorBoard = function() { ttt_boardState = Array(9).fill(TTT_EMPTY); this.updateBoardUIVisuals(); $('#tttEditorBoardStateInput').val(ttt_boardStateToString()); updateGameStateDisplay(); };
     }
 
     // =======================================================================================
     // CHESS SPECIFIC LOGIC
     // =======================================================================================
     function initChessModule() {
-        let chess_game; let chess_board_ui;
-        const CHESS_PLAYER1_NAME = gamesConfig.chess.player1Name; const CHESS_PLAYER2_NAME = gamesConfig.chess.player2Name;
-        const chess_pieceThemeUrl = 'chess/img/chesspieces/alpha/{piece}.png';
-
+        let chess_game; let chess_board_ui; const CHESS_PLAYER1_NAME = gamesConfig.chess.player1Name, CHESS_PLAYER2_NAME = gamesConfig.chess.player2Name; const chess_pieceThemeUrl = 'chess/img/chesspieces/alpha/{piece}.png';
         gamesConfig.chess.updateBoardUIVisuals = function() { if (chess_board_ui && chess_game) { chess_board_ui.position(chess_game.fen()); } };
         gamesConfig.chess.initGame = function(fen = 'start') {
             if (typeof Chess === "undefined" || typeof Chessboard === "undefined") { ui.dynamicBoardContainer.html("<p>Loading Chess components...</p>"); loadGameAssets('chess', () => this.initGame(fen)); return; }
             fen = fen == 'start' || fen == '' ? 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1' : fen.trim();
-            console.log(`Initializing Chess game with FEN: ${fen}`); chess_game = new Chess(fen);
-            if (chess_board_ui) chess_board_ui.destroy();
+            chess_game = new Chess(fen); if (chess_board_ui) chess_board_ui.destroy();
             ui.dynamicBoardContainer.html('<div id="chessBoardUiElement" style="width:100%; max-width:400px;"></div>');
-            const config = {
-                draggable: true, position: chess_game.fen(), pieceTheme: chess_pieceThemeUrl,
+            const config = { draggable: true, position: chess_game.fen(), pieceTheme: chess_pieceThemeUrl,
                 onDragStart: (source, piece) => {
                     if (!currentGame || currentGameId !== 'chess' || isEditorMode || chess_game.game_over()) return false;
                     const turn = chess_game.turn();
                     if ((turn === 'w' && piece.search(/^b/) !== -1) || (turn === 'b' && piece.search(/^w/) !== -1)) return false;
-                    const playerModelRadio = (turn === 'w') ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
-                    if ($(playerModelRadio).val() !== 'human') return false;
+                    if ($(turn === 'w' ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked').val() !== 'human') return false;
                     return true;
                 },
-                onDrop: (source, target) => {
-                    if (isEditorMode) return;
-                    const move = chess_game.move({ from: source, to: target, promotion: 'q' });
-                    if (move === null) return 'snapback';
-                    updateDisplayElements(); triggerLLMMoveIfNeeded();
-                },
+                onDrop: (source, target) => { if (isEditorMode) return; const move = chess_game.move({ from: source, to: target, promotion: 'q' }); if (move === null) return 'snapback'; updateDisplayElements(); triggerLLMMoveIfNeeded(); },
                 onSnapEnd: () => { if(!isEditorMode && chess_board_ui) gamesConfig.chess.updateBoardUIVisuals(); }
             };
-            chess_board_ui = Chessboard('chessBoardUiElement', config);
-            updateDisplayElements(); triggerLLMMoveIfNeeded();
+            chess_board_ui = Chessboard('chessBoardUiElement', config); updateDisplayElements(); triggerLLMMoveIfNeeded();
         };
         gamesConfig.chess.resetGameLogic = function() { this.initGame('start'); };
         gamesConfig.chess.getGameStateString = () => chess_game ? chess_game.fen() : 'Chess not initialized';
@@ -572,16 +482,15 @@ $(document).ready(function() {
             let statusText = ''; const moveColor = chess_game.turn() === 'w' ? CHESS_PLAYER1_NAME : CHESS_PLAYER2_NAME;
             if (chess_game.game_over()) {
                 if (chess_game.in_checkmate()) statusText = `CHECKMATE! ${moveColor === CHESS_PLAYER1_NAME ? CHESS_PLAYER2_NAME : CHESS_PLAYER1_NAME} wins.`;
-                else if (chess_game.in_draw()) statusText = 'DRAW.'; else if (chess_game.in_stalemate()) statusText = 'STALEMATE.';
-                else statusText = 'GAME OVER.';
+                else if (chess_game.in_draw()) statusText = 'DRAW.'; else if (chess_game.in_stalemate()) statusText = 'STALEMATE.'; else statusText = 'GAME OVER.';
             } else { statusText = `${moveColor} to move.`; if (chess_game.in_check()) statusText += ` ${moveColor} is in check.`;}
             ui.statusEl.text(statusText);
         };
         gamesConfig.chess.isLLMsTurnLogic = function() {
             if (!chess_game || chess_game.game_over() || isEditorMode) return false;
-            const playerModelRadio = (chess_game.turn() === 'w') ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked';
-            return $(playerModelRadio).val() !== 'human';
+            return $(chess_game.turn() === 'w' ? 'input[name="player1_model"]:checked' : 'input[name="player2_model"]:checked').val() !== 'human';
         };
+        // MODIFIED: Adds apiKey to the request body
         gamesConfig.chess.makeLLMMoveLogic = async function() {
             if (!chess_game || !gamesConfig.chess.isLLMsTurnLogic()) return;
             const turn = chess_game.turn();
@@ -591,7 +500,8 @@ $(document).ready(function() {
             let turnSpecificLog = [];
             const selectedModel = $(`input[name="${logTargetIdentifier}_model"]:checked`).val();
             const selectedPrompt = $(`input[name="${logTargetIdentifier}_prompting_method"]:checked`).val();
-            let llmMoveData = null; let new_state = null;
+            const apiKey = ui.apiKeyInput.val();
+            let llmMoveData = null, new_state = null;
 
             if (ui.useFrontendStubCheckbox.is(':checked')) {
                 turnSpecificLog.push({sender: "System", type: "info", content: `Frontend LLM Stub for ${llmPlayerForTurnColor} (Chess).`});
@@ -602,39 +512,34 @@ $(document).ready(function() {
                 else { turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurnColor})`, type: "error-log", content: "No legal moves."}); }
                 if(llmMoveData) turnSpecificLog.push({sender: `LLM Stub (${llmPlayerForTurnColor})`, type: "decision", content: `Decided to play ${llmMoveData}.`});
             } else {
-                const backendUrl = ui.backendUrlInput.val();
-                if (!backendUrl) { turnSpecificLog.push({sender:"Frontend", type:"error", content:"Backend URL missing"}); }
-                 else {
-                    turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting Chess LLM move for ${llmPlayerForTurnColor}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
-                    turnSpecificLog.push({sender: "Frontend", type: "request_fen", content: chess_game.fen()});
-                    try {
-                        const response = await fetch(`${backendUrl}/get-llm-move`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ game_id: 'chess', game_state: {fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor.toLowerCase()}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
-                        });
-                        const data = await response.json();
-                        if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
-                        if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
-                        new_state = data.new_state; llmMoveData = data.action;
-                        if (new_state) {
-                            const tempGame = new Chess(); const new_fen = new_state.fen;
-                            if (tempGame.load(new_fen)) {
-                                chess_game.load(new_fen); this.updateBoardUIVisuals();
-                                if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
-                                // updateDisplayElements(); turnSpecificLog.push({ sender: "Backend", type: "response_to_frontend", content: `New state set: ${new_fen}` });
-                            } else { throw new Error(`Invalid FEN in new state: ${tempGame.validate_fen(new_fen).error || 'Unknown reason'}`); }
-                        } else if (llmMoveData) {
-                            const moveResult = chess_game.move(llmMoveData, { sloppy: true });
-                            if (!moveResult) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`}); throw new Error(`Invalid move: ${llmMoveData}`); }
-                        } else { throw new Error("Backend returned no new state or move."); }
-                        // turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `Suggests move: ${llmMoveData}`});
-                    } catch (error) {
-                         console.error(`Error getting Chess LLM move for ${llmPlayerForTurnColor}:`, error);
-                        ui.statusEl.text(`Error for ${llmPlayerForTurnColor}: ${error.message}.`);
-                        if (!turnSpecificLog.find(m => m.type && m.type.includes('error'))) {
-                             turnSpecificLog.push({sender: "Frontend", type: "error-log", content: `Network/Request Error for ${llmPlayerForTurnColor}: ${error.message}`});
-                        }
-                    }
+                turnSpecificLog.push({sender: "Frontend", type: "request_to_backend", content: `Requesting Chess LLM move for ${llmPlayerForTurnColor}. Model: ${selectedModel}, Prompt: ${selectedPrompt}`});
+                turnSpecificLog.push({sender: "Frontend", type: "request_fen", content: chess_game.fen()});
+                try {
+                    const response = await fetch(`${BACKEND_URL}/get-llm-move`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: apiKey, game_id: 'chess', game_state: {fen: chess_game.fen(), player_to_move: llmPlayerForTurnColor.toLowerCase()}, selected_model_id: selectedModel, selected_prompting_method_id: selectedPrompt })
+                    });
+                    const data = await response.json();
+                    if (data.conversationLog) turnSpecificLog = turnSpecificLog.concat(data.conversationLog);
+                    if (!response.ok) { const errorMsg = data.error || `HTTP error! Status: ${response.status}`; turnSpecificLog.push({sender: "Backend", type: "error-log", content: errorMsg}); throw new Error(errorMsg); }
+                    new_state = data.new_state; llmMoveData = data.action;
+                    if (new_state) {
+                        const tempGame = new Chess(); const new_fen = new_state.fen;
+                        if (tempGame.load(new_fen)) {
+                            chess_game.load(new_fen); this.updateBoardUIVisuals();
+                            if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
+                            updateDisplayElements();
+                            // turnSpecificLog.push({ sender: "Backend", type: "response_to_frontend", content: `New state set: ${new_fen}` });
+                        } else { throw new Error(`Invalid FEN in new state: ${tempGame.validate_fen(new_fen).error || 'Unknown reason'}`); }
+                    } else if (llmMoveData) {
+                        const moveResult = chess_game.move(llmMoveData, { sloppy: true });
+                        if (!moveResult) { turnSpecificLog.push({sender: "System", type: "error-log", content: `LLM (${llmPlayerForTurnColor}) chose invalid move: ${llmMoveData}.`}); throw new Error(`Invalid move: ${llmMoveData}`); }
+                    } else { throw new Error("Backend returned no new state or move."); }
+                    // turnSpecificLog.push({sender: "Backend", type: "response_to_frontend", content: `Suggests move: ${llmMoveData}`});
+                } catch (error) {
+                     console.error(`Error getting Chess LLM move for ${llmPlayerForTurnColor}:`, error);
+                    ui.statusEl.text(`Error for ${llmPlayerForTurnColor}: ${error.message}.`);
+                    if (!turnSpecificLog.find(m => m.type && m.type.includes('error'))) { turnSpecificLog.push({sender: "Frontend", type: "error-log", content: `Network/Request Error for ${llmPlayerForTurnColor}: ${error.message}`}); }
                 }
             }
             conversationLogs[logTargetIdentifier].push(...turnSpecificLog);
@@ -646,15 +551,11 @@ $(document).ready(function() {
             ui.gameSpecificEditorControls.html(editorHtml); fetchAndDisplaySavedStates('chess');
             $('#chessEditorStartPosition').on('click', gamesConfig.chess.startPositionEditor);
             $('#chessEditorFlipBoard').on('click', gamesConfig.chess.flipBoardEditor);
-            $('#chessEditorSetFenButton').on('click', function() {
-                const fen = $('#chessEditorFenInput').val().trim();
-                gamesConfig.chess.setBoardFromEditorState(fen, '#chessFenValidationMessage');
-            });
+            $('#chessEditorSetFenButton').on('click', function() { const fen = $('#chessEditorFenInput').val().trim(); gamesConfig.chess.setBoardFromEditorState(fen, '#chessFenValidationMessage'); });
         };
          gamesConfig.chess.setBoardFromEditorState = function(fen, validationMsgSelector) {
             const validationMsgEl = validationMsgSelector ? $(validationMsgSelector) : $('#chessFenValidationMessage');
-            validationMsgEl.removeClass('success error').text('');
-            const tempGame = new Chess();
+            validationMsgEl.removeClass('success error').text(''); const tempGame = new Chess();
             if (tempGame.load(fen)) {
                 chess_game.load(fen); this.updateBoardUIVisuals();
                 if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
@@ -668,15 +569,13 @@ $(document).ready(function() {
             chess_board_ui.off('drop');
             chess_board_ui.on('drop', function(source, target, piece, newPosFenObj, oldPosFenObj) {
                 if (isEditorMode) {
-                     const boardFenOnly = Chessboard.objToFen(newPosFenObj);
-                     $('#chessEditorFenInput').val(boardFenOnly);
+                     const boardFenOnly = Chessboard.objToFen(newPosFenObj); $('#chessEditorFenInput').val(boardFenOnly);
                      ui.currentGameStateDisplay.val(boardFenOnly + " (Editor: pieces only)");
                      const currentTurnEditor = ui.editorTurnPlayer1Radio.is(':checked') ? 'w' : 'b';
                      chess_game.load(boardFenOnly + " " + currentTurnEditor + " - - 0 1");
                 }
             });
-            ui.statusEl.text("Editor Mode: Setup board, then Exit or Play.");
-            $('#chessEditorFenInput').val(chess_board_ui.fen());
+            ui.statusEl.text("Editor Mode: Setup board, then Exit or Play."); $('#chessEditorFenInput').val(chess_board_ui.fen());
         };
         gamesConfig.chess.exitEditorModeAndPlay = function() {
             const editorFenPieces = chess_board_ui ? chess_board_ui.fen() : chess_game.fen().split(' ')[0];
@@ -684,16 +583,10 @@ $(document).ready(function() {
             const fullEditorFen = `${editorFenPieces} ${editorTurn} - - 0 1`;
             this.initGame(fullEditorFen);
         };
-        gamesConfig.chess.clearEditorBoard = function() {
-            if (chess_board_ui) chess_board_ui.clear(false);
-            chess_game.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-            $('#chessEditorFenInput').val(chess_board_ui ? chess_board_ui.fen() : '');
-            updateDisplayElements();
-        };
+        gamesConfig.chess.clearEditorBoard = function() { if (chess_board_ui) chess_board_ui.clear(false); chess_game.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'); $('#chessEditorFenInput').val(chess_board_ui ? chess_board_ui.fen() : ''); updateDisplayElements(); };
         gamesConfig.chess.startPositionEditor = function() {
             const startFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-            if (chess_board_ui) chess_board_ui.position(startFen, false);
-            chess_game.load(startFen);
+            if (chess_board_ui) chess_board_ui.position(startFen, false); chess_game.load(startFen);
             $('#chessEditorFenInput').val(startFen.split(' ')[0]);
             if (chess_game.turn() === 'w') ui.editorTurnPlayer1Radio.prop('checked', true); else ui.editorTurnPlayer2Radio.prop('checked', true);
             updateDisplayElements();

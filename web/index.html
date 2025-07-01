@@ -20,7 +20,6 @@
     <div id="mainContainer">
         <div id="gameArea">
             <div id="dynamicBoardContainer"></div>
-
             <div id="gameInfo">
                 <p>Status: <span id="status"></span></p>
                 <p><span id="gameStateLabel">Board State:</span> <input type="text" id="currentGameStateDisplay" readonly></p>
@@ -31,19 +30,19 @@
             <h2>Settings</h2>
             <div id="playerSettings">
                 <div id="player1SettingsPanel" class="player-settings-panel">
-                    <h3 id="player1SettingsTitle"></h3> <div id="player1ModelSelection">
-                        </div>
+                    <h3 id="player1SettingsTitle"></h3>
+                    <div id="player1ModelSelection"></div>
                     <div id="player1PromptMethodSelection" class="prompt-method-container">
                         <h4>Select Prompting Method:</h4>
-                        </div>
+                    </div>
                 </div>
                 <hr>
                 <div id="player2SettingsPanel" class="player-settings-panel">
-                    <h3 id="player2SettingsTitle"></h3> <div id="player2ModelSelection">
-                        </div>
+                    <h3 id="player2SettingsTitle"></h3>
+                    <div id="player2ModelSelection"></div>
                     <div id="player2PromptMethodSelection" class="prompt-method-container">
                         <h4>Select Prompting Method:</h4>
-                        </div>
+                    </div>
                 </div>
             </div>
             <hr>
@@ -52,20 +51,21 @@
                 <input type="checkbox" id="useFrontendStub">
             </div>
             <div>
-                <label for="backendUrl">Backend URL:</label>
-                <input type="text" id="backendUrl" value="http://localhost:5001">
+                <label for="apiKey">Key:</label>
+                <input type="password" id="apiKey" value="" placeholder="Enter your key here">
             </div>
             <button id="resetButton">Reset Game</button>
             <div id="conversationToggleButtonsContainer">
-                <button id="togglePlayer1ConversationButton"></button> <button id="togglePlayer2ConversationButton"></button> </div>
+                <button id="togglePlayer1ConversationButton"></button>
+                <button id="togglePlayer2ConversationButton"></button>
+            </div>
             <hr>
             <h2>Editor</h2>
             <button id="toggleEditorButton">Enter Editor Mode</button>
             <div id="editorControlsContainer" style="display: none;">
                 <p><strong>Editor Mode Active</strong></p>
                 <button id="editorClearBoard">Clear Board</button>
-                <div id="gameSpecificEditorControls">
-                    </div>
+                <div id="gameSpecificEditorControls"></div>
                  <div>
                     <label>Turn to move:</label>
                     <input type="radio" name="editorTurn" id="editorTurnPlayer1" value="player1" checked><label for="editorTurnPlayer1" class="radio-label" id="editorTurnPlayer1Label"></label>
@@ -76,11 +76,15 @@
         </div>
 
         <div id="llmConversationLogContainerPlayer1" class="llm-conversation-log-wrapper" style="display: none;">
-            <h2 id="player1LogTitle"></h2> <button class="clear-log-button" data-player="player1"></button> <div id="llmConversationLogPlayer1" class="llm-conversation-log-area"></div>
+            <h2 id="player1LogTitle"></h2>
+            <button class="clear-log-button" data-player="player1"></button>
+            <div id="llmConversationLogPlayer1" class="llm-conversation-log-area"></div>
         </div>
 
         <div id="llmConversationLogContainerPlayer2" class="llm-conversation-log-wrapper" style="display: none;">
-            <h2 id="player2LogTitle"></h2> <button class="clear-log-button" data-player="player2"></button> <div id="llmConversationLogPlayer2" class="llm-conversation-log-area"></div>
+            <h2 id="player2LogTitle"></h2>
+            <button class="clear-log-button" data-player="player2"></button>
+            <div id="llmConversationLogPlayer2" class="llm-conversation-log-area"></div>
         </div>
     </div>
 

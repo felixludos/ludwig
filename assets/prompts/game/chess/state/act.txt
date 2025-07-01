@@ -4,4 +4,4 @@ It's your turn in a game of Chess. You playing as "{state['active']}". Here is c
 You can take any of the following actions:
 {state['options']}
 
-Consider your options carefully and end your response with the FEN string representing the board state after your move.
+Consider your options carefully and end your response with the FEN string representing the board state after your move. Make sure the last line of your response is a valid FEN string and nothing else.
