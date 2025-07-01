@@ -456,9 +456,9 @@ def launch_backend(cfg: fig.Configuration):
 		try:
 			data = request.json
 
-			apikey = data.get('key')
-			if apikey != 'retreat':
-				return jsonify({'error': 'Invalid API key'}), 403
+			# apikey = data.get('key')
+			# if apikey != 'retreat':
+			# 	return jsonify({'error': 'Invalid API key'}), 403
 
 			game_id = data.get('game_id')  # Expect 'game_id' from frontend
 			if not game_id or game_id not in games_map:
