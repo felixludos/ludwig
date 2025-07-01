@@ -1,3 +1,7 @@
-You are playing Tic Tac Toe as "{player}". Here is current board (where empty spaces are represented by numbers to indicate a possible valid move):
-{state}
-Your move! Consider your options carefully and end your response by entering the number of the cell you want to play in.
+It's your turn in a game of Tic-Tac-Toe playing as "{state['active']}". Here is current board:
+{state['board']}
+
+Select a cell to play in as "{state['active']}" by entering the corresponding number:
+{state['options']}
+
+Consider your options carefully and end your response by entering the number of the cell you want to play in.

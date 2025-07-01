@@ -2,6 +2,9 @@ from ..imports import *
 import traceback  # Added for GameBase
 from typing import Optional, List, Tuple, Any  # Added for type hints
 import chess
+import re
+
+from pprint import pprint  # Added for pretty printing
 
 # Mocking abstract classes for standalone execution if not provided
 # In your actual project, these would be imported.
@@ -18,6 +21,19 @@ class GameBase(fig.Configurable):
 		raise NotImplementedError
 
 	def update_state(self, state: JSONDATA, action: JSONDATA, allow_violations: bool = False) -> JSONDATA:
+		raise NotImplementedError
+
+
+	def encode_state(self, state: JSONDATA) -> JSONDATA:
+		raise NotImplementedError
+
+	def decode_state(self, obs: JSONDATA, state: JSONDATA) -> JSONDATA:
+		raise NotImplementedError
+
+	def encode_action(self, action: JSONDATA, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
+		raise NotImplementedError
+
+	def decode_action(self, choice: JSONDATA, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
 		raise NotImplementedError
 
 
@@ -48,6 +64,25 @@ class ChessGame(GameBase):
 		state['player_to_move'] = 'black' if active_player == 'white' else 'white'
 		return state
 
+	def encode_state(self, state: JSONDATA) -> JSONDATA:
+		fen = state['fen']
+		active_player = state['player_to_move']
+
+		actions = self.possible_actions(state)
+
+		return {'options': ', '.join(actions), 'fen': fen, 'active': active_player}
+
+	def decode_state(self, obs: JSONDATA, state: JSONDATA) -> JSONDATA:
+		# validate fen format
+		fen = obs#['fen']
+		return {'fen': fen, 'player_to_move': 'white' if state['player_to_move'] == 'black' else 'black'}
+
+	def encode_action(self, action: JSONDATA, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
+		return action
+
+	def decode_action(self, choice: JSONDATA, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
+		return choice
+
 
 class TicTacToeGame(GameBase):
 	def possible_actions(self, state: Tuple[str, str]) -> List[str]:
@@ -73,6 +108,43 @@ class TicTacToeGame(GameBase):
 		state['player_to_move'] = 'O' if active_player == 'X' else 'X'
 		return state
 
+	def encode_state(self, state: str) -> JSONDATA:
+		state_str = state['board'].replace('_', '.')
+		state_str = [list(state_str[i:i + 3]) for i in range(0, 9, 3)]
+		state_str = '\n'.join(' '.join(row) for row in state_str)
+		# state_str = tabulate(state_str, tablefmt='grid', stralign='center')
+		# state_str = str(state_str)
+
+		options = []
+		index = 1
+		for v in state['board']:
+			if v == '_':
+				options.append(str(index))
+				# options.append(index)
+				index += 1
+			else:
+				options.append(v)
+		# options = [v if v != '_' else i+1 for i, v in enumerate(state['board'])]
+		options_str = [options[i:i + 3] for i in range(0, 9, 3)]
+		# options_str = tabulate(options_str, tablefmt='grid', stralign='center')
+		# options_str = '\n'.join(''.join(row) for row in options_str)
+		options_str = '\n'.join(' '.join(row) for row in options_str)
+		# options_str = str(options_str)
+		return {'board': state_str, 'options': options_str, 'active': state['player_to_move']}
+
+	def decode_state(self, obs: str, state: JSONDATA) -> JSONDATA:
+		raw = obs#['board']
+
+		board = raw.replace('/', '').replace(' ', '').replace('.', '_')
+
+		return {'board': board, 'player_to_move': 'X' if state['player_to_move'] == 'O' else 'O'}
+
+	def encode_action(self, action: JSONDATA, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
+		return str(actions.index(action) + 1)
+
+	def decode_action(self, choice: str, state: JSONDATA, actions: List[JSONDATA] = None) -> JSONDATA:
+		return int(choice.strip()) - 1  # Convert to zero-based index
+
 
 
 class PlayerBase(fig.Configurable):
@@ -82,104 +154,214 @@ class PlayerBase(fig.Configurable):
 				   judge: Optional[AbstractClient] = None):
 		raise NotImplementedError
 
-	def encode_state(self, state: JSONDATA) -> str:
-		raise NotImplementedError
-
-	def decode_state(self, state_str: str) -> JSONDATA:
-		raise NotImplementedError
 
 
-# @fig.component('player/state')
+@fig.component('simple')
 class SimplePlayer(PlayerBase):
-	def __init__(self, template: str = '{state}', params: JSONOBJ = {},
-				 judge_template: str = None, judge_continue: bool = True, **kwargs):
+	def __init__(self, template: str, pattern: str = None, mode: str = 'state', params: JSONOBJ = None,
+				 judge_template: str = None, judge_chat: bool = False,
+				 grammar: str = None, **kwargs):
 		if not isinstance(template, PromptTemplate):
 			template = PromptTemplate(template)
+		if params is None:
+			params = {}
 		if judge_template is not None and not isinstance(judge_template, PromptTemplate):
 			judge_template = PromptTemplate(judge_template)
+		if pattern == 'ttt':
+			pattern = "[XO\.] [XO\.] [XO\.] / [XO\.] [XO\.] [XO\.] / [XO\.] [XO\.] [XO\.]"
+		# if pattern == 'fen':
+		# 	pattern = '([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+\s[wb]\s(-|[KQkq]{1,4})\s(-|[a-h][36])\s\d+\s\d+'
+		# 	# pattern = r'([rnbqkpRNBQKP1-8]{1,8}/){7}[rnbqkpRNBQKP1-8]{1,8}\s[bw]\s(-|K?Q?k?q?)\s(-|[a-h][36])\s\d+\s\d+'
+		if grammar is None:
+			grammar = pattern
 		super().__init__(**kwargs)
+		assert mode in ('state', 'action'), f'Unknown mode: {mode}'
+		self.client, self._judge = None, None
+		self.mode = mode
 		self.params = params
 		self.template = template
 		self.judge_template = judge_template
-		self.judge_continue = judge_continue
+		self.judge_chat = judge_chat
+		self.pattern = pattern
+		self.grammar = grammar
 
-	def encode_state(self, state: JSONDATA) -> str:
-		raise NotImplementedError
+	@property
+	def ident(self):
+		return self.mode
 
-	def decode_state(self, state_str: str) -> JSONDATA:
-		raise NotImplementedError
+	@property
+	def judge(self):
+		return self._judge or self.client
+	@judge.setter
+	def judge(self, judge: AbstractClient):
+		self._judge = judge
 
-	def validate_action(self, action: JSONDATA, actions: List[JSONDATA]) -> JSONDATA:
-		raise NotImplementedError
+	def _judge_grammar(self, state: JSONDATA, actions: List[JSONDATA]) -> Optional[JSONDATA]:
+		pass
+
+	@staticmethod
+	def _find_last(pattern: str, text: str) -> Optional[str]:
+		"""
+		Find the last occurrence of a pattern in the text.
+		"""
+		matches = re.findall(pattern, text)
+		if matches:
+			return matches[-1]
+		return None
+
+	def ask_player(self, game: GameBase, obs: JSONDATA, choices: List[JSONDATA],
+				   log: List[Dict[str, str]], **kwargs) -> List[Dict[str,str]]:
+		"""
+		Ask the player for their decision based on the current state.
+		"""
+		prompt = self.template.fill(player=self, game=game, state=obs, actions=choices)
+
+		log.append({"sender": "Backend", "type": "prompt", "content": prompt})
+
+		params = {**self.params, **kwargs}
+		chat = self.client.begin_chat(prompt)
+		self.client.step(chat, **params)
+		response = chat[-1]['content']
+
+		# log.append({"sender": "Backend", "type": "prompt", "content": prompt})
+
+		full_response = response
+		if 'reasoning_content' in chat[-1]:
+			full_response = f'<think>\n{chat[-1]["reasoning_content"]}\n</think>\n\n{response}'
+		log.append({"sender": "LLM", "type": "response", "content": full_response})
+
+		return chat
 
 	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str, str]],
 				   judge: Optional[AbstractClient] = None):
-		state_str = self.encode_state(state)
-		player = state['player_to_move']
+		self.client = client
+		self.judge = judge
+		observation = game.encode_state(state)
 		actions = game.possible_actions(state)
-		prompt = self.template.fill(state=state_str, player=player, actions=actions)
+		choices = [game.encode_action(a, state, actions) for a in actions]
+		chat = self.ask_player(game, observation, choices, log)
 
-		chat = client.begin_chat(prompt)
-		client.step(chat, **self.params)
-		response = chat[-1]['content']
+		verdict = self.ask_judge(chat, game, observation, choices, log)
 
-		log.append({"sender": "Backend", "type": "prompt", "content": prompt})
-		log.append({"sender": "LLM", "type": "response", "content": response})
-
-		if self.judge_template:
-			if judge is None:
-				judge = client
-			judge_prompt = self.judge_template.fill(response=response, state=state_str, player=player, actions=actions)
-			judge_params = dict(grammar=[str(a) for a in actions], max_tokens=10)
-			if self.judge_continue:
-				chat.append({'role': 'user', 'content': judge_prompt})
-				judge.step(chat, **judge_params)
-				judge_response = chat[-1]['content']
-			else:
-				judge_response = judge.get_response(judge_prompt, **judge_params)
-			log.append({"sender": "Judge", "type": "judge", "content": judge_response})
-			raw_action = judge_response
+		if self.mode == 'action':
+			action = game.decode_action(verdict, state, actions)
+			new_state = game.update_state(state, action)
+		elif self.mode == 'state':
+			new_state = game.decode_state(verdict, state)
 		else:
-			# use regex to find the action (defined as the last digit in the response)
-			import re
-			match = re.search(r'\b(\d+)\b', response[::-1])
-			if match:
-				raw_action = match.group(1)
-				log.append({"sender": "Judge", "type": "judge", "content": raw_action})
-			else:
-				raw_action = response.strip()
+			raise ValueError(f'Unknown mode: {self.mode}')
 
-		action = self.validate_action(raw_action, actions)
-		new_state = game.update_state(state, action)
+		# self.client = None
+		# self.judge = None
 		return new_state
 
+	def ask_judge(self, chat: List[Dict[str, str]], game: JSONDATA, obs: JSONDATA, choices: List[JSONDATA],
+				  log: List[Dict[str, str]], **kwargs) -> JSONDATA:
+		response = chat[-1]['content']
 
-@fig.component('ttt/simple')
-class TTT_Simple(SimplePlayer):
-	def __init__(self, params: JSONOBJ = {}, template: str = 'game/ttt/simple',
-				 judge_template: str = 'game/ttt/judge', judge_continue = False, **kwargs):
-		super().__init__(params=params, template=template, judge_template=judge_template,
-						 judge_continue=judge_continue, **kwargs)
-
-	def encode_state(self, state: JSONDATA) -> str:
-		options = []
-		index = 1
-		for v in state['board']:
-			if v == '_':
-				options.append(str(index))
-				index += 1
+		if self.judge_template is None:
+			if self.mode == 'action':
+				all_choices = "|".join(choices)
+				pattern = rf"\b({all_choices})\b"
 			else:
-				options.append(v)
-		# options = [v if v != '_' else i+1 for i, v in enumerate(state['board'])]
-		nested = [options[i:i + 3] for i in range(0, 9, 3)]
-		state_str = tabulate(nested, tablefmt='grid', stralign='center')
-		return state_str
+				pattern = self.pattern
+			if pattern == 'fen':
+				line = response.replace('`', '').strip().split('\n')[-1].replace('**', '').replace(':', '')
+				if 'fen' in line.lower():
+					line = line.split('fen')[-1].split('FEN')[-1].strip()
+				verdict = line.strip()
+			else:
+				verdict = self._find_last(pattern, response)
 
-	def decode_state(self, state_str: str) -> JSONDATA:
-		return {'board': state_str, 'player_to_move': 'X'}
+			log.append({"sender": "Judge", "type": "matching", "content": verdict})
 
-	def validate_action(self, action: str, actions: List[int]) -> int:
-		return actions[int(action.strip()) - 1]
+		else:
+			judge_prompt = self.judge_template.fill(player=self, game=game, response=response,
+													state=obs, actions=choices)
+			judge_params = {**kwargs}
+			grammar = choices if self.mode == 'action' else self.grammar
+			if isinstance(grammar, str):
+				grammar = {'type': 'object', 'properties': {'state': {'type': 'string', 'pattern': grammar}}}
+			if grammar is not None:
+				judge_params['grammar'] = grammar
+			if self.judge_chat:
+				# If judge_chat is True, we assume the judge will handle the chat directly
+				chat.append({'role': 'user', 'content': judge_prompt})
+				self.judge.step(chat, **judge_params)
+				verdict = chat[-1]['content']
+			else:
+				verdict = self.judge.get_response(judge_prompt, **judge_params)
+
+			if isinstance(grammar, dict):
+				verdict = json.loads(verdict)
+				verdict = next(iter(verdict.values()))
+
+			log.append({"sender": "Judge", "type": "extracting", "content": verdict})
+
+		return verdict
+
+
+# class ActionPlayer(SimplePlayer):
+# 	@property
+# 	def ident(self):
+# 		return f'action'
+#
+# 	def next_state(self, client: AbstractClient, game: GameBase, state: JSONDATA, log: list[dict[str, str]],
+# 				   judge: Optional[AbstractClient] = None):
+# 		outcome = super().next_state(client, game, state, log, judge=judge)
+# 		new_state = game.decode_state(outcome, state)
+# 		return new_state
+#
+# 		action = self.extract_action(chat, game, observation, choices, log)
+# 		log.append({"sender": "Judge", "type": "judge", "content": f'Action: {action}'})
+# 		new_state = game.update_state(state, game.decode_action(action, state, actions),
+# 									  allow_violations=True)
+# 		self.client = None
+# 		self.judge = None
+# 		return new_state
+#
+# 	def extract_action(self, chat: List[Dict[str, str]], game: GameBase, obs: JSONDATA, choices: List[JSONDATA],
+# 					   log: List[Dict[str, str]]) -> JSONDATA:
+# 		raise NotImplementedError
+
+
+
+# @fig.component('ttt/action')
+# class TTT_Action(ActionPlayer):
+# 	def __init__(self, params: JSONOBJ = {}, template: str = 'game/ttt/action/act',
+# 				 judge_template: str = 'game/ttt/judge', judge_continue = False, **kwargs):
+# 		super().__init__(params=params, template=template, judge_template=judge_template,
+# 						 judge_continue=judge_continue, **kwargs)
+# 		self._state_regex = r'^[XO_]{9}$'
+#
+# 	def _extract_decision(self, response: str, state: JSONDATA, actions: List[JSONDATA]) -> JSONDATA:
+# 		if self.mode == 'actions':
+# 			return self._find_last(r'\b(\d+)\b', response)
+# 		raise NotImplementedError
+#
+# 	def _judge_grammar(self, state, actions: List[int]) -> str:
+#
+# 		return [str(a) for a in actions] if self.mode == 'actions'
+#
+# 	def encode_state(self, state: JSONDATA) -> str:
+# 		options = []
+# 		index = 1
+# 		for v in state['board']:
+# 			if v == '_':
+# 				options.append(str(index))
+# 				index += 1
+# 			else:
+# 				options.append(v)
+# 		# options = [v if v != '_' else i+1 for i, v in enumerate(state['board'])]
+# 		nested = [options[i:i + 3] for i in range(0, 9, 3)]
+# 		state_str = tabulate(nested, tablefmt='grid', stralign='center')
+# 		return state_str
+#
+# 	def decode_state(self, state_str: str) -> JSONDATA:
+# 		return {'board': state_str, 'player_to_move': 'X'}
+#
+# 	def validate_action(self, action: str, actions: List[int]) -> int:
+# 		return actions[int(action.strip()) - 1]
 
 
 @fig.component('chess/simple')

@@ -1,0 +1,5 @@
+In a game of Tic-Tac-Toe it is now player "{state['active']}"'s turn. They have made the following move:
+```
+{response}
+```
+Now, you need to extract the resulting board state after the move. Specifically, you need to format your response very carefully as a string containing exactly one character for each cell in the Tic-Tac-Toe board, with the first three characters representing the first row, the next three characters representing the second row, and the last three characters representing the third row. Each character can be either "X", "O", or "." (for an empty cell). Also, the rows should be separated by a "/" character.

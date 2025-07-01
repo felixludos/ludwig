@@ -8,8 +8,29 @@ judge: 8001
 judge-continue: no
 
 players:
-  direct:
-#    tictactoe: {_type: ttt/simple, judge-template: game/ttt/judge}
-    tictactoe: {_type: ttt/simple, judge-template: null}
-#    chess: {_type: chess/simple}
 
+  action.tictactoe:
+    _type: simple
+    mode: action
+    pattern: '\b(\d+)\b'
+    template: game/ttt/action/act
+#    judge-template: game/ttt/action/judge
+
+  state.tictactoe:
+    _type: simple
+    mode: state
+#    pattern: '^[XO_]{9}$'
+    pattern: ttt
+    template: game/ttt/state/act
+
+
+  action.chess:
+    _type: simple
+    mode: action
+    template: game/chess/action/act
+
+  state.chess:
+    _type: simple
+    mode: state
+    pattern: fen
+    template: game/chess/state/act

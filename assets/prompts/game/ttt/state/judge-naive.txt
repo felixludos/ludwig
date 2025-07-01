@@ -1,0 +1,6 @@
+In a game of Tic-Tac-Toe it is now player "{state['active']}"'s turn. They have made the following move:
+```
+{response}
+```
+Now, you need to extract the resulting board state after the move. Specifically, you need to format your response very carefully as a string of exactly 9 characters each of which is either "X", "O", or "_" (representing an empty cell). The characters should in the order of the cells from 1 to 9, left to right, top to bottom - just like reading a book.
+The response should adhere to this regex pattern:

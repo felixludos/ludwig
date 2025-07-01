@@ -1,0 +1,5 @@
+In a game of Tic-Tac-Toe it is now player "{state['active']}"'s turn. They have made the following move:
+```
+{response}
+```
+Now, you need to extract the resulting board state after the move. Make sure to output the board state as a valid python list of 3 lists, where each inner list represents a row of the Tic-Tac-Toe board containing exactly 3 elements, which can be either "X", "O", or " " (for an empty cell).
