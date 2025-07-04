@@ -183,3 +183,4 @@ cython_debug/
 #large dataset of chess
 ludwig/assets/lichess_db_puzzle.csv
 
+notebooks/ei_retreat/
