@@ -1,3 +1,4 @@
+from ..abstract import PROBLEM
 from ..imports import *
 from ..base import TaskBase
 from ..util import ToolBase, ToolError, repo_root
@@ -31,6 +32,12 @@ class TakeTheMiddle(TaskBase):
 		['left bottom corner', 'the right bottom corner', 'left middle', 'top-left', 'the last open corner'],
 	]
 	_answer_data = ['no', 'yes', 'no', 'yes']
+	_buard_data = [ # X = Alice, O = I
+		[['X', 'O', ''], ['O', '', ''], ['X', '', 'O']],
+		[['O', 'X', ''], ['X', '', 'X'], ['O', '', '']],
+		[['O', 'X', 'X'], ['', '', ''], ['O', '', 'X']],
+		[['O', '', 'X'], ['X', '', ''], ['X', '', 'O']],
+	]
 
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], str]:
 		# This is a placeholder implementation for demo purposes.
@@ -56,6 +63,20 @@ class TakeTheMiddle(TaskBase):
 		template = ("Alice started with {0} and I played {1}. She took {2}, so I responded with {3}. "
 					"Now Alice played at {4}. Should I play in the center-middle - is that my best move?")
 		return template.format(*problem)
+
+	def side_information(self, problem: PROBLEM) -> Optional[JSONOBJ]:
+		# This is a placeholder implementation for demo purposes.
+		return {
+			'board': self._buard_data[self._problem_data.index(problem)],
+			'current_player': 'X',
+			'next_player': 'O',
+			'game_over': False,
+			'winner': None,
+			'possible_moves': ['center-middle'],
+			'valid_moves': ['center-middle'],
+			'valid_move_count': 1,
+			'valid_move_indices': [4],
+		}
 
 
 

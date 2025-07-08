@@ -2,13 +2,12 @@ seed: 1000000009
 
 ##############
 
-_meta.script_name: backend
-
-_base: [games]
+#_meta.script_name: backend
+#_base: [games]
 
 ##############
 
-#_meta.script_name: eval
+_meta.script_name: eval
 
 # _base: [demo]
 # _base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
@@ -21,7 +20,7 @@ _base: [games]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
-#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
 ##############
 
