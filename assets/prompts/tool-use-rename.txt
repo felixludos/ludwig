@@ -1,0 +1,8 @@
+{task_context}
+
+{question}
+
+You are a helpful assistant that can use tools to answer the question. You have access to the following tools:
+{json.dumps(tool_schemas, indent=2)}
+
+If you want to use a tool, make sure to end your response with a list of tool calls in the last line of your response. Then wait for the tools to respond before giving a final answer to the question.

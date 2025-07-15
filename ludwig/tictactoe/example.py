@@ -28,12 +28,12 @@ class TakeTheMiddle(TaskBase):
 	_problem_data = [
 		['bottom left', 'top-center', 'middle left', 'top left', 'the remaining bottom corner'],
 		['top-center', 'bottom left', 'middle left', 'top left', 'on the right in the middle'],
-		['the top right', 'left bottom', 'top middle', 'top left', 'the remaining bottom corner'],
+		['the top right', 'left bottom', 'top middle', 'upper left', 'the remaining bottom corner'],
 		['left bottom corner', 'the right bottom corner', 'left middle', 'top-left', 'the last open corner'],
 	]
 	_answer_data = ['no', 'yes', 'no', 'yes']
-	_buard_data = [ # X = Alice, O = I
-		[['X', 'O', ''], ['O', '', ''], ['X', '', 'O']],
+	_board_data = [ # X = Alice, O = I
+		[['O', 'O', ''], ['X', '', ''], ['X', '', 'X']],
 		[['O', 'X', ''], ['X', '', 'X'], ['O', '', '']],
 		[['O', 'X', 'X'], ['', '', ''], ['O', '', 'X']],
 		[['O', '', 'X'], ['X', '', ''], ['X', '', 'O']],
@@ -42,19 +42,20 @@ class TakeTheMiddle(TaskBase):
 	def load(self, index: int, *, seed: Optional[int] = None) -> Tuple[List[str], str]:
 		# This is a placeholder implementation for demo purposes.
 		base_idx = index % len(self._problem_data)
-		rev_flags = index // len(self._problem_data)
+		return index, self._answer_data[base_idx]
+
+	def observe(self, problem: List[str], *, seed: int = None) -> str:
+		base_idx = problem % len(self._problem_data)
+		rev_flags = problem // len(self._problem_data)
 		rev_1 = rev_flags % 2
 		rev_2 = (rev_flags // 2) % 2
 
-		base = self._problem_data[base_idx].copy()
+		terms = self._problem_data[base_idx].copy()
 		if rev_1:
-			base[0], base[2] = base[2], base[0]
+			terms[0], terms[2] = terms[2], terms[0]
 		if rev_2:
-			base[1], base[3] = base[3], base[1]
+			terms[1], terms[3] = terms[3], terms[1]
 
-		return base, self._answer_data[base_idx]
-
-	def observe(self, problem: List[str], *, seed: int = None) -> str:
 		# This is a placeholder implementation for demo purposes.
 		template = ("Alice started with {0} and I played {1}. She took {2}, so I responded with {3}. "
 					"Now Alice played at {4}. I think I should play in the center-middle "
@@ -62,20 +63,14 @@ class TakeTheMiddle(TaskBase):
 					"Is that my best move?")
 		template = ("Alice started with {0} and I played {1}. She took {2}, so I responded with {3}. "
 					"Now Alice played at {4}. Should I play in the center-middle - is that my best move?")
-		return template.format(*problem)
+		return template.format(*terms)
 
 	def side_information(self, problem: PROBLEM) -> Optional[JSONOBJ]:
 		# This is a placeholder implementation for demo purposes.
+		index = problem
+		base_idx = index % len(self._problem_data)
 		return {
-			'board': self._buard_data[self._problem_data.index(problem)],
-			'current_player': 'X',
-			'next_player': 'O',
-			'game_over': False,
-			'winner': None,
-			'possible_moves': ['center-middle'],
-			'valid_moves': ['center-middle'],
-			'valid_move_count': 1,
-			'valid_move_indices': [4],
+			'board': self._board_data[base_idx],
 		}
 
 

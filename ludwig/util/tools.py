@@ -98,22 +98,25 @@ def parse_json_tool_calls(raw_string: str) -> List[ToolCall]:
 	tool_calls = []
 	for json_str in json_strings:
 		try:
-			data = json.loads(json_str)
-			function_name = data.get("name")
-			# The input format uses "parameters", which we map to "arguments"
-			arguments_dict = data.get("parameters", {})
-
-			if not function_name:
-				print(f"Warning: JSON object is missing 'name': {json_str}")
-				continue
-
-			function_obj = Function(name=function_name, arguments=json.dumps(arguments_dict))
-			tool_call_obj = ToolCall(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
-			tool_calls.append(tool_call_obj)
+			fulldata = json.loads(json_str)
 
 		except json.JSONDecodeError:
 			print(f"Warning: Could not decode JSON for part: {json_str}")
 			continue
+		else:
+			calls = [fulldata] if isinstance(fulldata, dict) else fulldata
+			for data in calls:
+				function_name = data.get("name")
+				# The input format uses "parameters", which we map to "arguments"
+				arguments_dict = data.get("parameters", {})
+
+				if not function_name:
+					print(f"Warning: JSON object is missing 'name': {json_str}")
+					continue
+
+				function_obj = Function(name=function_name, arguments=json.dumps(arguments_dict))
+				tool_call_obj = ToolCall(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
+				tool_calls.append(tool_call_obj)
 
 	return tool_calls
 

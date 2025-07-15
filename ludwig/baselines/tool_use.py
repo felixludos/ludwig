@@ -1,6 +1,6 @@
 from .imports import *
 from ..abstract import AbstractTool
-from ..util import ToolError
+from ..util import ToolError, parse_pythonic_tool_calls, parse_json_tool_calls
 from .simple import DirectPrompting
 
 
@@ -45,15 +45,17 @@ class ToolUse(DirectPrompting):
 		return status
 
 	def solve(self, question: str, *, side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+		tool_schemas = [tool.schema() for tool in self.tools.values()]
 		prompt = self.template.fill(
 			system_context=self.system_context,
 			task_context=self.task_context,
-			question=question
+			question=question,
+			tool_schemas=tool_schemas,
+			json=json,
 		)
 
 		tool_calls = []
 
-		tool_schemas = [tool.schema() for tool in self.tools.values()]
 		chat = self.client.begin_chat(prompt)
 		msg = None
 		for resp in self.client.multi_turn(chat, dict(tools=tool_schemas, tool_choice='none')):

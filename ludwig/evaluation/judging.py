@@ -128,15 +128,25 @@ class FormatJudge(JudgeBase):
 	_answer_styles = {
 		'final-answer': 'Give your final answer in the form: "FINAL ANSWER: {{{options}}}".',
 		'boxed': 'Give your final answer in the form: "\\boxed{{{{options}}}}".',
+		'end': 'Make sure to end your response with your final answer, '
+			   'responding with only one of the following options: {{{options}}}.',
 	}
 	_answer_regex = {
 		'final-answer': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b',
 		'boxed': r'(?ix)\\boxed\s*\{{\s*({options})\s*}}',
+		'end': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b',
 	}
 
 	@property
 	def name(self) -> str:
 		return f'format-judge-{self._style}'
+
+	@staticmethod
+	def _find_last(pattern, text) -> Optional[re.Match]:
+		options = re.findall(pattern, text, re.IGNORECASE)
+		if not options:
+			return None
+		return options[-1]
 
 	def prepare(self, task_spec: JSONOBJ) -> None:
 		super().prepare(task_spec)
@@ -152,10 +162,9 @@ class FormatJudge(JudgeBase):
 	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(yes|no)\**\b'
 	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b'
 	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
-		clean = response.strip().lower()
-
 		pattern = self._answer_regex[self._style].format(options='|'.join(self._options))
-		match = re.search(pattern, clean, re.IGNORECASE)
+
+		match = self._find_last(pattern, response.strip())
 		if match:
 			decision = match.group(1).lower().strip()
 			self._successes += 1

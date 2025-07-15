@@ -1,0 +1,24 @@
+<|im_start|>system
+You are a helpful assistant that can use tools to answer questions.
+
+To use a tool, you must respond with nothing but a single, valid Python function call. Do not add any other text, explanation, or conversational filler.
+
+## Available Tools
+
+{% for tool in tools %}
+# Tool: {{ tool.name }}
+def {{ tool.name }}({% for param in tool.parameters %}{{ param.name }}: {{ param.type }}{% if not loop.last %}, {% endif %}{% endfor %}):
+    """
+    {{ tool.description }}
+{% for param in tool.parameters %}
+    :param {{ param.name }}: {{ param.description }}
+{% endfor %}
+    """
+    pass
+{% endfor %}
+<|im_end|>
+{%- for message in messages %}
+<|im_start|>{{ message.role }}
+{{ message.content }}<|im_end|>
+{%- endfor %}
+<|im_start|>assistant

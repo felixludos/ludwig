@@ -5,6 +5,8 @@ from .abstract import AbstractClient
 from .files import repo_root, hash_str
 from ..util.tools import parse_pythonic_tool_calls, parse_json_tool_calls
 
+from openai.types.chat import ChatCompletionMessage
+
 CHAT = List[Dict[str, JSONDATA]]
 REQUEST_PARAMS = Dict[str, JSONDATA]
 REQUEST = JSONOBJ
@@ -132,14 +134,23 @@ class ClientBase(fig.Configurable, AbstractClient):
 		Override this method to apply any post-processing fixes to the response.
 		For example, to handle reasoning content or tool calls.
 		"""
-		msg = resp.choices[0].message
+		choice = resp.choices[0]
+		msg = getattr(resp.choices[0], 'message', None)
+		if msg is None:
+			msg = getattr(resp.choices[0].model_extra, 'message', None)
+			if msg is None:
+				text = getattr(resp.choices[0], 'text', None)
+				msg = ChatCompletionMessage(role='assistant', content=text)
+			resp.choices[0].message = msg
+		content = msg.content
 		if msg.content and not msg.tool_calls:
-			lines = msg.content.splitlines()
+			lines = content.splitlines()
 			reasoning = []
 			tool_calls = []
 			for line in lines:
 				if line.startswith('[') and line.endswith(']'):
 					tool_calls.extend(parse_pythonic_tool_calls(line))
+					tool_calls.extend(parse_json_tool_calls(line))
 				elif line.startswith('{') and line.endswith('}'):
 					tool_calls.extend(parse_json_tool_calls(line))
 				else:
@@ -244,7 +255,9 @@ class MockEndpoint(ClientBase):
 
 class OpenaiClientBase(ClientBase):
 	def __init__(self, endpoint: Union[openai.OpenAI, str], *, max_tokens: int = None, seed: int = None,
-				 temperature: float = None, top_p: float = None, grammar: Union[str, JSONOBJ] = None, **kwargs):
+				 temperature: float = None, top_p: float = None, grammar: Union[str, JSONOBJ] = None,
+				 # chat_template: Optional['ChatTemplate'],
+				 **kwargs):
 		if isinstance(endpoint, str):
 			endpoint = openai.OpenAI(api_key='EMPTY', base_url=endpoint)
 		super().__init__(**kwargs)
@@ -257,6 +270,7 @@ class OpenaiClientBase(ClientBase):
 		self.grammar = grammar
 
 		self._tokenizer = None
+		# self._chat_template = chat_template
 
 	@property
 	def ident(self) -> str:
@@ -405,8 +419,23 @@ class OpenaiClientBase(ClientBase):
 
 @fig.component('vllm')
 class vllm_Client(OpenaiClientBase):
-	def __init__(self, addr: Union[str, int], **kwargs):
+	def __init__(self, addr: Union[str, int], *, use_chat: bool = False, chat_template: Optional[str] = None,
+				 allow_auto_chat: bool = False, add_generation_prompt: bool = True,
+				 continue_final_message: bool = False, **kwargs):
 		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
+		self._allow_auto_chat = allow_auto_chat
+		self._add_generation_prompt = add_generation_prompt
+		self._continue_final_message = continue_final_message
+		self._chat_template = chat_template
+		self._use_chat = use_chat
+
+	def json(self) -> JSONOBJ:
+		info = super().json()
+		info['addr'] = str(self.endpoint.base_url)
+		info['allow_auto_chat'] = self._allow_auto_chat
+		info['add_generation_prompt'] = self._add_generation_prompt
+		info['continue_final_message'] = self._continue_final_message
+		return info
 
 	@staticmethod
 	def _to_full_addr(addr: Union[str, int]) -> str:
@@ -434,12 +463,52 @@ class vllm_Client(OpenaiClientBase):
 			print(f"Error fetching model info: {e}")
 			return {}
 
+	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
+		if self._tokenizer is None:
+			return super()._send(data)
+
+		if 'messages' in data:
+			chat = data['messages']
+
+			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=data.get('tools', {}),
+														 documents=data.get('documents', {}),
+														 add_generation_prompt=self._add_generation_prompt,
+														 continue_final_message=self._continue_final_message)
+
+			del data['messages']
+			data['prompt'] = prompt
+
+		return self.endpoint.completions.create(**data)
+
 	def prepare(self) -> Self:
 		super().prepare()
 		# info = self.endpoint.models.list()
 		# self._model_name = info.data[0].id
 		info = self._server_model_info()
 		self._model_name = info['data'][0]['id']
+		# if self._chat_template is not None:
+		# 	self._chat_template.prepare(self._model_name)
+
+		try:
+			if self._use_chat:
+				from transformers import AutoTokenizer
+				self._tokenizer = AutoTokenizer.from_pretrained(self.ident)
+			else:
+				self._tokenizer = None
+		except:
+			if self._allow_auto_chat:
+				raise
+			self._tokenizer = None
+		else:
+			if self._chat_template is not None:
+				template = self._chat_template
+				if '\n' not in self._chat_template:
+					root = repo_root().joinpath('assets', 'chat-template')
+					path = pformat(template, root=root, model_name=self._model_name)
+					if not path.exists():
+						raise FileNotFoundError(f'Chat template not found: {path}')
+					template = path.read_text()
+				self._chat_template = template
 		return self
 
 	def ping(self) -> bool:
@@ -489,7 +558,6 @@ class Openai_Client(OpenaiClientBase):
 		response = self.endpoint.models.list()
 		return response.to_dict()['data']
 
-
 	def _clean_schema(self, schema: JSONDATA):
 		"""because openai's grammar is weaker than vllm's"""
 		if isinstance(schema, dict):
@@ -507,7 +575,6 @@ class Openai_Client(OpenaiClientBase):
 		if isinstance(schema, list):
 			return [self._clean_schema(item) for item in schema]
 		return schema
-
 
 	def _include_grammar(self, args: JSONOBJ):
 		if 'grammar' in args:
@@ -739,6 +806,59 @@ class Local_vllm_Client(ClientBase):
 # 		   finish_reason=None, index=0, logprobs=None)], created=1743711902,
 # 					model='microsoft/Phi-4-multimodal-instruct', object='chat.completion.chunk', service_tier=None,
 # 					system_fingerprint=None, usage=None)
+
+# from .files import repo_root
+# try:
+# 	import jinja2
+# except ImportError:
+# 	jinja2 = None
+
+
+# class ChatTemplate:
+# 	_default_path = '{root}/chat-template/default.jinja'
+# 	def __init__(self, *, use_default: bool = False, chat_style: Optional[str] = None,
+# 				 add_generation_prompt: bool = True,
+# 				 template_path: str = '{root}/chat-template/{model_name.replace("/", "--")}.jinja', **kwargs):
+# 		super().__init__(**kwargs)
+# 		self._model_name = None
+# 		if isinstance(use_default, str):
+# 			self._default_path = use_default
+# 		self._use_default = use_default
+# 		self._template_path = template_path
+# 		self._template = None
+# 		self._root = repo_root().joinpath('assets')
+# 		if chat_style is None:
+# 			self._root = self._root.joinpath(chat_style)
+# 			assert self._root.exists(), f'Chat style root does not exist: {self._root}'
+# 		self._add_generation_prompt = add_generation_prompt
+#
+# 	def prepare(self, model_name: str):
+# 		self._model_name = model_name
+#
+# 		if jinja2 is None:
+# 			path = pformat(self._template_path, assets_path=, model_name=model_name)
+# 			path = Path(path)
+#
+# 			if not path.exists():
+# 				if self._use_default:
+# 					path = pformat(self._default_path, assets_path=repo_root().joinpath('assets'))
+# 					path = Path(path)
+# 				else:
+# 					raise FileNotFoundError(path)
+#
+# 			self._template = path.read_text()
+# 		return self
+#
+# 	def fill(self, chat: CHAT, **kwargs) -> Optional[str]:
+# 		if self._template is None:
+# 			return None
+# 		template = jinja2.Template(self._template)#, trim_blocks=True, lstrip_blocks=True)
+# 		formatted_prompt = template.render(
+# 			messages=chat,
+# 			add_generation_prompt=self._add_generation_prompt,
+# 			**kwargs
+# 		)
+# 		return formatted_prompt
 
 
 

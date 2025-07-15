@@ -10,19 +10,23 @@ seed: 1000000009
 _meta.script_name: eval
 
 # _base: [demo]
-# _base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/dpp, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/dpp, ttt/take-the-middle, j/client, c/vllm]
+_base: [s/dp, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/manual, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
-_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
 ##############
+
+use-chat: yes
 
 limit: 8
 
@@ -35,6 +39,9 @@ logger._type: <>broker-type
 prelogger._type: <>broker-type
 broker-type: min-broker
 
+# for format judge: j/format
+#style: end
+
 #addr: http://wagner.is.localnet:8000
 addr: 8001
 #client.addr: 8001
@@ -45,8 +52,8 @@ addr: 8001
 
 #client._mod.logged: yes
 
-max-tokens: 1024
-#max-tokens: 4096 # needed for qwen3-8b due to reasoning
+#max-tokens: 1024
+max-tokens: 4096 # needed for qwen3-8b due to reasoning
 #max-tokens: 1024
 
 #temperature: 0.6

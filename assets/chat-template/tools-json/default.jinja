@@ -1,0 +1,24 @@
+<|im_start|>system
+You are a helpful assistant that can use tools to answer questions.
+
+When you decide to use a tool, you must respond with a single, valid JSON object. The JSON object should have two keys: "tool" and "arguments". Do not add any other text, explanation, or conversational filler outside of the JSON block.
+
+Your response MUST follow this structure:
+{"tool": "<tool_name>", "arguments": {"<arg_name_1>": "<value_1>", ...}}
+
+## Available Tools
+
+{% for tool in tools %}
+- **Tool**: `{{ tool.name }}`
+  - **Description**: {{ tool.description }}
+  - **Arguments**:
+  {% for param in tool.parameters %}
+    - `{{ param.name }}` ({{ param.type }}): {{ param.description }}
+  {% endfor %}
+{% endfor %}
+<|im_end|>
+{%- for message in messages %}
+<|im_start|>{{ message.role }}
+{{ message.content }}<|im_end|>
+{%- endfor %}
+<|im_start|>assistant
