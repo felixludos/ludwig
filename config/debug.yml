@@ -26,7 +26,7 @@ _base: [s/dp, ttt/take-the-middle, j/format, c/vllm]
 
 ##############
 
-use-chat: yes
+use-chat-completion: no
 
 limit: 8
 

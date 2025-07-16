@@ -5,12 +5,13 @@ from .abstract import AbstractClient
 from .files import repo_root, hash_str
 from ..util.tools import parse_pythonic_tool_calls, parse_json_tool_calls
 
-from openai.types.chat import ChatCompletionMessage
+# from openai.types.chat import ChatCompletionMessage
 
 CHAT = List[Dict[str, JSONDATA]]
 REQUEST_PARAMS = Dict[str, JSONDATA]
 REQUEST = JSONOBJ
-RESPONSE = openai.ChatCompletion
+RESPONSE = JSONOBJ
+# RESPONSE = openai.ChatCompletion
 
 class ClientBase(fig.Configurable, AbstractClient):
 	def __init__(self, raise_length_limit: bool = True, system_message: str = None, **kwargs):
@@ -54,7 +55,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 		while max_retries is None or i <= max_retries:
 			resp = self.step(chat, **params)
 			yield resp
-			role = resp.choices[0].message.role
+			role = resp['choices'][0]['message']['role']
 			assert chat[-1]['role'] != role, f'Chat must be updated with a new message from the user'
 			i += 1
 
@@ -70,28 +71,28 @@ class ClientBase(fig.Configurable, AbstractClient):
 		resp = self.send(data)
 		# assert len(resp.choices) > 1, f'Expected one response, got {len(resp.choices)} choices'
 
-		if self._raise_length_limit and resp.choices[0].finish_reason == 'length':
+		if self._raise_length_limit and resp['choices'][0]['finish_reason'] == 'length':
 			raise BudgetExceededError(f'Response length limit reached {resp.usage.completion_tokens} tokens '
 									  f'(try increasing `max_tokens`)')
 
 		input_length = len(chat)
 
 		# update chat with the response
-		msg = resp.choices[0].message
-		assistant_turn = {'role': msg.role}
-		if msg.content:
-			assistant_turn['content'] = msg.content
-		if msg.tool_calls:
+		msg = resp['choices'][0]['message']
+		assistant_turn = {'role': msg['role']}
+		if msg['content']:
+			assistant_turn['content'] = msg['content']
+		if msg['tool_calls']:
 			# chat.append({
 			# 	'role': role,
 			# 	'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls],
 			# 	'content': '',
 			# })
-			assistant_turn['tool_calls'] = [json.loads(t.json()) for t in resp.choices[0].message.tool_calls]
+			assistant_turn['tool_calls'] = resp['choices'][0]['message'].get('tool_calls', [])
 		chat.append(assistant_turn)
 
 		# extract additional chat relevant info
-		extra_info = resp.choices[0].message.model_extra
+		extra_info = resp['choices'][0].get('model_extra', {})
 		if extra_info is not None and extra_info.get('reasoning_content'):
 			chat[-1]['reasoning_content'] = extra_info['reasoning_content']
 
@@ -129,21 +130,32 @@ class ClientBase(fig.Configurable, AbstractClient):
 		self._record_response(data, resp)
 		return resp
 
-	def _post_response_fixes(self, data: REQUEST_PARAMS, resp: openai.ChatCompletion) -> openai.ChatCompletion:
+	def _post_response_fixes(self, data: REQUEST_PARAMS, resp: RESPONSE) -> openai.ChatCompletion:
 		"""
 		Override this method to apply any post-processing fixes to the response.
 		For example, to handle reasoning content or tool calls.
 		"""
-		choice = resp.choices[0]
-		msg = getattr(resp.choices[0], 'message', None)
+		msg = resp['choices'][0].get('message')
 		if msg is None:
-			msg = getattr(resp.choices[0].model_extra, 'message', None)
-			if msg is None:
-				text = getattr(resp.choices[0], 'text', None)
-				msg = ChatCompletionMessage(role='assistant', content=text)
-			resp.choices[0].message = msg
-		content = msg.content
-		if msg.content and not msg.tool_calls:
+			msg = resp['choices'][0].get('model_extra', {}).get('message')
+		if msg is None:
+			text = resp['choices'][0].get('text')
+			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
+		assert msg is not None, f'No message found in response: {resp}'
+		resp['choices'][0]['message'] = msg
+		content = msg['content']
+
+		# choice = resp.choices[0]
+		# msg = getattr(resp.choices[0], 'message', None)
+		# if msg is None:
+		# 	msg = getattr(resp.choices[0].model_extra, 'message', None)
+		# 	if msg is None:
+		# 		text = getattr(resp.choices[0], 'text', None)
+		# 		msg = ChatCompletionMessage(role='assistant', content=text)
+		# 	resp.choices[0].message = msg
+		# content = msg.content
+		# if msg.content and not msg.tool_calls:
+		if content and not msg.get('tool_calls'):
 			lines = content.splitlines()
 			reasoning = []
 			tool_calls = []
@@ -156,8 +168,8 @@ class ClientBase(fig.Configurable, AbstractClient):
 				else:
 					reasoning.append(line)
 			if tool_calls:
-				msg.content = '\n'.join(reasoning).strip()
-				msg.tool_calls = tool_calls
+				msg['content'] = '\n'.join(reasoning).strip()
+				msg['tool_calls'] = tool_calls
 				# msg.model_extra['reasoning_content'] = '\n'.join(reasoning).strip()
 		return resp
 
@@ -356,9 +368,9 @@ class OpenaiClientBase(ClientBase):
 		return args
 
 	def extract_response(self, data: JSONOBJ) -> str:
-		content = data.choices[0].message.content
-		if content is None and 'reasoning_content' in data.choices[0].message.model_extra:
-			return data.choices[0].message.model_extra['reasoning_content']
+		content = data['choices'][0]['message'].get('content', None)
+		if content is None and 'reasoning_content' in data['choices'][0]['message'].get('model_extra', {}):
+			return data['choices'][0]['message']['model_extra']['reasoning_content']
 		return content
 
 	def last_response(self) -> Optional[str]:
@@ -366,13 +378,13 @@ class OpenaiClientBase(ClientBase):
 			return self._last_response
 		return None
 
-	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
-		return self.endpoint.chat.completions.create(**data)
+	def _send(self, data: JSONOBJ) -> RESPONSE:
+		return self.endpoint.chat.completions.create(**data).model_dump()
 
 	def _send_no_wait(self, data):
 		for chunk in self.endpoint.chat.completions.create(
 				**data, stream=True, stream_options={"include_usage": True}):
-			yield chunk
+			yield chunk.model_dump()
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		if isinstance(prompt, str):
@@ -380,8 +392,8 @@ class OpenaiClientBase(ClientBase):
 		else:
 			prompt = self.wrap_chat(prompt, **params)
 		for resp in self.send_no_wait(prompt):
-			if len(resp.choices):
-				yield resp.choices[0].delta.content
+			if len(resp['choices']):
+				yield resp['choices'][0]['delta'].get('content', '')
 
 	def _record_send(self, data: JSONOBJ):
 		self._last_response = ''
@@ -390,23 +402,23 @@ class OpenaiClientBase(ClientBase):
 			self.history[-1]['estimated_input_tokens'] = self.count_tokens(data['messages'])
 		self.history[-1]['start_time'] = time.time()
 
-	def _record_response(self, data: JSONOBJ, resp: openai.ChatCompletion):
-		N_inp = resp.usage.prompt_tokens
-		N_out = resp.usage.completion_tokens
+	def _record_response(self, data: JSONOBJ, resp: RESPONSE):
+		N_inp = resp['usage'].get('prompt_tokens', 0)
+		N_out = resp['usage'].get('output_tokens', 0)
 		stats = {
 			'input_tokens': N_inp,
 			'output_tokens': N_out,
 			'end_time': time.time(),
 		}
-		self._last_response = resp.choices[0].message.content
+		self._last_response = resp['choices'][0]['message'].get('content', '')
 		self.history[-1].update(stats)
 
-	def _record_step(self, data: JSONOBJ, step: openai.ChatCompletion):
-		if len(step.choices):
-			self._last_response += step.choices[0].delta.content
+	def _record_step(self, data: JSONOBJ, step: RESPONSE):
+		if len(step['choices']):
+			self._last_response += step['choices'][0]['delta'].get('content', '')
 		if step.usage is not None:
-			self.history[-1]['input_tokens'] = step.usage.prompt_tokens
-			self.history[-1]['output_tokens'] = step.usage.completion_tokens
+			self.history[-1]['input_tokens'] = step['usage']['prompt_tokens']
+			self.history[-1]['output_tokens'] = step['usage']['completion_tokens']
 			self.history[-1]['end_time'] = time.time()
 
 	def ping(self) -> bool:
@@ -419,22 +431,30 @@ class OpenaiClientBase(ClientBase):
 
 @fig.component('vllm')
 class vllm_Client(OpenaiClientBase):
-	def __init__(self, addr: Union[str, int], *, use_chat: bool = False, chat_template: Optional[str] = None,
-				 allow_auto_chat: bool = False, add_generation_prompt: bool = True,
-				 continue_final_message: bool = False, **kwargs):
+	def __init__(self, addr: Union[str, int], *, use_chat_completion: bool = False, tool_style: str = 'pythonic',
+				 chat_template_path: Optional[str] = None, chat_template: Optional[str] = None,
+				 add_generation_prompt: bool = True, continue_final_message: bool = False, **kwargs):
+		assert tool_style in (None, 'pythonic', 'json')
+		assert chat_template_path is None or chat_template is None, \
+			f'Cannot specify both chat_template_path and chat_template'
 		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
-		self._allow_auto_chat = allow_auto_chat
 		self._add_generation_prompt = add_generation_prompt
 		self._continue_final_message = continue_final_message
+		self._chat_template_path = chat_template_path
 		self._chat_template = chat_template
-		self._use_chat = use_chat
+		self._use_chat = use_chat_completion
+		self._tool_style = tool_style
 
 	def json(self) -> JSONOBJ:
 		info = super().json()
 		info['addr'] = str(self.endpoint.base_url)
-		info['allow_auto_chat'] = self._allow_auto_chat
 		info['add_generation_prompt'] = self._add_generation_prompt
 		info['continue_final_message'] = self._continue_final_message
+		info['chat_template_path'] = self._chat_template_path
+		if self._chat_template_path is None and self._chat_template is not None:
+			info['chat_template'] = self._chat_template
+		if self._chat_template_path is not None:
+			info['tool_style'] = self._tool_style
 		return info
 
 	@staticmethod
@@ -463,23 +483,25 @@ class vllm_Client(OpenaiClientBase):
 			print(f"Error fetching model info: {e}")
 			return {}
 
-	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
+	def _send(self, data: JSONOBJ) -> RESPONSE:
 		if self._tokenizer is None:
 			return super()._send(data)
 
 		if 'messages' in data:
 			chat = data['messages']
 
-			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=data.get('tools', {}),
-														 documents=data.get('documents', {}),
+			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=data.pop('tools', None),
+														 documents=data.pop('documents', None),
 														 add_generation_prompt=self._add_generation_prompt,
-														 continue_final_message=self._continue_final_message)
+														 continue_final_message=self._continue_final_message,
+														 chat_template=self._chat_template)
 
 			del data['messages']
 			data['prompt'] = prompt
 
-		return self.endpoint.completions.create(**data)
+		return self.endpoint.completions.create(**data).model_dump()
 
+	_default_chat_template = '{root}/tools-{tool_style}/{model_name}.jinja'
 	def prepare(self) -> Self:
 		super().prepare()
 		# info = self.endpoint.models.list()
@@ -491,24 +513,31 @@ class vllm_Client(OpenaiClientBase):
 
 		try:
 			if self._use_chat:
+				self._tokenizer = None
+			else:
 				from transformers import AutoTokenizer
 				self._tokenizer = AutoTokenizer.from_pretrained(self.ident)
-			else:
-				self._tokenizer = None
 		except:
-			if self._allow_auto_chat:
+			if not self._use_chat:
 				raise
 			self._tokenizer = None
 		else:
-			if self._chat_template is not None:
-				template = self._chat_template
-				if '\n' not in self._chat_template:
-					root = repo_root().joinpath('assets', 'chat-template')
-					path = pformat(template, root=root, model_name=self._model_name)
-					if not path.exists():
+			chat_template_path = self._chat_template_path
+			if not self._use_chat and self._chat_template is None and self._chat_template_path is None:
+				chat_template_path = self._default_chat_template
+			if self._chat_template is None and chat_template_path is not None:
+				path = chat_template_path
+				root = repo_root().joinpath('assets', 'chat-template')
+				path = Path(pformat(path, root=root, model_name=self._model_name, tool_style=self._tool_style))
+				if not path.exists():
+					if self._chat_template_path is not None:
 						raise FileNotFoundError(f'Chat template not found: {path}')
+					else:
+						print(f'WARNING: Default chat template not found at {path}')
+				else:
+					self._chat_template_path = path
 					template = path.read_text()
-				self._chat_template = template
+					self._chat_template = template
 		return self
 
 	def ping(self) -> bool:
@@ -687,10 +716,10 @@ class Tool_Client(ClientBase):
 		super().__init__(**kwargs)
 		self.tools = {t.name: t for t in tools}
 
-	def _record_response(self, data: JSONOBJ, resp: openai.ChatCompletion):
+	def _record_response(self, data: JSONOBJ, resp: RESPONSE):
 		super()._record_response(data, resp)
-		if resp.choices[0].message.tool_calls is not None and len(resp.choices[0].message.tool_calls):
-			self.history[-1]['tool_calls'] = dict(Counter(call.function.name for call in resp.choices[0].message.tool_calls))
+		if resp['choices'][0]['message'].get('tool_calls'):
+			self.history[-1]['tool_calls'] = dict(Counter(call['function']['name'] for call in resp['choices'][0]['message']['tool_calls']))
 
 	def stream_response(self, prompt: Union[str, List[Dict[str, str]]], **params) -> Iterator[str]:
 		if self.tools:

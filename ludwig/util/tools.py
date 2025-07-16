@@ -1,8 +1,8 @@
 from .imports import *
 from .files import Checkpointable
 import ast, uuid
-from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall as ToolCall
-from openai.types.chat.chat_completion_message_tool_call import Function
+# from openai.types.chat.chat_completion_message_tool_call import ChatCompletionMessageToolCall as ToolCall
+# from openai.types.chat.chat_completion_message_tool_call import Function
 
 
 class ToolBase(fig.Configurable, Checkpointable, AbstractTool):
@@ -75,8 +75,18 @@ class ToolBase(fig.Configurable, Checkpointable, AbstractTool):
 #
 # 	return tool_calls
 
+# from pydantic import BaseModel
+#
+# class SimpleFunction(BaseModel):
+# 	name: str
+# 	arguments: Any # JSON string
+#
+# class SimpleToolCall(BaseModel):
+# 	function: SimpleFunction
+# 	type: str = 'function'
+# 	id: str
 
-def parse_json_tool_calls(raw_string: str) -> List[ToolCall]:
+def parse_json_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	"""
 	Parses a string of semicolon-separated JSON tool calls into a list of
 	OpenAI-compatible ChatCompletionMessageToolCall Pydantic objects.
@@ -114,8 +124,8 @@ def parse_json_tool_calls(raw_string: str) -> List[ToolCall]:
 					print(f"Warning: JSON object is missing 'name': {json_str}")
 					continue
 
-				function_obj = Function(name=function_name, arguments=json.dumps(arguments_dict))
-				tool_call_obj = ToolCall(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
+				function_obj = dict(name=function_name, arguments=json.dumps(arguments_dict))
+				tool_call_obj = dict(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
 				tool_calls.append(tool_call_obj)
 
 	return tool_calls
@@ -169,7 +179,7 @@ def _parse_arguments(arg_string: str) -> Dict[str, Any]:
 
 # --- Main Parsing Function ---
 
-def parse_pythonic_tool_calls(raw_string: str) -> List[ToolCall]:
+def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	"""
 	Parses a string of tool calls into a list of ToolCall objects using regex.
 
@@ -228,13 +238,20 @@ def parse_pythonic_tool_calls(raw_string: str) -> List[ToolCall]:
 				arguments_dict = _parse_arguments(arg_string)
 
 				# Create the Pydantic Function object, serializing args to JSON
-				function_obj = Function(
-					name=function_name,
-					arguments=json.dumps(arguments_dict)
+				# function_obj = Function(
+				# 	name=function_name,
+				# 	arguments=json.dumps(arguments_dict)
+				# )
+				# # Create the final ToolCall object
+				# tool_call_obj = ToolCall(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
+				#
+				function_obj = dict(
+					name = function_name,
+					# arguments = json.dumps(arguments_dict)
+					arguments = arguments_dict
 				)
+				tool_call_obj = dict(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
 
-				# Create the final ToolCall object
-				tool_call_obj = ToolCall(function=function_obj)
 				tool_calls.append(tool_call_obj)
 
 			except Exception as e:
