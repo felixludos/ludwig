@@ -3,7 +3,8 @@ import openai
 from .imports import *
 from .abstract import AbstractClient
 from .files import repo_root, hash_str
-from ..util.tools import parse_pythonic_tool_calls, parse_json_tool_calls
+# from ..util.tools import parse_pythonic_tool_calls, parse_json_tool_calls
+from ..util.parsers import AbstractParser, MessageParser
 
 # from openai.types.chat import ChatCompletionMessage
 
@@ -14,13 +15,17 @@ RESPONSE = JSONOBJ
 # RESPONSE = openai.ChatCompletion
 
 class ClientBase(fig.Configurable, AbstractClient):
-	def __init__(self, raise_length_limit: bool = True, system_message: str = None, **kwargs):
+	def __init__(self, raise_length_limit: bool = True, system_message: str = None,
+				 message_parser: AbstractParser = None, **kwargs):
+		if message_parser is None:
+			message_parser = MessageParser()
 		super().__init__(**kwargs)
 		self.system_message = system_message
 		self._raise_length_limit = raise_length_limit
 		self._model_name = None
 		self.history = None
 		self._last_response = None
+		self._message_parser = message_parser
 
 	@property
 	def model_name(self) -> str: # fallback
@@ -82,7 +87,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 		assistant_turn = {'role': msg['role']}
 		if msg['content']:
 			assistant_turn['content'] = msg['content']
-		if msg['tool_calls']:
+		if msg.get('tool_calls'):
 			# chat.append({
 			# 	'role': role,
 			# 	'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls],
@@ -137,7 +142,10 @@ class ClientBase(fig.Configurable, AbstractClient):
 		"""
 		msg = resp['choices'][0].get('message')
 		if msg is None:
-			msg = resp['choices'][0].get('model_extra', {}).get('message')
+			# msg = resp['choices'][0].get('model_extra', {}).get('message')
+			text = resp['choices'][0].get('text', None)
+			assert text is not None, f'No text found in response: {resp}'
+			msg = self._message_parser.parse(text, data, resp)
 		if msg is None:
 			text = resp['choices'][0].get('text')
 			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
@@ -155,21 +163,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 		# 	resp.choices[0].message = msg
 		# content = msg.content
 		# if msg.content and not msg.tool_calls:
-		if content and not msg.get('tool_calls'):
-			lines = content.splitlines()
-			reasoning = []
-			tool_calls = []
-			for line in lines:
-				if line.startswith('[') and line.endswith(']'):
-					tool_calls.extend(parse_pythonic_tool_calls(line))
-					tool_calls.extend(parse_json_tool_calls(line))
-				elif line.startswith('{') and line.endswith('}'):
-					tool_calls.extend(parse_json_tool_calls(line))
-				else:
-					reasoning.append(line)
-			if tool_calls:
-				msg['content'] = '\n'.join(reasoning).strip()
-				msg['tool_calls'] = tool_calls
+		# if content and not msg.get('tool_calls'):
 				# msg.model_extra['reasoning_content'] = '\n'.join(reasoning).strip()
 		return resp
 
@@ -487,19 +481,26 @@ class vllm_Client(OpenaiClientBase):
 		if self._tokenizer is None:
 			return super()._send(data)
 
-		if 'messages' in data:
-			chat = data['messages']
+		tools, docs = data.pop('tools', None), data.pop('documents', None)
+		chat = data.pop('messages', None)
+		if chat is not None:
 
-			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=data.pop('tools', None),
-														 documents=data.pop('documents', None),
+			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=tools, documents=docs,
 														 add_generation_prompt=self._add_generation_prompt,
 														 continue_final_message=self._continue_final_message,
 														 chat_template=self._chat_template)
 
-			del data['messages']
 			data['prompt'] = prompt
 
-		return self.endpoint.completions.create(**data).model_dump()
+		resp = self.endpoint.completions.create(**data).model_dump()
+
+		if tools is not None:
+			data['tools'] = tools
+		if docs is not None:
+			data['documents'] = docs
+		if chat is not None:
+			data['messages'] = chat
+		return resp
 
 	_default_chat_template = '{root}/tools-{tool_style}/{model_name}.jinja'
 	def prepare(self) -> Self:
@@ -528,7 +529,7 @@ class vllm_Client(OpenaiClientBase):
 			if self._chat_template is None and chat_template_path is not None:
 				path = chat_template_path
 				root = repo_root().joinpath('assets', 'chat-template')
-				path = Path(pformat(path, root=root, model_name=self._model_name, tool_style=self._tool_style))
+				path = Path(pformat(path, root=root, model_name=self.ident, tool_style=self._tool_style))
 				if not path.exists():
 					if self._chat_template_path is not None:
 						raise FileNotFoundError(f'Chat template not found: {path}')
@@ -702,8 +703,6 @@ class Logged(ClientBase):
 			resp_data = resp.json()
 			path.write_text(resp_data, encoding='utf-8')
 		return super()._record_response(data, resp)
-
-
 
 
 

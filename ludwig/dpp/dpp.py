@@ -1,5 +1,5 @@
 from .imports import *
-from ..util import PromptTemplate, PythonParser, AbstractParser, AbstractSearch, hash_str
+from ..util import PromptTemplate, PythonParser, AbstractCoder, AbstractSearch, hash_str
 from ..util.search import GenericSearch
 from ..errors import ExceededRetriesError
 
@@ -9,7 +9,7 @@ class DirectPromptingPlusParse(ClientStrategy):
 	"""
 	Direct prompting strategy.
 	"""
-	def __init__(self, *, parser: AbstractParser = None, searcher: Optional[AbstractSearch] = None,
+	def __init__(self, *, parser: AbstractCoder = None, searcher: Optional[AbstractSearch] = None,
 				 expand_template: str = 'dpp/expand-fn', extract_template: str = 'dpp/extract-fn',
 				 representation_template: str = 'dpp/design-rep', select_template: Optional[str] = None,# 'dpp/select-fn',
 				 state_estimation_template: str = 'dpp/state-estimation', response_template: str = 'dpp/response',

@@ -1,220 +1,364 @@
 from .imports import *
+import uuid
 import ast
-import builtins
-from RestrictedPython import compile_restricted_exec, compile_restricted_eval
-from RestrictedPython import safe_globals
-from RestrictedPython.PrintCollector import PrintCollector
-from RestrictedPython.Guards import guarded_iter_unpack_sequence as _iter_unpack_sequence_
-from RestrictedPython.Guards import (
-    guarded_iter_unpack_sequence,
-    full_write_guard,
-)
-from RestrictedPython.Eval import (
-	default_guarded_getiter as _getiter,
-	default_guarded_getattr as _getattr,
-	default_guarded_getitem as _getitem,
-)
 
-import ast
-import io
-import contextlib
 
 
 class AbstractParser:
-	def prepare(self):
-		raise NotImplementedError
-
-	def parse(self, text: str) -> JSONDATA:
-		raise NotImplementedError
-
-	def realize(self, data: JSONDATA) -> Any:
-		raise NotImplementedError
-
-
-class UnsafeCodeError(Exception):
-	"""
-	Exception raised for unsafe code execution.
-	"""
-	def __init__(self, message: str):
-		super().__init__(message)
-		self.message = message
-
-	def __str__(self):
-		return f"UnsafeCodeError: {self.message}"
-
-
-
-@fig.component('python-parser')
-class PythonParser(AbstractParser):
-	"""
-	Parse Python code.
-	"""
-	def __init__(self, *, safe: bool = True, raise_errors: bool = False, **kwargs):
-		super().__init__(**kwargs)
-		self.safe = safe
-		self.safe_globals = None
-		self.raise_errors = raise_errors
-
-	def json(self) -> JSONOBJ:
-		return {
-			'safe': self.safe,
-			'raise_errors': self.raise_errors,
-		}
-
-	def prepare(self):
-
-		my_globals = dict(safe_globals)
-
-		# Add standard types
-		for name in ('list', 'dict', 'set', 'tuple', 'object', 'type', 'isinstance', 'callable'):
-			my_globals[name] = getattr(builtins, name)
-
-		# Add basic exceptions
-		for name in ('Exception', 'ValueError', 'KeyError', 'IndexError', 'TypeError', 'AttributeError', 'NameError'):
-			my_globals[name] = getattr(builtins, name)
-
-		# Add commonly used functions
-		for name in ('zip', 'map', 'filter', 'any', 'all', 'sorted', 'reversed', 'next', 'enumerate', 'len', 'range'):
-			my_globals[name] = getattr(builtins, name)
-
-		my_globals.update({
-			'_iter_unpack_sequence_': guarded_iter_unpack_sequence,
-			'_write_': full_write_guard,
-			'_getattr_': _getattr,
-			'_getiter_': _getiter,
-			'_getitem_': _getitem,
-			'_print_': PrintCollector,
-		})
-
-		self.safe_globals = my_globals
-
-	_DISALLOWED_NAMES = {
-		"exec", "eval", "compile", "open", "input", "os", "sys", "subprocess",
-		"__import__", "globals", "locals", "compile", "breakpoint", "exit", "quit"
-	}
-
-	def is_code_safe(self, code: str) -> Optional[str]:
-		try:
-			tree = ast.parse(code)
-			for node in ast.walk(tree):
-				if isinstance(node, ast.Call):
-					if isinstance(node.func, ast.Name) and node.func.id in self._DISALLOWED_NAMES:
-						return f"Disallowed function call: {node.func.id}"
-					if isinstance(node.func, ast.Attribute) and node.func.attr in self._DISALLOWED_NAMES:
-						return f"Disallowed attribute: {node.func.attr}"
-				elif isinstance(node, ast.Import):
-					for alias in node.names:
-						if alias.name.split('.')[0] in self._DISALLOWED_NAMES:
-							return f"Disallowed import: {alias.name}"
-				elif isinstance(node, ast.ImportFrom):
-					if node.module and node.module.split('.')[0] in self._DISALLOWED_NAMES:
-						return f"Disallowed import from: {node.module}"
-				elif isinstance(node, ast.Name):
-					if node.id in self._DISALLOWED_NAMES:
-						return f"Disallowed usage of: {node.id}"
-		except SyntaxError as e:
-			# raise self._UnsafeCodeError(f"Syntax error: {e}")
-			return f"Syntax error: {e}"
-
-	@staticmethod
-	def is_syntax_valid(code: str) -> Optional[str]:
-		try:
-			ast.parse(code)
-		except SyntaxError as e:
-			return str(e)
-
-	def realize(self, raw: Union[JSONOBJ, str], namespace: Dict[str, Any] = None) -> Dict[str, Any]:
+	def parse(self, text: str, context: JSONOBJ = None) -> JSONOBJ:
 		"""
-		Realize the parsed data into executable code.
+		Parse a text message into a structured format.
+		This method should be overridden by subclasses.
 		"""
-		safe_env = self.safe_globals.copy()
+		raise NotImplementedError("Subclasses must implement this method.")
 
-		local_vars: Dict[str, Any] = {}
-		if namespace is not None:
-			local_vars.update(namespace)
 
-		item = {}
-		if isinstance(raw, str):
-			item['code'] = raw
+def test_parse_message():
+	# example short response from qwen
+	response = ("<think>\nI will use the `get_current_weather` function to get the weather in Barcelona.\n"
+				"</think>\n\nThe current weather in Barcelona is sunny with a temperature of 25 degrees Celsius.")
+
+	parser = MessageParser()
+
+	parsed = parser.parse(response)
+	assert parsed['reasoning_content'] == "I will use the `get_current_weather` function to get the weather in Barcelona."
+	assert parsed['content'] == "The current weather in Barcelona is sunny with a temperature of 25 degrees Celsius."
+
+
+class MessageParser(AbstractParser):
+	def parse(self, text: str, data: JSONOBJ = None, resp: JSONOBJ = None, *, role: str = 'assistant') -> JSONOBJ:
+		context = data or {}
+		content = text.strip()
+		message = {'content': None, 'role': role, 'tool_calls': []}
+
+		# region extract reasoning content
+		match = re.search(r"(.*?)<think>(.*?)</think>(.*)", content, re.DOTALL)
+		if match:
+			# Group 1 contains the content inside the tags (reasoning)
+			reasoning = match.group(2).strip()
+
+			# Group 2 contains the content after the closing tag
+			content1 = match.group(1).strip()
+			content2 = match.group(3).strip()
+
+			# Combine the content before and after the reasoning
+			content = f"{content1}\n{content2}".strip()
+
+			message['reasoning_content'] = reasoning
+
+		# endregion
+
+		# region extract tool calls
+		tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+
+		# 1. Find all tool call blocks in the content
+		tool_call_blocks = re.findall(tool_call_pattern, content, re.DOTALL)
+
+		if tool_call_blocks:
+			all_parsed_calls = []
+			# 2. Iterate through each found block and parse its content
+			for block in tool_call_blocks:
+				lines = block.strip().splitlines()
+				for line in lines:
+					if line.startswith('[') and line.endswith(']'):
+						all_parsed_calls.extend(parse_pythonic_tool_calls(line))
+						all_parsed_calls.extend(parse_json_tool_calls(line))
+					elif line.startswith('{') and line.endswith('}'):
+						all_parsed_calls.extend(parse_json_tool_calls(line))
+
+			# 3. If any valid tool calls were parsed, update the message
+			if all_parsed_calls:
+				# Remove all tool call blocks from the original content string
+				content = re.sub(tool_call_pattern, "", content, flags=re.DOTALL).strip()
+				message['tool_calls'] = all_parsed_calls
+			else:
+				# No valid calls were parsed from the found blocks
+				raise ValueError(f"No valid tool calls found in content: {tool_call_blocks}")
+
 		else:
-			item.update(raw)
-		code = item["code"]
+			lines = content.splitlines()
+			clean_content = []
+			tool_calls = []
+			for line in lines:
+				if line.startswith('[') and line.endswith(']'):
+					tool_calls.extend(parse_pythonic_tool_calls(line))
+					try:
+						tool_calls.extend(parse_json_tool_calls(line))
+					except:
+						pass
+				elif line.startswith('{') and line.endswith('}'):
+					tool_calls.extend(parse_json_tool_calls(line))
+				else:
+					clean_content.append(line)
+			if tool_calls:
+				content = '\n'.join(clean_content).strip()
+				message['tool_calls'] = tool_calls
 
-		if 'unsafe' not in item:
-			item['unsafe'] = self.is_code_safe(code)
-		if self.safe and item.get('unsafe') is not None:
-			# print(f"⚠️ Unsafe code block skipped:\n{item['unsafe']}")
-			return item
+		# endregion
 
-		stdout = io.StringIO()
-		stderr = io.StringIO()
-		# safe_env['_print_'] = lambda *args: print(*args, file=stdout)
+		message['content'] = content.strip()
+		return message
 
+
+# def parse_pythonic_tool_calls(raw_string: str) -> List[ToolCall]:
+# 	"""
+# 	Parses a stringified list of tool calls into a list of OpenAI-compatible
+# 	ChatCompletionMessageToolCall Pydantic objects.
+#
+# 	Args:
+# 		raw_string: A string representing a Python list of function calls,
+# 					e.g., "[my_func(arg1='val1'), another_func(arg2=123)]"
+#
+# 	Returns:
+# 		A list of ToolCall Pydantic objects.
+# 	"""
+# 	try:
+# 		parsed_ast = ast.parse(raw_string, mode='eval')
+# 		if not isinstance(parsed_ast.body, ast.List):
+# 			raise ValueError("Input string must be a list of function calls.")
+# 	except (ValueError, SyntaxError) as e:
+# 		print(f"Error parsing the raw string: {e}")
+# 		return []
+#
+# 	tool_calls = []
+# 	for node in parsed_ast.body.elts:
+# 		call_node = None
+# 		if isinstance(node, ast.Call):
+# 			# Handles format 1: [func1(a=1), func2(b=2)]
+# 			call_node = node
+# 		elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+# 			# Handles format 2: ['func1(a=1)', 'func2(b=2)']
+# 			try:
+# 				# We need to parse the string content of the node
+# 				inner_expr = ast.parse(node.value, mode='eval')
+# 				if isinstance(inner_expr.body, ast.Call):
+# 					call_node = inner_expr.body
+# 			except (ValueError, SyntaxError):
+# 				# The string was not a valid function call, so we skip it
+# 				continue
+#
+#
+# 		if call_node is None:
+# 			raise ValueError(f"Invalid function call format: {node}")
+#
+# 		# 1. Extract function name and arguments
+# 		function_name = call_node.func.id
+# 		arguments_dict = {
+# 			keyword.arg: ast.literal_eval(keyword.value)
+# 			for keyword in call_node.keywords
+# 		}
+#
+# 		# 2. Create the Pydantic `Function` object
+# 		# The arguments must be a JSON string.
+# 		function_obj = Function(
+# 			name=function_name,
+# 			arguments=json.dumps(arguments_dict)
+# 		)
+#
+# 		# 3. Create the `ToolCall` Pydantic object
+# 		tool_call_obj = ToolCall(
+# 			id=f"call_{uuid.uuid4().hex}",
+# 			function=function_obj,
+# 			type='function',
+# 		)
+# 		tool_calls.append(tool_call_obj)
+#
+# 	return tool_calls
+
+# from pydantic import BaseModel
+#
+# class SimpleFunction(BaseModel):
+# 	name: str
+# 	arguments: Any # JSON string
+#
+# class SimpleToolCall(BaseModel):
+# 	function: SimpleFunction
+# 	type: str = 'function'
+# 	id: str
+
+def parse_json_tool_calls(raw_string: str) -> List[JSONOBJ]:
+	"""
+	Parses a string of semicolon-separated JSON tool calls into a list of
+	OpenAI-compatible ChatCompletionMessageToolCall Pydantic objects.
+
+	Each JSON object should have a "name" and "parameters" key.
+
+	Args:
+		raw_string: A string of semicolon-separated JSON objects.
+					e.g., '{"name": "func1", "parameters": {"a": 1}}; {"name": "func2", "parameters": {"b": 2}}'
+
+	Returns:
+		A list of ToolCall Pydantic objects.
+	"""
+	# Split the raw string by the semicolon to get individual JSON strings.
+	json_strings = [s.strip() for s in raw_string.split(';') if s.strip()]
+	if not json_strings:
+		return []
+
+	tool_calls = []
+	for json_str in json_strings:
 		try:
-			parsed = ast.parse(code)
-		except SyntaxError as e:
-			traceback.print_exc(file=stderr)
+			fulldata = json.loads(json_str)
 
-			item['error'] = e
-			if self.raise_errors:
-				raise UnsafeCodeError(str(e))
+		except json.JSONDecodeError:
+			print(f"Warning: Could not decode JSON for part: {json_str}")
+			continue
 		else:
-			body = parsed.body[:-1] if parsed.body else []
-			last = parsed.body[-1] if parsed.body else None
+			calls = [fulldata] if isinstance(fulldata, dict) else fulldata
+			for data in calls:
+				function_name = data.get("name")
+				# The input format uses "parameters", which we map to "arguments"
+				arguments_dict = data.get("parameters", data.get("arguments", {}))
 
-			# collect stdout and stderr in a buffer
-			with redirect_stdout(stdout), redirect_stderr(stderr):
-				try:
-					if body:
-						mod = ast.Module(body, type_ignores=[])
-						compiled, _errors, _used_names, _warnings = compile_restricted_exec(mod, filename='<exec>')
-						exec(compiled, safe_env, local_vars)
-						safe_env.update(local_vars)
+				if not function_name:
+					print(f"Warning: JSON object is missing 'name': {json_str}")
+					continue
 
-					if isinstance(last, ast.Expr):
-						expr_src = ast.unparse(last.value)
-						compiled_expr, _errors, _used_names, _warnings = compile_restricted_eval(
-							expr_src, filename='<eval>'
-						)
-						item['result'] = eval(compiled_expr, safe_env, local_vars)
-					elif last:
-						compiled_last, _errors, _used_names, _warnings = compile_restricted_exec(
-							ast.Module([last], type_ignores=[]), filename='<exec>'
-						)
-						exec(compiled_last, safe_env, local_vars)
-				except Exception as e:
-					# print full error with traceback
-					traceback.print_exc(file=stderr)
-					if self.raise_errors:
-						raise UnsafeCodeError(str(e))
-					item['error'] = e
+				function_obj = dict(name=function_name, arguments=json.dumps(arguments_dict))
+				tool_call_obj = dict(id=f"call_{uuid.uuid4().hex}", function=function_obj, type='function')
+				tool_calls.append(tool_call_obj)
 
-		if stdout.getvalue():
-			item['stdout'] = stdout.getvalue()
-		if stderr.getvalue():
-			item['stderr'] = stderr.getvalue()
-		if local_vars:
-			item['local_vars'] = local_vars
-		return item
+	return tool_calls
 
-	def parse(self, text: str) -> List[JSONOBJ]:
-		code_blocks = re.findall(r"```python(.*?)```", text, re.DOTALL)
 
-		if not code_blocks:
-			code_blocks = re.findall(r"```(.*?)```", text, re.DOTALL)
+# class SimpleTool(ToolBase):
 
-		items = []
-		for block in code_blocks:
-			item = {}
 
-			code = block.strip()
-			item['code'] = code
+def _parse_arguments(arg_string: str) -> Dict[str, Any]:
+	"""
+	Parses a string of Python-like keyword arguments into a dictionary using regex.
 
-			item['unsafe'] = self.is_code_safe(code)
+	This helper function is designed to be robust. It can handle:
+	- Strings in single or double quotes.
+	- Commas within quoted strings.
+	- Unquoted strings (which are treated as string literals).
+	- Other Python literals like numbers, booleans, and None.
+	"""
+	if not arg_string.strip():
+		return {}
 
-			items.append(item)
+	# This regex pattern finds all key-value argument pairs.
+	# Pattern Explanation:
+	# (\w+)\s*=\s* - Captures the argument name (key).
+	# (             - Starts a capturing group for the value.
+	#   '[^']*'    - Matches a single-quoted string.
+	#   |           - OR
+	#   "[^"]*"    - Matches a double-quoted string.
+	#   |           - OR
+	#   [^,]+       - Matches an unquoted value (anything not a comma).
+	# )             - Ends the value-capturing group.
+	# The order of alternatives is important: quoted strings are matched first.
+	arg_pattern = re.compile(r"(\w+)\s*=\s*('[^']*'|\"[^\"]*\"|[^,]+)")
 
-		return items
+	args_dict = {}
+	for key, value_str in arg_pattern.findall(arg_string):
+		value_str = value_str.strip()
+		try:
+			# ast.literal_eval safely evaluates string literals of Python types.
+			value = ast.literal_eval(value_str)
+		except (ValueError, SyntaxError):
+			# If literal_eval fails, it's likely an unquoted string
+			# (e.g., `name=Alice` instead of `name='Alice'`).
+			# In this case, we simply treat it as a string.
+			value = value_str
+
+		args_dict[key] = value
+
+	return args_dict
+
+
+# --- Main Parsing Function ---
+
+def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
+	"""
+	Parses a string of tool calls into a list of ToolCall objects using regex.
+
+	This version is more tolerant of minor syntactic errors (like missing commas
+	between calls or unquoted string values) than a strict `ast.parse` approach.
+	It can also handle inputs that are string-encoded lists of calls, even
+	when nested inside other strings (e.g., ""['call1']"").
+
+	Args:
+	   raw_string: A string representing Python function calls.
+				e.g., "[my_func(arg1='val1') another_func(arg2=123)]"
+				or "['my_func(arg1=\\'val1\\')', 'another_func(arg2=123)']"
+				or "\"['get_current_weather(city=Barcelona)']\""
+
+	Returns:
+	   A list of ToolCall Pydantic objects.
+	"""
+	# --- Pre-processing to unwrap nested string representations ---
+	content = raw_string
+	# Repeatedly use literal_eval to "peel" layers of string quoting.
+	# For example, from ""['call1']"" -> "['call1']" -> ['call1']
+	while isinstance(content, str):
+		try:
+			content = ast.literal_eval(content)
+		except (ValueError, SyntaxError):
+			# If it's no longer a valid literal, we've unwrapped as far as we can.
+			break
+
+	# --- Prepare list of strings to search for function calls ---
+	if isinstance(content, list):
+		# If we successfully evaluated to a list, use its contents.
+		strings_to_search = content
+	elif isinstance(content, str):
+		# If we ended up with a string, search within that string.
+		strings_to_search = [content]
+	else:
+		# If the input is some other unsupported type, we can't process it.
+		return []
+
+	# This regex finds all occurrences of the pattern: function_name(...)
+	# It captures the function name and the raw string of arguments inside
+	# the parentheses.
+	call_pattern = re.compile(r"(\w+)\s*\(([^)]*)\)")
+
+	tool_calls = []
+	for text_block in strings_to_search:
+		if not isinstance(text_block, str):
+			# This handles cases where a list might contain non-string items.
+			continue
+
+		for match in call_pattern.finditer(text_block):
+			function_name, arg_string = match.groups()
+
+			try:
+				# Use the helper to parse the extracted argument string
+				arguments_dict = _parse_arguments(arg_string)
+
+				# Create the Pydantic Function object, serializing args to JSON
+				# function_obj = Function(
+				# 	name=function_name,
+				# 	arguments=json.dumps(arguments_dict)
+				# )
+				# # Create the final ToolCall object
+				# tool_call_obj = ToolCall(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
+				#
+				function_obj = dict(
+					name = function_name,
+					# arguments = json.dumps(arguments_dict)
+					arguments = arguments_dict
+				)
+				tool_call_obj = dict(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
+
+				tool_calls.append(tool_call_obj)
+
+			except Exception as e:
+				# If parsing a specific call fails, print an error and skip it
+				# to avoid failing the entire process.
+				print(f"Could not parse call for function '{function_name}': {e}")
+				continue
+
+	return tool_calls
+
+
+
+
+
+
+
+
 
 
 

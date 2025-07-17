@@ -4,7 +4,7 @@ from .imports import *
 from .files import repo_root
 from .clients import vllm_Client, OpenaiAzure_Client, Openai_Client, Tool_Client
 from .search import GenericSearch
-from .parsers import PythonParser
+from .coding import PythonParser
 from .tools import ToolBase, ToolError
 
 
@@ -294,6 +294,39 @@ f(10)
 
 	print()
 	print(item)
+
+
+from .parsers import parse_pythonic_tool_calls, parse_json_tool_calls
+
+def test_tool_parsing():
+	"""
+	Test the tool parsing functionality with various input formats.
+	"""
+	# test_cases = [
+	# 	"[my_func(arg1='val1', arg2=2), another_func(arg3='val3')]",
+	# 	"['my_func(arg1=\\'val1\\')', 'another_func(arg2=123)']",
+	# 	'"[get_current_weather(city=\\"Barcelona\\", country=\\"ESP\\")]"',
+	# 	"['get_current_weather(city=Barcelona, country=ESP, unit=celsius)']",
+	# ]
+	# print()
+	# for case in test_cases:
+	# 	print(f"Testing case: {case}")
+	# 	calls = parse_pythonic_tool_calls(case)
+	# 	for call in calls:
+	# 		print(f"Parsed call: {call}")
+	# 	print()
+
+	test_cases = [
+		'{"name": "get_current_weather", "arguments": {"city": "Dallas", "country": "USA", "unit": "celsius"}}',
+	]
+
+	print()
+	for case in test_cases:
+		print(f"Testing case: {case}")
+		calls = parse_json_tool_calls(case)
+		for call in calls:
+			print(f"Parsed call: {call}")
+		print()
 
 
 

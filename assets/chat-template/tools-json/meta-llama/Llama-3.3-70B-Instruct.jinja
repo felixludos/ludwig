@@ -54,7 +54,7 @@
     {{- '<|start_header_id|>user<|end_header_id|>\n\n' -}}
     {{- "Given the following functions, please respond with a JSON for a function call " }}
     {{- "with its proper arguments that best answers the given prompt.\n\n" }}
-    {{- 'Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}.' }}
+    {{- 'Respond in the format {"name": function name, "parameters": dictionary of argument name and its value}. ' }}
     {{- "Do not use variables.\n\n" }}
     {%- for t in tools %}
         {{- t | tojson(indent=4) }}
