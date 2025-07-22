@@ -41,12 +41,9 @@
         {{ first_user_prefix }}
         {#- Append system message with tool information if using tools in message request. -#}
         {%- if tools is not none -%}
-            {{- "Tools (functions) are available. If you decide to invoke one or more of the tools, you must respond with a python list of the function calls.\n" -}}
-            {{- "Example Format: [func_name1(params_name1=params_value1, params_name2=params_value2...), func_name2(params)] \n" -}}
-            {{- "Do not use variables. DO NOT USE MARKDOWN SYNTAX. You SHOULD NOT include any other text in the response if you call a function. If none of the functions can be used, point it out. If you lack the parameters required by the function, also point it out.\n" -}}
-            {{- "Here is a list of functions in JSON format that you can invoke.\n" -}}
-            {{- tools | tojson(indent=4) -}}
-            {{- "\n\n" -}}
+            {{- "You have access to functions. If you decide to invoke any of the function(s), you MUST put it in the format of\n[func_name1(params_name1=params_value1, params_name2=params_value2, ...), func_name2(params)]\n\nYou SHOULD NOT include any other text in the response if you call a function\n" -}}
+            {{- tools | tojson(indent=2) -}}
+            {{- "\n" -}}
         {%- endif -%}
     {%- endif -%}
 
@@ -86,6 +83,9 @@
         {%- endfor -%}
         {#- Closing bracket for tool call list. -#}
         {{- ']' -}}
+        {%- if 'content' in message -%}
+            {{- "\n" -}}
+        {%- endif -%}
     {%- endif -%}
 
     {#- Tool response start tag (for messages from a tool) -#}

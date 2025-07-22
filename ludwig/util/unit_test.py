@@ -3,6 +3,7 @@ import random
 from .imports import *
 from .files import repo_root
 from .clients import vllm_Client, OpenaiAzure_Client, Openai_Client, Tool_Client
+from .prompts import ChatTemplate
 from .search import GenericSearch
 from .coding import PythonParser
 from .tools import ToolBase, ToolError
@@ -98,7 +99,7 @@ def test_tool():
 	class Client(Tool_Client, vllm_Client):
 		pass
 
-	addr = '8001'
+	addr = '8005'
 	client = Client(addr=addr, tools=[GetWeather()])
 	client.prepare()
 
@@ -298,26 +299,31 @@ f(10)
 
 from .parsers import parse_pythonic_tool_calls, parse_json_tool_calls
 
-def test_tool_parsing():
+def test_pythonic_tool_parsing():
 	"""
 	Test the tool parsing functionality with various input formats.
 	"""
-	# test_cases = [
-	# 	"[my_func(arg1='val1', arg2=2), another_func(arg3='val3')]",
-	# 	"['my_func(arg1=\\'val1\\')', 'another_func(arg2=123)']",
-	# 	'"[get_current_weather(city=\\"Barcelona\\", country=\\"ESP\\")]"',
-	# 	"['get_current_weather(city=Barcelona, country=ESP, unit=celsius)']",
-	# ]
-	# print()
-	# for case in test_cases:
-	# 	print(f"Testing case: {case}")
-	# 	calls = parse_pythonic_tool_calls(case)
-	# 	for call in calls:
-	# 		print(f"Parsed call: {call}")
-	# 	print()
+	test_cases = [
+		"[my_func(arg1='val1', arg2=2), another_func(arg3='val3')]",
+		"['my_func(arg1=\\'val1\\')', 'another_func(arg2=123)']",
+		'"[get_current_weather(city=\\"Barcelona\\", country=\\"ESP\\")]"',
+		"['get_current_weather(city=Barcelona, country=ESP, unit=celsius)']",
+		'''[state_value(state=[["X", "O", " "], [" ", " ", " "], ["O", " ", "X"]], current_player="O"), next_moves(state=[["X", "O", " "], [" ", " ", " "], ["O", " ", "X"]], current_player="O")]''',
+	]
+	print()
+	for case in test_cases:
+		print(f"Testing case: {case}")
+		calls = parse_pythonic_tool_calls(case)
+		for call in calls:
+			print(f"Parsed call: {call}")
+		print()
 
+
+
+def test_json_tool_parsing():
 	test_cases = [
 		'{"name": "get_current_weather", "arguments": {"city": "Dallas", "country": "USA", "unit": "celsius"}}',
+		'''<tool_calls>[{"name": "get_current_weather", "arguments": {"city": "Dallas", "country": "USA"}}]</tool_calls>'''
 	]
 
 	print()
@@ -329,6 +335,28 @@ def test_tool_parsing():
 		print()
 
 
+def test_chat_template():
+	model_name = 'google/gemma-3-27b-it'
+
+	tool_style = 'pythonic'  # or 'json'
+	path = '{root}/tools-{tool_style}/{model_name}.jinja'
+	path = Path(pformat(path, root=repo_root(), model_name=model_name, tool_style=tool_style))
+
+	assert path is None or path.exists(), str(path)
+	chat_template = None if path is None else path.read_text()
+
+	from transformers import AutoTokenizer
+	tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+	kwargs = {
+		'tools': [],
+		'add_generation_prompt': True,
+		'continue_final_message': False,
+	}
+
+	# kwargs['tools'] = [{'type': 'function', 'function': {'name': 'state_value', 'description': 'Evaluate the state of the tic-tac-toe board. Where, assuming best play, 1 means "X" can win (or has won), -1 means "O" can win (or has won), and 0 means the game will result in a draw (or it is a draw already).', 'parameters': {'type': 'object', 'properties': {'state': {'type': 'array', 'description': 'The state of the tic-tac-toe board, represented as a list of 3 lists each corresponding to a row of the board from top to bottom. ', 'items': {'type': 'array', 'description': 'A row of the tic-tac-toe board with 3 cells corresponding to the columns.', 'items': {'type': 'string', 'description': "The value of the cell, either 'X', 'O', or ' ' (empty).", 'enum': ['X', 'O', ' ']}}}, 'current_player': {'type': 'string', 'description': "The current player, either 'X' or 'O'.", 'enum': ['X', 'O']}}, 'required': ['state', 'current_player']}}}, {'type': 'function', 'function': {'name': 'next_moves', 'description': 'Get all possible next moves for the given tic-tac-toe board state.Returns an empty list if the game is over.', 'parameters': {'type': 'object', 'properties': {'state': {'type': 'array', 'description': 'The state of the tic-tac-toe board, represented as a list of 3 lists each corresponding to a row of the board from top to bottom. ', 'items': {'type': 'array', 'description': 'A row of the tic-tac-toe board with 3 cells corresponding to the columns.', 'items': {'type': 'string', 'description': "The value of the cell, either 'X', 'O', or ' ' (empty).", 'enum': ['X', 'O', ' ']}}}, 'current_player': {'type': 'string', 'description': "The current player, either 'X' or 'O'.", 'enum': ['X', 'O']}}, 'required': ['state', 'current_player']}}}, {'type': 'function', 'function': {'name': 'best_next_move', 'description': 'All the best next moves for the given tic-tac-toe board state.Returns an empty list if the game is over.', 'parameters': {'type': 'object', 'properties': {'state': {'type': 'array', 'description': 'The state of the tic-tac-toe board, represented as a list of 3 lists each corresponding to a row of the board from top to bottom. ', 'items': {'type': 'array', 'description': 'A row of the tic-tac-toe board with 3 cells corresponding to the columns.', 'items': {'type': 'string', 'description': "The value of the cell, either 'X', 'O', or ' ' (empty).", 'enum': ['X', 'O', ' ']}}}, 'current_player': {'type': 'string', 'description': "The current player, either 'X' or 'O'.", 'enum': ['X', 'O']}}, 'required': ['state', 'current_player']}}}]
+
+	result = tokenizer.apply_chat_template()
 
 
 

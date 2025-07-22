@@ -16,7 +16,7 @@ RESPONSE = JSONOBJ
 
 class ClientBase(fig.Configurable, AbstractClient):
 	def __init__(self, raise_length_limit: bool = True, system_message: str = None,
-				 message_parser: AbstractParser = None, **kwargs):
+				 message_parser: AbstractParser = None, debug_log: bool = True, **kwargs):
 		if message_parser is None:
 			message_parser = MessageParser()
 		super().__init__(**kwargs)
@@ -26,6 +26,10 @@ class ClientBase(fig.Configurable, AbstractClient):
 		self.history = None
 		self._last_response = None
 		self._message_parser = message_parser
+		self._debug_log = debug_log
+		if self._debug_log:
+			path = repo_root()/ 'client_debug_log.txt'
+			with path.open('w') as f: f.write('')
 
 	@property
 	def model_name(self) -> str: # fallback
@@ -165,6 +169,27 @@ class ClientBase(fig.Configurable, AbstractClient):
 		# if msg.content and not msg.tool_calls:
 		# if content and not msg.get('tool_calls'):
 				# msg.model_extra['reasoning_content'] = '\n'.join(reasoning).strip()
+
+		if self._debug_log:
+			path = repo_root()/ 'client_debug_log.txt'
+			with path.open('a', encoding='utf-8') as f:
+				N = 80
+				if 'prompt' in data:
+					f.write(data['prompt'] + '\n')
+				if 'text' in resp['choices'][0]:
+					# f.write('*'*N + '\n')
+					f.write(f'*** {self.ident} ' + '*'*max(0,N-len(self.ident)-5) + '\n')
+					# f.write('*'*N + '\n')
+					f.write(resp['choices'][0]['text'] + '\n')
+					if 'tool_calls' in msg and len(msg['tool_calls']):
+						data = msg["tool_calls"]
+						# payload = yaml.dump(data, default_flow_style=None, sort_keys=False)
+						# payload = json.dumps(msg["tool_calls"], indent=2)
+						payload = '\n'.join(json.dumps(tc) for tc in data)
+						f.write(f'| Tool calls ({len(data)}): \n| {payload.replace("\n", "\n| ")}\n')
+				if 'prompt' in data or 'text' in resp['choices'][0]:
+					f.write(('*'*N + '\n')*2)
+
 		return resp
 
 	def _send(self, data: JSONOBJ) -> openai.ChatCompletion:
@@ -336,6 +361,7 @@ class OpenaiClientBase(ClientBase):
 		return summary
 
 	def count_tokens(self, message: Union[str, List[Dict[str, str]]]) -> int:
+		return 0 # because of mistral
 		if self._tokenizer is None:
 			return 0
 		if isinstance(message, str):
@@ -398,7 +424,7 @@ class OpenaiClientBase(ClientBase):
 
 	def _record_response(self, data: JSONOBJ, resp: RESPONSE):
 		N_inp = resp['usage'].get('prompt_tokens', 0)
-		N_out = resp['usage'].get('output_tokens', 0)
+		N_out = resp['usage'].get('completion_tokens', 0)
 		stats = {
 			'input_tokens': N_inp,
 			'output_tokens': N_out,
@@ -444,7 +470,7 @@ class vllm_Client(OpenaiClientBase):
 		info['addr'] = str(self.endpoint.base_url)
 		info['add_generation_prompt'] = self._add_generation_prompt
 		info['continue_final_message'] = self._continue_final_message
-		info['chat_template_path'] = self._chat_template_path
+		info['chat_template_path'] = None if self._chat_template_path is None else str(self._chat_template_path)
 		if self._chat_template_path is None and self._chat_template is not None:
 			info['chat_template'] = self._chat_template
 		if self._chat_template_path is not None:
@@ -482,6 +508,7 @@ class vllm_Client(OpenaiClientBase):
 			return super()._send(data)
 
 		tools, docs = data.pop('tools', None), data.pop('documents', None)
+		data.pop('tool_choice', None)
 		chat = data.pop('messages', None)
 		if chat is not None:
 
@@ -502,6 +529,27 @@ class vllm_Client(OpenaiClientBase):
 			data['messages'] = chat
 		return resp
 
+	def _build_tokenizer(self, model_name: str, *, trust_remote_code: bool = True, **kwargs) -> 'AutoTokenizer':
+		"""
+		Builds a tokenizer for the specified model.
+		:param model_name: The name of the model to build the tokenizer for.
+		:param trust_remote_code: Whether to trust remote code when loading the tokenizer.
+		:return: An instance of AutoTokenizer.
+		"""
+		name = model_name.lower()
+
+		if 'mistral' in name:
+			from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
+			tokenizer = MistralTokenizer.from_hf_hub(model_name)
+			return tokenizer
+
+		from transformers import AutoTokenizer
+		if ('phi' in name and 'microsoft' in model_name) \
+			or ('tencent' in name and 'hunyuan' in model_name):
+			return AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, **kwargs)
+
+		return AutoTokenizer.from_pretrained(model_name, **kwargs)
+
 	_default_chat_template = '{root}/tools-{tool_style}/{model_name}.jinja'
 	def prepare(self) -> Self:
 		super().prepare()
@@ -516,13 +564,13 @@ class vllm_Client(OpenaiClientBase):
 			if self._use_chat:
 				self._tokenizer = None
 			else:
-				from transformers import AutoTokenizer
-				self._tokenizer = AutoTokenizer.from_pretrained(self.ident)
+				self._tokenizer = self._build_tokenizer(self.ident)
 		except:
 			if not self._use_chat:
 				raise
 			self._tokenizer = None
 		else:
+			# self._tokenizer.jinja_env.filters['fromjson'] = json.loads
 			chat_template_path = self._chat_template_path
 			if not self._use_chat and self._chat_template is None and self._chat_template_path is None:
 				chat_template_path = self._default_chat_template

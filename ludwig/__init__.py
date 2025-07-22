@@ -6,4 +6,5 @@ from . import evaluation
 from . import dpp
 from . import servers
 from .tictactoe import *
+from .util import repo_root
 # from . import recsys

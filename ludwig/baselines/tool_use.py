@@ -59,24 +59,24 @@ class ToolUse(DirectPrompting):
 		chat = self.client.begin_chat(prompt)
 		msg = None
 		for resp in self.client.multi_turn(chat, dict(tools=tool_schemas, tool_choice='none')):
-			msg = resp.choices[0].message
-			if msg.tool_calls:
-				for tool_call in msg.tool_calls:
-					info = tool_call.function
-					assert info.name in self.tools, f'Tool {info.name} not registered'
-					tool = self.tools[info.name]
-					arguments = json.loads(info.arguments)
+			msg = resp['choices'][0]['message']
+			if msg.get('tool_calls'):
+				for tool_call in msg.get('tool_calls'):
+					info = tool_call['function']
+					assert info['name'] in self.tools, f'Tool {info["name"]} not registered'
+					tool = self.tools[info['name']]
+					arguments = json.loads(info['arguments']) if isinstance(info['arguments'], str) else info['arguments']
 					try:
 						result = tool.call(arguments)
 					except ToolError as e:
 						result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
-					chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call.id, })#'name': info.name})
-					tool_calls.append({'name': info.name,
+					chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call['id'], })#'name': info.name})
+					tool_calls.append({'name': info['name'],
 									   'arguments': str(arguments),
 									   'result': str(result),
 									   })
 
-			elif msg.content is None:
+			elif msg['content'] is None:
 				raise StrategyFailure('No response from model (and no tool calls)')
 			else:
 				break
@@ -90,6 +90,6 @@ class ToolUse(DirectPrompting):
 				self._tool_stats[name] = 0
 			self._tool_stats[name] += 1
 
-		response = msg.content
+		response = msg['content']
 
-		return response, {'prompt': prompt, 'tool_calls': tool_calls}
+		return response, {'prompt': prompt, 'tool_calls': tool_calls, 'chat': chat}

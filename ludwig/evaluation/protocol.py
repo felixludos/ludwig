@@ -257,6 +257,7 @@ class DefaultProtocol(ProtocolBase):
 		sample['failed'] = failed
 		sample.update(self._default_stats())
 		return sample
+		return sample
 
 	def _default_stats(self) -> JSONFLAT:
 		stats = {}

@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+client_debug_log.txt
 
 requests/
 .vscode/

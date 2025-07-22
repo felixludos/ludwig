@@ -5,3 +5,4 @@ tools:
   - _type: ttt/tool/value
   - _type: ttt/tool/next
 
+  - _type: ttt/tool/best

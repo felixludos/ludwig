@@ -49,7 +49,9 @@ class MessageParser(AbstractParser):
 		# endregion
 
 		# region extract tool calls
-		tool_call_pattern = r"<tool_call>(.*?)</tool_call>"
+		tool_call_pattern = r"<(tool_calls?)>(.*?)</\1>"
+		# combined pattern
+
 
 		# 1. Find all tool call blocks in the content
 		tool_call_blocks = re.findall(tool_call_pattern, content, re.DOTALL)
@@ -57,7 +59,7 @@ class MessageParser(AbstractParser):
 		if tool_call_blocks:
 			all_parsed_calls = []
 			# 2. Iterate through each found block and parse its content
-			for block in tool_call_blocks:
+			for tag, block in tool_call_blocks:
 				lines = block.strip().splitlines()
 				for line in lines:
 					if line.startswith('[') and line.endswith(']'):
@@ -96,6 +98,17 @@ class MessageParser(AbstractParser):
 
 		# endregion
 
+		# filter out <answer> tags, setting the content to `content`
+		if '<answer>' in content or '</answer>' in content:
+			answer_pattern = r"<answer>(.*?)</answer>"
+			answer_match = re.search(answer_pattern, content, re.DOTALL)
+			if answer_match:
+				# Extract the content inside the <answer> tags
+				answer_content = answer_match.group(1).strip()
+				# Remove the <answer> tags from the content
+				content = answer_content
+			else:
+				raise ValueError("No valid <answer> tags found in content.")
 		message['content'] = content.strip()
 		return message
 
@@ -201,7 +214,7 @@ def parse_json_tool_calls(raw_string: str) -> List[JSONOBJ]:
 			fulldata = json.loads(json_str)
 
 		except json.JSONDecodeError:
-			print(f"Warning: Could not decode JSON for part: {json_str}")
+			# print(f"Warning: Could not decode JSON for part: {json_str}")
 			continue
 		else:
 			calls = [fulldata] if isinstance(fulldata, dict) else fulldata
@@ -221,138 +234,90 @@ def parse_json_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	return tool_calls
 
 
-# class SimpleTool(ToolBase):
-
-
 def _parse_arguments(arg_string: str) -> Dict[str, Any]:
-	"""
-	Parses a string of Python-like keyword arguments into a dictionary using regex.
+    """
+    Parses a string of Python keyword arguments into a dictionary using AST.
+    This version handles both quoted literals (e.g., 'val') and unquoted
+    name-like values (e.g., city=Barcelona), treating the latter as strings.
+    """
+    if not arg_string.strip():
+        return {}
+    try:
+        # Wrap arguments in a dummy function call to parse them
+        call_node = ast.parse(f"dummy({arg_string})", mode='eval').body
+        args = {}
+        for kw in call_node.keywords:
+            arg_name = kw.arg
+            arg_value_node = kw.value
+            # If the value is an ast.Name, it's an unquoted value like 'Barcelona'.
+            # We will treat its ID ('Barcelona') as a string.
+            if isinstance(arg_value_node, ast.Name):
+                args[arg_name] = arg_value_node.id
+            # For all other literal types (strings, numbers, lists, dicts, etc.),
+            # ast.literal_eval is the safe way to get the Python object.
+            else:
+                args[arg_name] = ast.literal_eval(arg_value_node)
+        return args
+    except (SyntaxError, ValueError) as e:
+        print(f"Could not parse arguments using AST: '{arg_string}'. Error: {e}")
+        return {}
 
-	This helper function is designed to be robust. It can handle:
-	- Strings in single or double quotes.
-	- Commas within quoted strings.
-	- Unquoted strings (which are treated as string literals).
-	- Other Python literals like numbers, booleans, and None.
-	"""
-	if not arg_string.strip():
-		return {}
-
-	# This regex pattern finds all key-value argument pairs.
-	# Pattern Explanation:
-	# (\w+)\s*=\s* - Captures the argument name (key).
-	# (             - Starts a capturing group for the value.
-	#   '[^']*'    - Matches a single-quoted string.
-	#   |           - OR
-	#   "[^"]*"    - Matches a double-quoted string.
-	#   |           - OR
-	#   [^,]+       - Matches an unquoted value (anything not a comma).
-	# )             - Ends the value-capturing group.
-	# The order of alternatives is important: quoted strings are matched first.
-	arg_pattern = re.compile(r"(\w+)\s*=\s*('[^']*'|\"[^\"]*\"|[^,]+)")
-
-	args_dict = {}
-	for key, value_str in arg_pattern.findall(arg_string):
-		value_str = value_str.strip()
-		try:
-			# ast.literal_eval safely evaluates string literals of Python types.
-			value = ast.literal_eval(value_str)
-		except (ValueError, SyntaxError):
-			# If literal_eval fails, it's likely an unquoted string
-			# (e.g., `name=Alice` instead of `name='Alice'`).
-			# In this case, we simply treat it as a string.
-			value = value_str
-
-		args_dict[key] = value
-
-	return args_dict
-
-
-# --- Main Parsing Function ---
 
 def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	"""
 	Parses a string of tool calls into a list of ToolCall objects using regex.
 
-	This version is more tolerant of minor syntactic errors (like missing commas
-	between calls or unquoted string values) than a strict `ast.parse` approach.
-	It can also handle inputs that are string-encoded lists of calls, even
-	when nested inside other strings (e.g., ""['call1']"").
-
 	Args:
 	   raw_string: A string representing Python function calls.
-				e.g., "[my_func(arg1='val1') another_func(arg2=123)]"
-				or "['my_func(arg1=\\'val1\\')', 'another_func(arg2=123)']"
-				or "\"['get_current_weather(city=Barcelona)']\""
 
 	Returns:
-	   A list of ToolCall Pydantic objects.
+	   A list of ToolCall-like dictionary objects.
 	"""
 	# --- Pre-processing to unwrap nested string representations ---
 	content = raw_string
-	# Repeatedly use literal_eval to "peel" layers of string quoting.
-	# For example, from ""['call1']"" -> "['call1']" -> ['call1']
 	while isinstance(content, str):
 		try:
 			content = ast.literal_eval(content)
 		except (ValueError, SyntaxError):
-			# If it's no longer a valid literal, we've unwrapped as far as we can.
 			break
 
 	# --- Prepare list of strings to search for function calls ---
 	if isinstance(content, list):
-		# If we successfully evaluated to a list, use its contents.
 		strings_to_search = content
 	elif isinstance(content, str):
-		# If we ended up with a string, search within that string.
 		strings_to_search = [content]
 	else:
-		# If the input is some other unsupported type, we can't process it.
 		return []
 
-	# This regex finds all occurrences of the pattern: function_name(...)
-	# It captures the function name and the raw string of arguments inside
-	# the parentheses.
+	# This regex correctly finds each function call.
 	call_pattern = re.compile(r"(\w+)\s*\(([^)]*)\)")
 
 	tool_calls = []
 	for text_block in strings_to_search:
 		if not isinstance(text_block, str):
-			# This handles cases where a list might contain non-string items.
 			continue
 
 		for match in call_pattern.finditer(text_block):
 			function_name, arg_string = match.groups()
-
 			try:
-				# Use the helper to parse the extracted argument string
+				# This is the fix: Use the robust AST-based parser.
 				arguments_dict = _parse_arguments(arg_string)
 
-				# Create the Pydantic Function object, serializing args to JSON
-				# function_obj = Function(
-				# 	name=function_name,
-				# 	arguments=json.dumps(arguments_dict)
-				# )
-				# # Create the final ToolCall object
-				# tool_call_obj = ToolCall(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
-				#
-				function_obj = dict(
-					name = function_name,
-					# arguments = json.dumps(arguments_dict)
-					arguments = arguments_dict
-				)
-				tool_call_obj = dict(function=function_obj, type='function', id=f"call_{uuid.uuid4().hex}")
-
+				function_obj = {
+					"name": function_name,
+					"arguments": arguments_dict
+				}
+				tool_call_obj = {
+					"function": function_obj,
+					"type": 'function',
+					"id": f"call_{uuid.uuid4().hex}"
+				}
 				tool_calls.append(tool_call_obj)
-
 			except Exception as e:
-				# If parsing a specific call fails, print an error and skip it
-				# to avoid failing the entire process.
-				print(f"Could not parse call for function '{function_name}': {e}")
+				print(f"Could not process call for function '{function_name}': {e}")
 				continue
 
 	return tool_calls
-
-
 
 
 

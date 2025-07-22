@@ -166,7 +166,8 @@ class FormatJudge(JudgeBase):
 
 		match = self._find_last(pattern, response.strip())
 		if match:
-			decision = match.group(1).lower().strip()
+			decision = match
+			# decision = match.group(1).lower().strip()
 			self._successes += 1
 			return decision, None
 
