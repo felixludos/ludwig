@@ -1,5 +1,8 @@
 from ..imports import *
+from ..util import repo_root
 from tabulate import tabulate
+
+_ttt_data = json.load(repo_root().joinpath('assets', 'ttt', 'minimax.json').open('r'))
 
 def to_nested(board: str) -> List[List[str]]:
 	"""
@@ -25,4 +28,95 @@ def view_ttt(board: str, style: str = 'grid') -> str:
 	else:
 		raise ValueError(f'Invalid style: {style}. Supported styles are: minimal, compact, grid.')
 
+def invert_board(state: str) -> str:
+	return state.replace('X', '_').replace('O', 'X').replace('_', 'O')
+
+def is_standardized(state: str, current_player: str = 'X') -> bool:
+	return infer_starting_player(state, current_player) == 'X'
+
+def infer_starting_player(state: str, current_player: str = 'X') -> str:
+	return 'X' if ((state.count('X') == state.count('O') and current_player == 'X')
+								  or state.count('O') < state.count('X')) else 'O'
+
+def infer_current_player(state: str, starting_player: str = 'X') -> str:
+	if starting_player == 'O':
+		return 'O' if infer_current_player(state) == 'X' else 'X'
+	return 'X' if state.count('X') == state.count('O') else 'O'
+
+def validate_state(state: str, starting_player: str = 'X') -> Optional[str]:
+	if starting_player == 'O':
+		return validate_state(invert_board(state))
+
+	if len(state) != 9:
+		return 'Invalid state: incorrect format'
+
+	if not all(c in 'XO ' for c in state):
+		return 'Invalid state: must contain only X, O, or space characters.'
+
+	diff = state.count('X') - state.count('O')
+	if abs(diff) > 1:
+		return 'Invalid state: wrong number of Xs vs Os.'
+
+	current_player = infer_current_player(state)
+	if (current_player == starting_player) != (diff == 0):
+		return f'Invalid state: wrong number of Xs vs Os for current player {current_player}.'
+	if (current_player != starting_player
+			and state.count(current_player) > state.count(starting_player)):
+		return f'Invalid state: {current_player} cannot be the current player with this state.'
+
+	if state not in _ttt_data:
+		return 'Invalid state: game should\'ve ended already.'
+
+	return None
+
+
+def check_winner(state: str) -> Optional[str]:
+	lines = [
+		state[0:3], state[3:6], state[6:9],  # rows
+		state[0::3], state[1::3], state[2::3],  # columns
+		state[0::4], state[2:7:2]  # diagonals
+	]
+	for line in lines:
+		if line == 'XXX':
+			return 'X'
+		if line == 'OOO':
+			return 'O'
+	return None
+
+
+def generate_next_states(state: str, starting_player: str = 'X') -> Iterator[str]:
+	"""
+	Generate all possible next states from the current state.
+	"""
+	if starting_player == 'O':
+		yield from map(invert_board, generate_next_states(invert_board(state)))
+	elif check_winner(state) is None:
+		is_x_turn = state.count('X') == state.count('O')
+		for i in range(9):
+			if state[i] == ' ':
+				new_state = state[:i] + ('X' if is_x_turn else 'O') + state[i + 1:]
+				yield new_state
+
+
+def winning_moves(state: str, player: str = 'X') -> Iterator[int]:
+	if check_winner(state):
+		return
+	for i in range(9):
+		if state[i] == ' ':
+			new_state = state[:i] + player + state[i + 1:]
+			if check_winner(new_state) == player:
+				yield i
+
+def test_state_validation():
+	ttt_data = json.load(repo_root().joinpath('assets', 'ttt', 'minimax.json').open('r'))
+
+	from itertools import product
+	for state in (''.join(s) for s in product('XO ', repeat=9)):
+		error = validate_state(state, 'X') or validate_state(invert_board(state), 'O')
+		if not error and state not in ttt_data:
+			assert False, f'Invalid state raised no error: {state!r}'
+		if error and state in ttt_data:
+			assert False, (f'Valid state raised error: {state!r} '
+						   f'({validate_state(state, 'X')}) '
+						   f'({validate_state(invert_board(state), 'O')})')
 

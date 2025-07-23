@@ -22,15 +22,16 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
-#_base: [s/dp, ttt/take-the-middle, j/format, c/vllm]
-_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
+_base: [s/dp, ttt/take-the-middle, j/format, c/vllm]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
+#_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm]
 
 ##############
 use-chat-completion: no
 #tool-style: json
 
-#obs-rep: compact
-obs-rep: desc
+obs-rep: compact
+#obs-rep: desc
 
 limit: 10
 
@@ -47,7 +48,7 @@ broker-type: min-broker
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8003
+addr: 8004
 #client.addr: 8001
 #judge.addr: 8001
 

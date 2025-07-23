@@ -99,7 +99,7 @@ def test_tool():
 	class Client(Tool_Client, vllm_Client):
 		pass
 
-	addr = '8005'
+	addr = '8002'
 	client = Client(addr=addr, tools=[GetWeather()])
 	client.prepare()
 

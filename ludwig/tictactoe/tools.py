@@ -2,6 +2,7 @@ from ..imports import *
 from ..base import TaskBase
 from ..util import ToolBase, ToolError, repo_root
 import re
+from .helpers import *
 
 
 class TTT_Tool(ToolBase):
@@ -213,35 +214,6 @@ class NextMove(TTT_Tool):
 			}
 		}
 
-	@classmethod
-	def check_winner(cls, state: str) -> Optional[str]:
-		lines = [
-			state[0:3], state[3:6], state[6:9],  # rows
-			state[0::3], state[1::3], state[2::3],  # columns
-			state[0::4], state[2:7:2]  # diagonals
-		]
-		for line in lines:
-			if line == 'XXX':
-				return 'X'
-			if line == 'OOO':
-				return 'O'
-		return None
-
-	@classmethod
-	def generate_next_states(cls, state: str):
-		"""
-		Generate all possible next states from the current state.
-		"""
-		if cls.check_winner(state) is not None:
-			return []
-		is_x_turn = state.count('X') == state.count('O')
-		next_states = []
-		for i in range(9):
-			if state[i] == ' ':
-				new_state = state[:i] + ('X' if is_x_turn else 'O') + state[i + 1:]
-				next_states.append(new_state)
-		return next_states
-
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
 		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
 		if 'state' not in arguments:
@@ -262,7 +234,7 @@ class NextMove(TTT_Tool):
 		if code not in self.possible_states:
 			raise ToolError(f"Invalid or impossible state: {state}")
 
-		next_codes = self.generate_next_states(code)
+		next_codes = list(generate_next_states(code))
 		if starting_player == 'O':
 			next_codes = [state.replace('X', '_').replace('O', 'X').replace('_', 'O') for state in next_codes]
 
@@ -349,12 +321,12 @@ class BestNextMove(TTT_Tool):
 			raise ToolError(f"Invalid or impossible state: {state}")
 
 		current = code
-		next_codes = NextMove.generate_next_states(code)
+		next_codes = generate_next_states(code)
 
 		# use check_winner
-		win = [c for c in next_codes if (NextMove.check_winner(c) == current_player
+		win = [c for c in next_codes if (check_winner(c) == current_player
 										 if starting_player == 'X'
-										else NextMove.check_winner(c) == ('O' if current_player == 'X' else 'X'))]
+										else check_winner(c) == ('O' if current_player == 'X' else 'X'))]
 
 		# w | s | c | out
 		# X | X | X | yes

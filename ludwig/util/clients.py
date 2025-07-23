@@ -155,20 +155,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
 		assert msg is not None, f'No message found in response: {resp}'
 		resp['choices'][0]['message'] = msg
-		content = msg['content']
-
-		# choice = resp.choices[0]
-		# msg = getattr(resp.choices[0], 'message', None)
-		# if msg is None:
-		# 	msg = getattr(resp.choices[0].model_extra, 'message', None)
-		# 	if msg is None:
-		# 		text = getattr(resp.choices[0], 'text', None)
-		# 		msg = ChatCompletionMessage(role='assistant', content=text)
-		# 	resp.choices[0].message = msg
-		# content = msg.content
-		# if msg.content and not msg.tool_calls:
-		# if content and not msg.get('tool_calls'):
-				# msg.model_extra['reasoning_content'] = '\n'.join(reasoning).strip()
+		# content = msg['content']
 
 		if self._debug_log:
 			path = repo_root()/ 'client_debug_log.txt'
