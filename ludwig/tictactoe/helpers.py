@@ -90,6 +90,7 @@ def generate_next_states(state: str, starting_player: str = 'X') -> Iterator[str
 	"""
 	if starting_player == 'O':
 		yield from map(invert_board, generate_next_states(invert_board(state)))
+		return
 	elif check_winner(state) is None:
 		is_x_turn = state.count('X') == state.count('O')
 		for i in range(9):
@@ -106,6 +107,44 @@ def winning_moves(state: str, player: str = 'X') -> Iterator[int]:
 			new_state = state[:i] + player + state[i + 1:]
 			if check_winner(new_state) == player:
 				yield i
+
+
+def best_moves(state: str, starting_player: str = 'X') -> Iterator[int]:
+	"""
+	Find the best moves for the given player in the current state.
+	"""
+	if starting_player == 'O':
+		yield from best_moves(invert_board(state))
+		return
+
+	if state not in _ttt_data:
+		raise ValueError(f'Invalid state: {state}.')
+
+	current_player = infer_current_player(state)
+	candidates = [i for i in range(9) if state[i] == ' ']
+	if check_winner(state) is not None or not candidates:
+		return
+
+	moves = {}
+	for i in candidates:
+		new_state = state[:i] + current_player + state[i + 1:]
+		if check_winner(new_state) == current_player:
+			yield i
+		else:
+			moves[i] = new_state
+
+	vals = {i: _ttt_data[new_state] for i, new_state in moves.items()}
+
+	best = (max if current_player == 'X' else min)(vals.values())
+
+	for i, val in vals.items():
+		if val == best:
+			yield i
+
+
+
+
+
 
 def test_state_validation():
 	ttt_data = json.load(repo_root().joinpath('assets', 'ttt', 'minimax.json').open('r'))

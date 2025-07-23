@@ -48,7 +48,7 @@ broker-type: min-broker
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8004
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 

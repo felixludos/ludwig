@@ -423,7 +423,7 @@ class OpenaiClientBase(ClientBase):
 	def _record_step(self, data: JSONOBJ, step: RESPONSE):
 		if len(step['choices']):
 			self._last_response += step['choices'][0]['delta'].get('content', '')
-		if step.usage is not None:
+		if step['usage'] is not None:
 			self.history[-1]['input_tokens'] = step['usage']['prompt_tokens']
 			self.history[-1]['output_tokens'] = step['usage']['completion_tokens']
 			self.history[-1]['end_time'] = time.time()

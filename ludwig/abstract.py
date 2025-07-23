@@ -114,6 +114,15 @@ class AbstractTask:
 		"""
 		pass
 
+	def ask(self, index: int) -> JSONOBJ:
+		raise NotImplementedError
+
+	def store_keys(self) -> Iterator[str]:
+		raise NotImplementedError
+
+	def show_keys(self) -> Iterator[str]:
+		raise NotImplementedError
+
 	def search_mode(self) -> JSONOBJ:
 		"""
 		(optional) Returns the suggested (or optimal) settings for the search to be relevant for this task.

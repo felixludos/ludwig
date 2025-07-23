@@ -284,15 +284,15 @@ class BestNextMove(TTT_Tool):
 		}
 
 	_action_names = {
-		'X        ': 'top left',
-		' X       ': 'top center',
-		'  X      ': 'top right',
-		'   X     ': 'middle left',
-		'    X    ': 'middle center',
-		'     X   ': 'middle right',
-		'      X  ': 'bottom left',
-		'       X ': 'bottom center',
-		'        X': 'bottom right',
+		'X        ': 'left cell in the top row',
+		' X       ': 'middle cell in the top row',
+		'  X      ': 'right cell in the top row',
+		'   X     ': 'left cell in the middle row',
+		'    X    ': 'middle cell in the middle row',
+		'     X   ': 'right cell in the middle row',
+		'      X  ': 'left cell in the bottom row',
+		'       X ': 'middle cell in the bottom row',
+		'        X': 'right cell in the bottom row',
 
 	}
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:

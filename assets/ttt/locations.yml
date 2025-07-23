@@ -1,96 +1,95 @@
 
-1:
+0:
+  - left cell in the top row
+  - top left corner
   - top left
   - upper left
   - top-left
-  - top left corner
   - upper left corner
-  - left cell in the top row
   - left upper corner
   - left top cell
   - upper left spot
   - north west corner
 
-2:
+1:
+  - middle cell in the top row
+  - upper row middle
   - top middle
-  - upper middle
   - top-middle
   - top center
-  - middle cell in the top row
   - upper center
   - top center spot
-  - left top cell
+  - top center cell
   - north middle cell
 
-3:
-  - top right
+2:
+  - right cell in the top row
+  - top right corner
   - upper right
   - top-right
-  - top right corner
-  - right cell in the top row
   - upper right corner
   - right upper corner
   - right top cell
   - upper right spot
   - north east corner
 
-4:
+3:
+  - left cell in the middle row
   - middle row left
   - center left
   - middle-left
-  - left cell in the middle row
   - center left cell
   - left center spot
   - left middle location
   - west middle cell
 
-5:
+4:
+  - middle cell in the middle row
   - middle row center
   - center middle
   - center spot
   - spot in the middle
   - central spot
   - center-middle
-  - center cell in the middle row
 
-6:
+5:
+  - right cell in the middle row
   - middle row right
   - center right
   - middle-right
-  - right cell in the middle row
   - center right cell
   - right center spot
   - right middle location
   - east middle cell
 
-7:
+6:
+  - left cell in the bottom row
+  - bottom left corner
   - bottom left
   - lower left
   - bottom-left
-  - bottom left corner
-  - left cell in the bottom row
   - lower left corner
   - left lower corner
   - left bottom cell
   - lower left spot
   - south west corner
 
-8:
-  - bottom middle
+7:
+  - middle cell in the bottom row
+  - bottom row middle
   - lower middle
   - bottom-middle
   - bottom center
-  - middle cell in the bottom row
   - lower center
   - bottom center spot
   - south middle cell
 
-9:
+8:
+  - right cell in the bottom row
+  - bottom right corner
   - bottom right
   - lower right
   - bottom-right
-  - bottom right corner
-  - right cell in the bottom row
   - lower right corner
   - right lower corner
   - right bottom cell
