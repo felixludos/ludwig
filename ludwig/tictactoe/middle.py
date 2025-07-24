@@ -157,9 +157,8 @@ class TakeTheMiddle(TaskBase):
 			o_move = '{i+1}. You ("O") played at {action}'
 
 			history = [pformat(o_move if i % 2 else x_move, i=i, action=action) for i, action in enumerate(actions)]
-
-			yield (f'First, let\'s list each of the moves made so far to identify the state of the game:\n'
-				   f'{"\n".join(history)}')
+			steps = "\n".join(history)
+			yield f'First, let\'s list each of the moves made so far to identify the state of the game:\n{steps}'
 
 			yield f'Therefore the current state of the game is:\n{clean}'
 
