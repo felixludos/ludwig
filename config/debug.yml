@@ -1,4 +1,5 @@
 seed: 1000000009
+debug-log: yes
 
 ##############
 
@@ -22,7 +23,7 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
-#_base: [s/dp, ttt/take-the-middle, j/format, c/vllm]
+#_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/fs, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/cot, ttt/take-the-middle, j/format, c/vllm]
@@ -40,7 +41,7 @@ obs-rep: compact
 
 limit: 10
 
-use-wandb: yes
+use-wandb: no
 
 root: local_data/
 

@@ -16,7 +16,7 @@ RESPONSE = JSONOBJ
 
 class ClientBase(fig.Configurable, AbstractClient):
 	def __init__(self, raise_length_limit: bool = True, system_message: str = None,
-				 message_parser: AbstractParser = None, debug_log: bool = True, **kwargs):
+				 message_parser: AbstractParser = None, debug_log: bool = False, **kwargs):
 		if message_parser is None:
 			message_parser = MessageParser()
 		super().__init__(**kwargs)
