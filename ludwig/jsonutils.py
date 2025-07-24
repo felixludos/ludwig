@@ -31,7 +31,7 @@ except ImportError:
 		items = {}
 		for key, value in data.items() if isinstance(data, dict) else enumerate(data):
 			new_key = f"{parent_key}{sep}{key}" if parent_key else key
-			if isinstance(value, (dict, list)) and not isinstance(v, str):
+			if isinstance(value, (dict, list)) and not isinstance(value, str):
 				items.update(flatten(value, new_key, sep=sep))
 			else:
 				items[new_key] = value
@@ -102,7 +102,7 @@ except ImportError:
 		"""
 		Convert an object to a JSON serializable format.
 		"""
-		if isinstance(obj, Jsonable):
+		if isinstance(obj, AbstractJsonable):
 			raw = obj.json()
 			return {k: jsonify(v, encoder=encoder) for k, v in raw.items()}
 		elif isinstance(obj, PRIMITIVES):
