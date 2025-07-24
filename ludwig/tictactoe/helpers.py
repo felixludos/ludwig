@@ -118,7 +118,7 @@ def best_moves(state: str, starting_player: str = 'X') -> Iterator[int]:
 		return
 
 	if state not in _ttt_data:
-		raise ValueError(f'Invalid state: {state}.')
+		raise ValueError(f'Invalid state: {state!r}.')
 
 	current_player = infer_current_player(state)
 	candidates = [i for i in range(9) if state[i] == ' ']

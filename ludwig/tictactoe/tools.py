@@ -295,7 +295,10 @@ class BestNextMove(TTT_Tool):
 
 		starting_player = infer_starting_player(code, current_player=current_player)
 
-		moves = list(best_moves(code, starting_player=starting_player))
+		try:
+			moves = list(best_moves(code, starting_player=starting_player))
+		except ValueError:
+			raise ToolError("Invalid board state.")
 
 		return json.dumps([self._action_names[i] for i in moves])
 
