@@ -1,6 +1,6 @@
 
-dataroot: /fast/fleeb/venice/recoreact
+dataroot: /fast/fleeb/project_ludwig/
 
-out-dir: /fast/fleeb/venice/results
+out-dir: /fast/fleeb/project_ludwig/results
 
-log-root: /fast/fleeb/venice/request-logs
+log-root: /fast/fleeb/project_ludwig/request-logs

@@ -1,0 +1,6 @@
+
+dataroot: /fast/fleeb/venice/recoreact
+
+out-dir: /fast/fleeb/venice/results
+
+log-root: /fast/fleeb/venice/request-logs
