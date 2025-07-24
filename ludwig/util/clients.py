@@ -174,7 +174,8 @@ class ClientBase(fig.Configurable, AbstractClient):
 						# payload = yaml.dump(data, default_flow_style=None, sort_keys=False)
 						# payload = json.dumps(msg["tool_calls"], indent=2)
 						payload = '\n'.join(json.dumps(tc) for tc in data)
-						f.write(f'| Tool calls ({len(data)}): \n| {payload.replace("\n", "\n| ")}\n')
+						payload = payload.replace("\n", "\n| ")
+						f.write(f'| Tool calls ({len(data)}): \n| {payload}\n')
 				if 'prompt' in data or 'text' in resp['choices'][0]:
 					f.write(('*'*N + '\n')*2)
 
