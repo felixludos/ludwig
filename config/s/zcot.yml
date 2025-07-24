@@ -2,5 +2,5 @@
 
 _base: [s/zshot]
 
-template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+template: "{task}\n\n{question}\n\nTake a deep breath and think step-by-step."
 strategy.name: zcot
