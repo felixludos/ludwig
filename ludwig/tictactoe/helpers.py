@@ -156,6 +156,6 @@ def test_state_validation():
 			assert False, f'Invalid state raised no error: {state!r}'
 		if error and state in ttt_data:
 			assert False, (f'Valid state raised error: {state!r} '
-						   f'({validate_state(state, 'X')}) '
-						   f'({validate_state(invert_board(state), 'O')})')
+						   f'({validate_state(state, "X")}) '
+						   f'({validate_state(invert_board(state), "O")})')
 
