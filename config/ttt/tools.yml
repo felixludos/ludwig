@@ -2,7 +2,9 @@
 rep-type: nested
 
 tools:
-  - _type: ttt/tool/value
-  - _type: ttt/tool/next
+  state-value._type: ttt/tool/value
+  next-move._type: ttt/tool/next
+
+oracle-tool._type: ttt/tool/best
 
 #  - _type: ttt/tool/best

@@ -35,9 +35,10 @@ class ClientBase(fig.Configurable, AbstractClient):
 	def model_name(self) -> str: # fallback
 		return self.ident
 
-	def begin_chat(self, prompt: str, *, role: str = 'user') -> CHAT:
+	def begin_chat(self, prompt: str = None, *, role: str = 'user') -> CHAT:
 		chat = [] if self.system_message is None else [{'role': 'system', 'content': self.system_message}]
-		chat.append({'role': role, 'content': prompt})
+		if prompt is not None:
+			chat.append({'role': role, 'content': prompt})
 		return chat
 
 	def get_response(self, prompt: Union[str, CHAT], **params: JSONDATA) -> str:
@@ -81,7 +82,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 		# assert len(resp.choices) > 1, f'Expected one response, got {len(resp.choices)} choices'
 
 		if self._raise_length_limit and resp['choices'][0]['finish_reason'] == 'length':
-			raise BudgetExceededError(f'Response length limit reached {resp.usage.completion_tokens} tokens '
+			raise BudgetExceededError(f'Response length limit reached {resp["usage"]["completion_tokens"]} tokens '
 									  f'(try increasing `max_tokens`)')
 
 		input_length = len(chat)
@@ -365,6 +366,9 @@ class OpenaiClientBase(ClientBase):
 		# for m in chat:
 		# 	assert all(k in self._valid_chat_keys for k in m), f'Invalid keys in chat message: {m.keys()}'
 		messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
+		if self.max_tokens is None:
+			print(f'WARNING: `max_tokens` cannot be None, setting to 2048 for now.')
+			self.max_tokens = 2048
 		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
 		if self.grammar is not None:
@@ -506,6 +510,7 @@ class vllm_Client(OpenaiClientBase):
 
 			data['prompt'] = prompt
 
+		# print(data)
 		resp = self.endpoint.completions.create(**data).model_dump()
 
 		if tools is not None:
@@ -544,6 +549,9 @@ class vllm_Client(OpenaiClientBase):
 		# self._model_name = info.data[0].id
 		info = self._server_model_info()
 		self._model_name = info['data'][0]['id']
+		# self._max_model_len = info['data'][0].get('max_model_len', None)
+		# if self.max_tokens is None:
+		# 	self.max_tokens = self._max_model_len
 		# if self._chat_template is not None:
 		# 	self._chat_template.prepare(self._model_name)
 

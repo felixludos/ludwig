@@ -18,6 +18,9 @@ class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 		"""
 		pass
 
+	def resolve(self, problem: JSONOBJ, response: JSONOBJ) -> Optional[JSONOBJ]:
+		pass
+
 	def json(self) -> JSONOBJ:
 		return {}
 
@@ -30,15 +33,20 @@ class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 
 
 class JudgeBase(fig.Configurable, AbstractJudge):
-	def prepare(self, task_spec: JSONOBJ) -> None:
+	def prepare(self, task: AbstractTask) -> None:
 		self._successes = 0
 		self._failures = 0
 
 	def format_description(self, task_description: str) -> str:
 		return task_description
 
-	def judge(self, decision: JSONDATA, answer: JSONDATA, info: Optional[JSONOBJ] = None) -> JSONDATA:
-		return decision == answer
+	def hint(self, ctx: JSONOBJ) -> None:
+		pass
+
+	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> JSONDATA:
+		assert 'answer' in problem, 'Problem must contain an answer'
+		assert 'decision' in response or 'final' in response, 'Problem must contain a decision or final answer'
+		return problem['answer'] == response.get('decision', response.get('final', None))
 
 	def json(self) -> JSONOBJ:
 		return {}
@@ -57,10 +65,13 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 
 
 class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
-	def __init__(self, client: AbstractClient, **kwargs):
+	_name = None
+	def __init__(self, client: AbstractClient, name: str = None, **kwargs):
 		super().__init__(**kwargs)
 		self._client = client
 		self._is_prepared = False
+		if name is not None:
+			self._name = name
 
 	@property
 	def client(self) -> AbstractClient:
@@ -73,7 +84,7 @@ class ClientStrategy(fig.Configurable, Checkpointable, AbstractStrategy):
 	def model_name(self) -> str:
 		return self.client.ident
 
-	def prepare(self, seed: Optional[int] = None) -> Any:
+	def prepare(self, task: AbstractTask, judge: Optional[AbstractJudge] = None) -> Any:
 		"""Prepare the strategy for use. This may include setting up any necessary resources or configurations."""
 		client = self.client
 		if client is not None:

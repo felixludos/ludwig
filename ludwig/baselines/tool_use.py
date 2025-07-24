@@ -1,14 +1,15 @@
 from .imports import *
 from ..abstract import AbstractTool
 from ..util import ToolError, parse_pythonic_tool_calls, parse_json_tool_calls
-from .simple import DirectPrompting
+from .simple import ZeroShotPrompting
 
 
 @fig.component('tool-use')
-class ToolUse(DirectPrompting):
+class ToolUse(ZeroShotPrompting):
 	"""
 	Tool use strategy.
 	"""
+	_name = 'tool'
 	def __init__(self, tools: Union[Dict[str, AbstractTool], Iterable[AbstractTool]] = None, max_turns: int = None,
 				 **kwargs):
 		if tools is None:
@@ -21,14 +22,14 @@ class ToolUse(DirectPrompting):
 		self._tool_stats = {}
 		self._max_turns = max_turns
 
-	def prepare(self, seed: Optional[int] = None) -> Any:
-		super().prepare(seed)
+	def prepare(self, task: 'AbstractTask', judge: 'AbstractJudge' = None, **kwargs):
+		super().prepare(task, judge, **kwargs)
 		if not len(self.tools):
 			raise ValueError('No tools provided for tool use strategy')
 
 	@property
 	def name(self) -> str:
-		return f'tool-use-{self.template.ident}-{self._tool_code[:4]}'
+		return f'{self._name}-{self.template.ident}-{self._tool_code[:4]}'
 
 	def json(self) -> JSONOBJ:
 		return {
@@ -44,12 +45,10 @@ class ToolUse(DirectPrompting):
 		status['tools'] = self._tool_stats
 		return status
 
-	def solve(self, question: str, *, side_information: Optional[JSONOBJ] = None) -> Tuple[str, JSONOBJ]:
+	def solve(self, problem: JSONOBJ) -> JSONOBJ:
 		tool_schemas = [tool.schema() for tool in self.tools.values()]
 		prompt = self.template.fill(
-			system_context=self.system_context,
-			task_context=self.task_context,
-			question=question,
+			**problem,
 			tool_schemas=tool_schemas,
 			json=json,
 		)
@@ -90,6 +89,5 @@ class ToolUse(DirectPrompting):
 				self._tool_stats[name] = 0
 			self._tool_stats[name] += 1
 
-		response = msg['content']
-
-		return response, {'prompt': prompt, 'tool_calls': tool_calls, 'chat': chat}
+		final = msg['content']
+		return {'final': final, 'tool_calls': tool_calls, 'chat': chat}

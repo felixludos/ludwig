@@ -11,7 +11,8 @@ from .tools import BestNextMove
 @fig.component('ttt/take-the-middle')
 class TakeTheMiddle(TaskBase):
 	def __init__(self, *, obs_rep: str = 'compact', **kwargs):
-		assert obs_rep in ['desc', 'grid', 'compact', 'minimal', 'pythonic'], f'Invalid observation representation: {obs_rep}'
+		assert obs_rep in ['moves', 'grid', 'compact', 'minimal', 'pythonic'], \
+			f'Invalid observation representation: {obs_rep}'
 		super().__init__(**kwargs)
 		self._obs_rep = obs_rep
 		self._problem_path = repo_root().joinpath('assets', 'ttt', 'take-the-middle.json')
@@ -43,7 +44,9 @@ class TakeTheMiddle(TaskBase):
 		yield 'task'
 
 	def store_keys(self) -> Iterator[str]:
-		raise NotImplementedError
+		yield 'problem'
+		yield 'question'
+		yield 'answer'
 
 	def json(self) -> JSONOBJ:
 		return {
@@ -52,13 +55,13 @@ class TakeTheMiddle(TaskBase):
 
 	@property
 	def total_questions(self) -> Optional[int]:
-		if self._problem_data is None:
+		if self._problem_order is None:
 			return None
-		return len(self._problem_data)
+		return len(self._problem_order)
 
 	@property
 	def total_dev_questions(self) -> Optional[int]:
-		if self._problem_data is None:
+		if self._dev_order is None:
 			return None
 		return len(self._dev_order)
 
@@ -82,7 +85,7 @@ class TakeTheMiddle(TaskBase):
 		question = 'Should I play in the central cell - is that my best move?'
 		template = 'Alice is "X" and I am "O". Take a careful look at the current situation:\n{board}\n{question}'
 
-		if self._obs_rep == 'desc':
+		if self._obs_rep == 'moves':
 			template = ("Alice started with the {0} and I played the {1}. She took the {2}, so I responded with the {3}. "
 						"Now Alice played at the {4}. {question}")
 
@@ -147,13 +150,13 @@ class TakeTheMiddle(TaskBase):
 
 		clean = view_ttt(problem, "compact")
 
-		if self._obs_rep == 'desc':
+		if self._obs_rep == 'moves':
 			actions = ctx['actions']
 
 			x_move = '{i+1}. Alice ("X") played at {action}'
 			o_move = '{i+1}. You ("O") played at {action}'
 
-			history = [(o_move if i % 2 else x_move).format(i=i, action=action) for i, action in enumerate(actions)]
+			history = [pformat(o_move if i % 2 else x_move, i=i, action=action) for i, action in enumerate(actions)]
 
 			yield (f'First, let\'s list each of the moves made so far to identify the state of the game:\n'
 				   f'{"\n".join(history)}')
@@ -231,7 +234,7 @@ class TakeTheMiddle(TaskBase):
 
 		template = 'Alice is "X" and I am "O". Take a careful look at the current situation:\n{board}\n{question}'
 
-		if self._obs_rep == 'desc':
+		if self._obs_rep == 'moves':
 			template = ("Alice started with the {0} and I played the {1}. She took the {2}, so I responded with the {3}. "
 						"Now Alice played at the {4}. {question}")
 			return template.format(*self._to_action_sequence(problem), question=question)

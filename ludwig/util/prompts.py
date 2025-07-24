@@ -1,6 +1,6 @@
 from .imports import *
 from .files import repo_root, hash_str
-
+from omnibelt import pformat_vars
 
 
 class AbstractTemplate:
@@ -25,9 +25,10 @@ class AbstractTemplate:
 
 @fig.component('prompt-template')
 class PromptTemplate(fig.Configurable, AbstractTemplate):
-	def __init__(self, template: Union[str, Path], **kwargs):
+	def __init__(self, template: Union[str, Path], ident: str = None, **kwargs):
 		super().__init__(**kwargs)
 		self.template = template
+		self._template_name = ident
 		self._loaded_template = False
 		self._template_data = self._process_template(template)
 		self._template_code = hash_str(self._template_data)
@@ -54,6 +55,8 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 
 	@property
 	def ident(self) -> str:
+		if self._template_name is not None:
+			return self._template_name
 		if self._loaded_template:
 			return str(self.template)
 		return self.code[:4]
@@ -70,6 +73,9 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 
 	def get_raw(self) -> str:
 		return self._template_data
+
+	def variables(self) -> Iterator[str]:
+		yield from pformat_vars(self._template_data)
 
 	def fill(self, **kwargs) -> str:
 		"""

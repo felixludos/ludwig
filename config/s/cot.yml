@@ -1,0 +1,13 @@
+
+_base: [s/fs]
+
+strategy:
+  name: cot
+
+  intro-template:
+    _type: prompt-template
+    template: "{task}\n\n{question}\n\nLet's think step by step."
+    ident: default
+
+  answer-template: "{rationale}\n\n{answer}"
+

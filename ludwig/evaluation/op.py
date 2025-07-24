@@ -49,7 +49,6 @@ def eval_task(cfg: fig.Configuration):
 		cfg.push('protocol._type', 'default-protocol', overwrite=False, silent=True)
 		ckptpath = None
 	else:
-		assert out_root is not None, 'Cannot resume from a directory without `root` specified'
 		out_dir = out_root / resume
 		assert out_dir.exists(), f'Cannot resume from {out_dir}, it does not exist'
 		cfgpath = out_dir / 'config.yaml'
@@ -77,7 +76,7 @@ def eval_task(cfg: fig.Configuration):
 	else:
 		print_freq = cfg.pull('print-freq', None)
 
-	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None)
+	use_wandb = cfg.pulls('use-wandb', 'wandb', default=wandb is not None and out_root is not None)
 	pause_after = None
 	if use_wandb and wandb is None:
 		raise ValueError('You need to install `wandb` to use `wandb`')
@@ -95,14 +94,18 @@ def eval_task(cfg: fig.Configuration):
 
 	protocol.prepare()
 
-	if out_root is not None:
+	if out_root is None:
+		out_dir = None
+		if use_wandb:
+			raise ValueError('You need to specify `root` to use `wandb`')
+	else:
 		out_dir = out_root / protocol.name
 		out_dir.mkdir(parents=False, exist_ok=True)
 
 	wandb_run = None
 	check_confirmation = None
 	check_shutdown = None
-	if use_wandb:
+	if use_wandb and out_dir is not None:
 		wandb_dir = out_dir.absolute()
 		wandb_config = protocol.json()
 		project_name = cfg.pull('project-name', '{task.name}')

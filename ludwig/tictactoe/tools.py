@@ -226,17 +226,9 @@ class NextMove(TTT_Tool):
 			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
 
 		code = self.decode(state)
-		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')
-								  or code.count('X') > code.count('O')) else 'O'
+		starting_player = infer_starting_player(code, current_player=current_player)
 
-		if starting_player == 'O':
-			code = code.replace('X', '_').replace('O', 'X').replace('_', 'O')
-		if code not in self.possible_states:
-			raise ToolError(f"Invalid or impossible state: {state}")
-
-		next_codes = list(generate_next_states(code))
-		if starting_player == 'O':
-			next_codes = [state.replace('X', '_').replace('O', 'X').replace('_', 'O') for state in next_codes]
+		next_codes = list(generate_next_states(code, starting_player=starting_player))
 
 		next_states = [self.encode(state) for state in next_codes]
 		return json.dumps(next_states)
@@ -283,18 +275,11 @@ class BestNextMove(TTT_Tool):
 			}
 		}
 
-	_action_names = {
-		'X        ': 'left cell in the top row',
-		' X       ': 'middle cell in the top row',
-		'  X      ': 'right cell in the top row',
-		'   X     ': 'left cell in the middle row',
-		'    X    ': 'middle cell in the middle row',
-		'     X   ': 'right cell in the middle row',
-		'      X  ': 'left cell in the bottom row',
-		'       X ': 'middle cell in the bottom row',
-		'        X': 'right cell in the bottom row',
-
-	}
+	_action_names = [
+		'left cell in the top row', 'middle cell in the top row', 'right cell in the top row',
+		'left cell in the middle row', 'middle cell in the middle row', 'right cell in the middle row',
+		'left cell in the bottom row', 'middle cell in the bottom row', 'right cell in the bottom row',
+	]
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
 		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
 		if 'state' not in arguments:
@@ -307,6 +292,13 @@ class BestNextMove(TTT_Tool):
 			raise ToolError("Invalid current player. Must be 'X' or 'O'.")
 
 		code = self.decode(state)
+
+		starting_player = infer_starting_player(code, current_player=current_player)
+
+		moves = list(best_moves(code, starting_player=starting_player))
+
+		return json.dumps([self._action_names[i] for i in moves])
+
 		cnt = Counter(code)
 
 		starting_player = 'X' if ((code.count('X') == code.count('O') and current_player == 'X')

@@ -10,6 +10,7 @@ from ..util import PromptTemplate, ClientStats, TimeStats
 @fig.component('manual-judge')
 class ManualJudge(JudgeBase):
 	def __init__(self, line_width: int = 80, **kwargs):
+		raise NotImplementedError
 		super().__init__(**kwargs)
 		self._linewidth = line_width
 		self._answer_spec = None
@@ -55,6 +56,7 @@ class ManualJudge(JudgeBase):
 @fig.component('client-judge')
 class ClientJudge(JudgeBase):
 	def __init__(self, client: AbstractClient, *, template: Union[str, Path], **kwargs):
+		raise NotImplementedError
 		if not isinstance(template, PromptTemplate):
 			template = PromptTemplate(template)
 		super().__init__(**kwargs)
@@ -148,8 +150,9 @@ class FormatJudge(JudgeBase):
 			return None
 		return options[-1]
 
-	def prepare(self, task_spec: JSONOBJ) -> None:
-		super().prepare(task_spec)
+	def prepare(self, task: AbstractTask) -> None:
+		super().prepare(task)
+		task_spec = task.specification()
 		if '/' not in task_spec['answer']:
 			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]} (only fixed choices are supported)')
 		self._options = task_spec['answer'].split('/')
@@ -158,27 +161,40 @@ class FormatJudge(JudgeBase):
 		lines = [task_description, self._answer_styles[self._style].format(options='/'.join(self._options))]
 		return '\n'.join(lines)
 
+	def format_answer(self, answer: str) -> str:
+		if self._style == 'final-answer':
+			return f'FINAL ANSWER: {answer}'
+		elif self._style == 'boxed':
+			return f'\\boxed{{{answer}}}'
+		elif self._style == 'end':
+			return f'{answer}'
+		else:
+			raise NotImplementedError(f'Unknown answer style: {self._style}')
+
+	def hint(self, ctx: JSONOBJ) -> None:
+		assert 'task' in ctx, f'Context must contain a task description, got {ctx.keys()}'
+		ctx['task'] = self.format_description(ctx.get('task'))
+		ctx['answer'] = self.format_answer(ctx.get('answer'))
+
 	# _final_answer_regex = r'\bFINAL\s+ANSWER\s*:\s*(yes|no)\b'
 	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(yes|no)\**\b'
 	# _final_answer_regex = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b'
-	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
+	def interpret(self, problem: JSONOBJ, response: JSONOBJ) -> JSONOBJ:
+		assert 'final' in response, 'Response must contain a final response to interpret'
+		final = response['final']
+		decision = None
+
 		pattern = self._answer_regex[self._style].format(options='|'.join(self._options))
 
-		match = self._find_last(pattern, response.strip())
+		match = self._find_last(pattern, final.strip())
 		if match:
 			decision = match
 			# decision = match.group(1).lower().strip()
 			self._successes += 1
-			return decision, None
+		else:
+			self._failures += 1
 
-		self._failures += 1
-		# if clean.startswith('yes'):
-		# 	return answer, {'solution': 'yes'}
-		# elif clean.startswith('no'):
-		# 	return not answer, {'solution': 'no'}
-		# return False, {'solution': None}
-		# raise ParsingError(response, 'Can\'t decide if the answer is "yes" or "no"')
-		return None, None
+		return {'decision': decision}
 
 
 

@@ -5,17 +5,15 @@ from .imports import *
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
 	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
-				 seed: Optional[int] = None,
+				 seed: Optional[int] = random.randint(0, 2**31 - 1),
 				 # name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 name: str = '{task.name}_{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
 				 include_gt_info: bool = False, **kwargs):
-		if seed == 'sample': seed = random.randint(0, 2**31 - 1)
 		super().__init__(**kwargs)
 		self._name_template = name
 		self._name = None
 		self._master_seed = seed
 		random.seed(seed)
-		self._sample_seed = seed
 		self._now = datetime.now()
 		self._extra_info = {}
 		self._include_gt_info = include_gt_info
@@ -44,9 +42,9 @@ class DefaultProtocol(ProtocolBase):
 
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
-		self.strategy.prepare(self._master_seed)
 		if self.judge is not None:
-			self.judge.prepare(self.task.specification())
+			self.judge.prepare(self.task)
+		self.strategy.prepare(self.task, judge=self.judge)
 
 		# path = None
 		# if self.resume is not None:
@@ -187,6 +185,72 @@ class DefaultProtocol(ProtocolBase):
 	def step(self, idx: int) -> JSONOBJ:
 		log = {}
 		proc = {}
+
+		problem = self.task.ask(idx)
+		proc.update({key: problem.get(key) for key in self.task.store_keys()})
+		try:
+			public = {key: problem.get(key) for key in self.task.show_keys()}
+		except NotImplementedError:
+			public = problem.copy()
+
+		if self.judge is not None:
+			self.judge.hint(public)
+
+		failed = False
+		with self.strategy.collect_stats() as stats:
+			try:
+				response = self.strategy.solve(public)
+			except StrategyFailure as e:
+				# response = str(e) if type(e) == StrategyFailure else f'{e.__class__.__name__}: {e}'
+				# steps = {'error': type(e).__name__, 'error_message': str(e), 'traceback': traceback.format_exc()}
+				failed = True
+				response = {'error': type(e).__name__, 'error_message': str(e), 'traceback': traceback.format_exc()}
+
+		if len(stats):
+			log.update(stats)
+
+		judge = self.task if self.judge is None and self.task.is_judge else self.judge
+		if failed or judge is None:
+			verdict = None
+			judgement = None
+		else:
+			with judge.collect_stats() as judge_stats:
+				judgement = judge.interpret(problem, response)
+				if judgement is not None:
+					response.update(judgement)
+				verdict = judge.judge(problem, response)
+			if len(judge_stats):
+				log['judge'] = judge_stats
+
+		proc.update(response)
+
+		result = self.task.resolve(problem, response)
+		if result is not None:
+			proc.update(result)
+
+		score = self._aggregate_verdict(idx, verdict)
+		sample = {}
+		if len(log):
+			sample['log'] = log
+		if len(proc):
+			sample['table'] = proc
+		if self.metrics:
+			sample['metrics'] = self.metrics
+
+		self.history.append([idx, failed, score])
+		if failed:
+			self.fails.append(idx)
+		if score is not None:
+			self.scores.append(score)
+		sample['idx'] = idx
+		sample['failed'] = failed
+		sample.update(self._default_stats())
+		return sample
+
+		# if steps is not None:
+		# 	proc.update(steps)
+		# proc['response'] = response
+
 		if self._use_generate:
 			self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
 			problem, answer = self.task.generate(self._sample_seed)

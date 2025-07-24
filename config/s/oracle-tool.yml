@@ -1,0 +1,10 @@
+
+_base: [s/tool]
+
+strategy.name: oracle
+
+tools:
+  oracle: <>oracle-tool
+
+
+
