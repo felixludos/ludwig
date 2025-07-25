@@ -148,7 +148,7 @@ class StateValue(TTT_Tool):
 		}
 
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
-		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
+		assert isinstance(arguments, dict), f'Expected a dict, got {arguments!r}'
 		if 'state' not in arguments:
 			raise ToolError("Missing 'state' in arguments")
 		if 'current_player' not in arguments:
@@ -215,7 +215,7 @@ class NextMove(TTT_Tool):
 		}
 
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
-		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
+		assert isinstance(arguments, dict), f'Expected a dict, got {arguments!r}'
 		if 'state' not in arguments:
 			raise ToolError("Missing 'state' in arguments")
 		if 'current_player' not in arguments:
@@ -281,7 +281,7 @@ class BestNextMove(TTT_Tool):
 		'left cell in the bottom row', 'middle cell in the bottom row', 'right cell in the bottom row',
 	]
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
-		assert isinstance(arguments, dict), f'Expected a dict, got {type(arguments)}'
+		assert isinstance(arguments, dict), f'Expected a dict, got {arguments!r}'
 		if 'state' not in arguments:
 			raise ToolError("Missing 'state' in arguments")
 		if 'current_player' not in arguments:

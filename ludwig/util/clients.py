@@ -90,8 +90,8 @@ class ClientBase(fig.Configurable, AbstractClient):
 		# update chat with the response
 		msg = resp['choices'][0]['message']
 		assistant_turn = {'role': msg['role']}
-		if msg['content']:
-			assistant_turn['content'] = msg['content']
+		# if msg['content']:
+		assistant_turn['content'] = msg['content']
 		if msg.get('tool_calls'):
 			# chat.append({
 			# 	'role': role,
