@@ -560,7 +560,15 @@ class vllm_Client(OpenaiClientBase):
 			if self._use_chat:
 				self._tokenizer = None
 			else:
-				self._tokenizer = self._build_tokenizer(self.ident)
+				try:
+					self._tokenizer = self._build_tokenizer(self.ident)
+				except:
+					try:
+						self._tokenizer = self._build_tokenizer(self._model_name)
+					except:
+						print(f'Tokenizer not found for both {self.ident} and {self._model_name}')
+						raise
+
 		except:
 			if not self._use_chat:
 				raise
