@@ -247,85 +247,10 @@ class DefaultProtocol(ProtocolBase):
 		sample.update(self._default_stats())
 		return sample
 
-		# if steps is not None:
-		# 	proc.update(steps)
-		# proc['response'] = response
-
-		if self._use_generate:
-			self._sample_seed = random.Random(self._sample_seed).randint(0, 2**31 - 1)
-			problem, answer = self.task.generate(self._sample_seed)
-			proc['sample_seed'] = self._sample_seed
-		else:
-			problem, answer = self.task.load(idx, seed=self._master_seed)
-
-		info = self.task.side_information(problem)
-		if info is not None:
-			proc.update(info)
-		if self._include_gt_info:
-			proc['problem'] = problem
-
-		question = self.task.observe(problem, seed=self._master_seed)
-
-		failed = False
-		with self.strategy.collect_stats() as stats:
-			try:
-				response, steps = self.strategy.solve(question, side_information=info)
-			except StrategyFailure as e:
-				response = str(e) if type(e) == StrategyFailure else f'{e.__class__.__name__}: {e}'
-				steps = {'error': type(e).__name__, 'error_message': str(e), 'traceback': traceback.format_exc()}
-				failed = True
-		if len(stats):
-			log.update(stats)
-		if steps is not None:
-			proc.update(steps)
-		proc['response'] = response
-
-		if failed:
-			decision = None
-			verdict = None
-		elif self.judge is None and not self.task.is_judge:
-			decision = response
-			verdict = None if response is None else decision == answer
-		else:
-			if self.judge is None:
-				verdict, decision, judgement = self.task.evaluate(response, problem, answer)
-			else:
-				with self.judge.collect_stats() as judge_stats:
-					decision, judgement = self.judge.interpret(question, response)
-					verdict = self.judge.judge(decision, answer, judgement)
-				if len(judge_stats):
-					log['judge'] = judge_stats
-			if judgement is not None:
-				proc.update(judgement)
-		# failed = verdict is None
-
-		score = self._aggregate_verdict(idx, verdict)
-		proc['decision'] = decision
-		proc['answer'] = answer
-		proc['verdict'] = verdict
-
-		sample = {}
-		if len(log):
-			sample['log'] = log
-		if len(proc):
-			sample['table'] = proc
-		if self.metrics:
-			sample['metrics'] = self.metrics
-
-		self.history.append([idx, failed, score])
-		if failed:
-			self.fails.append(idx)
-		if score is not None:
-			self.scores.append(score)
-		sample['idx'] = idx
-		sample['failed'] = failed
-		sample.update(self._default_stats())
-		return sample
-		return sample
-
 	def _default_stats(self) -> JSONFLAT:
 		stats = {}
 		stats['score'] = sum(self.scores) / len(self.scores) if len(self.scores) else None
+		stats['correct'] = sum(self.scores) / len(self.history) if len(self.history) else None
 		stats['iterations'] = len(self.history)
 		stats['fails'] = len(self.fails)
 		stats['invalid'] = len(self.history) - len(self.scores)

@@ -37,9 +37,12 @@ viz:
     _type: formatter/table
     expires: 4
   score: yes
+  correct: yes
   fails: yes
   invalid: yes
   stats: yes
+  iterations: yes
+
 
 log:
   _all_: yes
