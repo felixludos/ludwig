@@ -1,4 +1,6 @@
 
+_base: [basic-view]
+
 dataroot: /fast/fleeb/project_ludwig/
 
 root: /fast/fleeb/project_ludwig/results

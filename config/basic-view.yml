@@ -1,0 +1,49 @@
+
+use-wandb: yes
+
+viewer._type: <>broker-type
+logger._type: <>broker-type
+prelogger._type: <>broker-type
+broker-type: min-broker
+
+
+###
+
+
+viewer:
+  _type: default-broker
+  targets: <>viz
+#viz: {}
+unviz: {}
+
+logger:
+  _type: default-broker
+  targets: <>log
+  untargets: <>unlog
+#log: {}
+unlog: {}
+
+
+prelogger:
+  _type: default-broker
+  targets: <>pre
+  untargets: <>unpre
+pre: {}
+unpre: {}
+
+
+viz:
+  table:
+    _type: formatter/table
+    expires: 4
+  score: yes
+  fails: yes
+  invalid: yes
+  stats: yes
+
+log:
+  _all_: yes
+
+prelog:
+  _all_: yes
+

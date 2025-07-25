@@ -23,12 +23,12 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
-#_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm]
-#_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm]
-#_base: [s/fs, ttt/take-the-middle, j/format, c/vllm]
-#_base: [s/cot, ttt/take-the-middle, j/format, c/vllm]
-_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
-#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
+#_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
+#_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -45,10 +45,6 @@ use-wandb: no
 
 root: local_data/
 
-viewer._type: <>broker-type
-logger._type: <>broker-type
-prelogger._type: <>broker-type
-broker-type: min-broker
 
 # for format judge: j/format
 #style: end
@@ -69,43 +65,6 @@ addr: 8001
 
 #temperature: 0.6
 #top-p: 0.95
-
-viewer:
-  _type: default-broker
-  targets: <>viz
-viz: {}
-unviz: {}
-
-logger:
-  _type: default-broker
-  targets: <>log
-  untargets: <>unlog
-log: {}
-unlog: {}
-
-
-prelogger:
-  _type: default-broker
-  targets: <>pre
-  untargets: <>unpre
-pre: {}
-unpre: {}
-
-
-viz:
-  table:
-    _type: formatter/table
-    expires: 4
-  score: yes
-  fails: yes
-  invalid: yes
-  stats: yes
-
-log:
-  _all_: yes
-
-prelog:
-  _all_: yes
 
 
 ##################
