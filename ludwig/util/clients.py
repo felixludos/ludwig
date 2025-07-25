@@ -151,6 +151,8 @@ class ClientBase(fig.Configurable, AbstractClient):
 			text = resp['choices'][0].get('text', None)
 			assert text is not None, f'No text found in response: {resp}'
 			msg = self._message_parser.parse(text, data, resp)
+			if 'content' not in msg:
+				msg['content'] = None
 		if msg is None:
 			text = resp['choices'][0].get('text')
 			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
@@ -568,6 +570,8 @@ class vllm_Client(OpenaiClientBase):
 					except:
 						print(f'Tokenizer not found for both {self.ident} and {self._model_name}')
 						raise
+					else:
+						print(f'NOTE: Built tokenizer using: {self._model_name}')
 
 		except:
 			if not self._use_chat:
