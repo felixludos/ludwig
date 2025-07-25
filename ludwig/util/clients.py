@@ -151,12 +151,12 @@ class ClientBase(fig.Configurable, AbstractClient):
 			text = resp['choices'][0].get('text', None)
 			assert text is not None, f'No text found in response: {resp}'
 			msg = self._message_parser.parse(text, data, resp)
-			if 'content' not in msg:
-				msg['content'] = None
 		if msg is None:
 			text = resp['choices'][0].get('text')
 			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
 		assert msg is not None, f'No message found in response: {resp}'
+		if 'content' not in msg:
+			msg['content'] = None
 		resp['choices'][0]['message'] = msg
 		# content = msg['content']
 
@@ -516,8 +516,7 @@ class vllm_Client(OpenaiClientBase):
 			except Exception:
 				# pretty print
 				print(f'Error applying chat template for {self.ident} with chat:')
-				from pprint import pprint
-				pprint(chat)
+				print(chat)
 
 				print(f'Using Chat template: {self._chat_template_path}')
 				print(self._chat_template)
