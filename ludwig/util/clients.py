@@ -90,14 +90,8 @@ class ClientBase(fig.Configurable, AbstractClient):
 		# update chat with the response
 		msg = resp['choices'][0]['message']
 		assistant_turn = {'role': msg['role']}
-		# if msg['content']:
 		assistant_turn['content'] = msg['content']
 		if msg.get('tool_calls'):
-			# chat.append({
-			# 	'role': role,
-			# 	'tool_calls': [json.loads(t.json()) for t in resp.choices[0].message.tool_calls],
-			# 	'content': '',
-			# })
 			assistant_turn['tool_calls'] = resp['choices'][0]['message'].get('tool_calls', [])
 		chat.append(assistant_turn)
 
@@ -172,12 +166,12 @@ class ClientBase(fig.Configurable, AbstractClient):
 					# f.write('*'*N + '\n')
 					f.write(resp['choices'][0]['text'] + '\n')
 					if 'tool_calls' in msg and len(msg['tool_calls']):
-						data = msg["tool_calls"]
+						tcalls = msg["tool_calls"]
 						# payload = yaml.dump(data, default_flow_style=None, sort_keys=False)
 						# payload = json.dumps(msg["tool_calls"], indent=2)
-						payload = '\n'.join(json.dumps(tc) for tc in data)
+						payload = '\n'.join(json.dumps(tc) for tc in tcalls)
 						payload = payload.replace("\n", "\n| ")
-						f.write(f'| Tool calls ({len(data)}): \n| {payload}\n')
+						f.write(f'| Tool calls ({len(tcalls)}): \n| {payload}\n')
 				if 'prompt' in data or 'text' in resp['choices'][0]:
 					f.write(('*'*N + '\n')*2)
 
@@ -278,7 +272,6 @@ class MockEndpoint(ClientBase):
 class OpenaiClientBase(ClientBase):
 	def __init__(self, endpoint: Union[openai.OpenAI, str], *, max_tokens: int = None, seed: int = None,
 				 temperature: float = None, top_p: float = None, grammar: Union[str, JSONOBJ] = None,
-				 # chat_template: Optional['ChatTemplate'],
 				 **kwargs):
 		if isinstance(endpoint, str):
 			endpoint = openai.OpenAI(api_key='EMPTY', base_url=endpoint)
@@ -447,6 +440,7 @@ class OpenaiClientBase(ClientBase):
 class vllm_Client(OpenaiClientBase):
 	def __init__(self, addr: Union[str, int], *, use_chat_completion: bool = False, tool_style: str = 'pythonic',
 				 chat_template_path: Optional[str] = None, chat_template: Optional[str] = None,
+				 no_think: bool = False,
 				 add_generation_prompt: bool = True, continue_final_message: bool = False, **kwargs):
 		assert tool_style in (None, 'pythonic', 'json')
 		assert chat_template_path is None or chat_template is None, \
@@ -458,6 +452,7 @@ class vllm_Client(OpenaiClientBase):
 		self._chat_template = chat_template
 		self._use_chat = use_chat_completion
 		self._tool_style = tool_style
+		self._no_think = no_think
 
 	def json(self) -> JSONOBJ:
 		info = super().json()
@@ -469,6 +464,8 @@ class vllm_Client(OpenaiClientBase):
 			info['chat_template'] = self._chat_template
 		if self._chat_template_path is not None:
 			info['tool_style'] = self._tool_style
+		if self.model_name is not None and self.model_name.startswith('Qwen/'):
+			info['no_think'] = self._no_think
 		return info
 
 	@staticmethod
@@ -511,6 +508,7 @@ class vllm_Client(OpenaiClientBase):
 				prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=tools, documents=docs,
 															 add_generation_prompt=self._add_generation_prompt,
 															 continue_final_message=self._continue_final_message,
+															 enable_thinking=not self._no_think,
 															 chat_template=self._chat_template)
 
 			except Exception:
@@ -767,8 +765,8 @@ class Logged(ClientBase):
 			if path.suffix != '.json':
 				path = path.with_suffix('.json')
 			# path = self._log_dir / self._log_response_fmt.format(client=self, now=datetime.now(), n=n, str=str)
-			resp_data = resp.json()
-			path.write_text(resp_data, encoding='utf-8')
+			# resp_data = resp.json()
+			path.write_text(json.dumps(resp), encoding='utf-8')
 		return super()._record_response(data, resp)
 
 

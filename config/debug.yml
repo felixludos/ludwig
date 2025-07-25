@@ -27,8 +27,10 @@ _meta.script_name: eval
 #_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
 #_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
-_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -41,16 +43,18 @@ obs-rep: compact
 
 limit: 10
 
-use-wandb: no
+use-wandb: yes
 
 root: local_data/
+
+no-think: yes
 
 
 # for format judge: j/format
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8002
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 
