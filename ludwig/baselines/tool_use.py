@@ -64,7 +64,9 @@ class ToolUse(ZeroShotPrompting):
 					info = tool_call['function']
 					assert info['name'] in self.tools, f'Tool {info["name"]} not registered'
 					tool = self.tools[info['name']]
-					arguments = json.loads(info['arguments']) if isinstance(info['arguments'], str) else info['arguments']
+					arguments = info['arguments']
+					while isinstance(arguments, str):
+						arguments = json.loads(arguments)
 					try:
 						result = tool.call(arguments)
 					except ToolError as e:
