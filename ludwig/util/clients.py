@@ -506,10 +506,22 @@ class vllm_Client(OpenaiClientBase):
 		chat = data.pop('messages', None)
 		if chat is not None:
 
-			prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=tools, documents=docs,
-														 add_generation_prompt=self._add_generation_prompt,
-														 continue_final_message=self._continue_final_message,
-														 chat_template=self._chat_template)
+			try:
+
+				prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=tools, documents=docs,
+															 add_generation_prompt=self._add_generation_prompt,
+															 continue_final_message=self._continue_final_message,
+															 chat_template=self._chat_template)
+
+			except Exception:
+				# pretty print
+				print(f'Error applying chat template for {self.ident} with chat:')
+				from pprint import pprint
+				pprint(chat)
+
+				print(f'Using Chat template: {self._chat_template_path}')
+				print(self._chat_template)
+				raise
 
 			data['prompt'] = prompt
 
