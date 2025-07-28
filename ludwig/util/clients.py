@@ -366,6 +366,7 @@ class OpenaiClientBase(ClientBase):
 			print(f'WARNING: `max_tokens` cannot be None, setting to 2048 for now.')
 			self.max_tokens = 2048
 		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
+				# 'do_sample': self.temperature is not None or self.top_p is not None,
 			 'temperature': self.temperature, 'top_p': self.top_p, 'seed': self.seed}
 		if self.grammar is not None:
 			args['extra_body'] = self.grammar

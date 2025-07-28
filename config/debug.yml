@@ -51,7 +51,8 @@ use-wandb: no
 root: local_data/debug
 
 #no-think: yes
-
+temperature: 1.0
+n-votes: 3
 
 # for format judge: j/format
 #style: end

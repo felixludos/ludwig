@@ -54,6 +54,7 @@ class ZeroShotPrompting(ClientStrategy):
 @fig.modifier('mv')
 class MajorityVote(ClientStrategy):
 	def __init__(self, n_votes: int = 5, **kwargs):
+		assert n_votes > 1, 'n_votes must be greater than 1'
 		super().__init__(**kwargs)
 		self.n_votes = n_votes
 		self._judge = None
@@ -78,10 +79,14 @@ class MajorityVote(ClientStrategy):
 		Collect votes from the client for the given problem.
 		This method should be overridden by subclasses to implement specific voting logic.
 		"""
+		master_seed = self.client.seed
+		rng = random.Random(master_seed)
 		responses = []
 		for i in range(self.n_votes):
+			self.client.seed = rng.randint(0, 2**32 - 1)
 			response = super().solve(problem)
 			responses.append(response)
+		self.client.seed = master_seed
 
 		votes = []
 		with self._judge.collect_stats() as judge_stats:
@@ -94,7 +99,7 @@ class MajorityVote(ClientStrategy):
 	def aggregate(self, problem: JSONOBJ, votes: List[JSONOBJ]) -> JSONOBJ:
 
 		tally = Counter(vote['decision'] for vote in votes['votes'] if 'decision' in vote)
-		tally = dict(tally)
+		tally = dict(tally.most_common()[::-1])
 
 		if len(tally) == 0:
 			raise StrategyFailure('No valid votes collected')
@@ -106,7 +111,7 @@ class MajorityVote(ClientStrategy):
 		if len(decisions) == 1:
 			final = self._judge.format_answer(decisions[0])
 		else:
-			raise StrategyFailure(f'Tie in votes: {decisions}')
+			raise StrategyFailure(f'Tie in votes: {tally}')
 
 		votes['tally'] = tally
 		votes['final'] = final
