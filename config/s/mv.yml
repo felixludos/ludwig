@@ -1,0 +1,4 @@
+
+strategy._type: majority-vote
+
+n-votes: 5

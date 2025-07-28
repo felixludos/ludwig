@@ -153,9 +153,18 @@ class FormatJudge(JudgeBase):
 	def prepare(self, task: AbstractTask) -> None:
 		super().prepare(task)
 		task_spec = task.specification()
-		if '/' not in task_spec['answer']:
-			raise NotImplementedError(f'Unknown answer type: {task_spec["answer"]} (only fixed choices are supported)')
-		self._options = task_spec['answer'].split('/')
+		assert 'answer' in task_spec, f'Task specification must contain an answer specification: {task_spec}'
+		options = None
+		answer_spec = task_spec['answer']
+		if isinstance(answer_spec, str):
+			if '/' in answer_spec:
+				options = answer_spec.split('/')
+			elif answer_spec == 'option':
+				assert 'options' in task_spec, 'Task specification must contain options for "option" answer type'
+				options = task_spec['options']
+			else:
+				raise NotImplementedError(f'Unknown answer specification: {answer_spec!r}')
+		self._options = options
 
 	def format_description(self, task_description: str) -> str:
 		lines = [task_description, self._answer_styles[self._style].format(options='/'.join(self._options))]
@@ -184,7 +193,11 @@ class FormatJudge(JudgeBase):
 		final = response['final']
 		decision = None
 
-		pattern = self._answer_regex[self._style].format(options='|'.join(self._options))
+		options = self._options
+		if isinstance(options, str):
+			options = problem[options]
+
+		pattern = self._answer_regex[self._style].format(options='|'.join(options))
 
 		match = self._find_last(pattern, final.strip())
 		if match:

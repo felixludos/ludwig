@@ -1,5 +1,7 @@
 from .imports import *
-
+from .. import AbstractTask
+from ..abstract import AbstractJudge
+from ..errors import StrategyFailure
 
 
 @fig.component('zero-shot')
@@ -48,6 +50,81 @@ class ZeroShotPrompting(ClientStrategy):
 
 		return {'prompt': prompt, 'final': response}
 
+
+@fig.modifier('mv')
+class MajorityVote(ClientStrategy):
+	def __init__(self, n_votes: int = 5, **kwargs):
+		super().__init__(**kwargs)
+		self.n_votes = n_votes
+		self._judge = None
+
+	def name(self) -> str:
+		return f'mv{self.n_votes}-{super().name}'
+
+	def json(self) -> JSONOBJ:
+		return {
+			'n_votes': self.n_votes,
+			**super().json()
+		}
+
+	def prepare(self, task: AbstractTask, judge: Optional[AbstractJudge] = None) -> Any:
+		if judge is None:
+			raise ValueError('MajorityVote strategy requires a judge to be prepared')
+		super().prepare(task, judge)
+		self._judge = judge
+
+	def collect_votes(self, problem: JSONOBJ) -> List[JSONOBJ]:
+		"""
+		Collect votes from the client for the given problem.
+		This method should be overridden by subclasses to implement specific voting logic.
+		"""
+		responses = []
+		for i in range(self.n_votes):
+			response = super().solve(problem)
+			responses.append(response)
+
+		votes = []
+		with self._judge.collect_stats() as judge_stats:
+			for response in responses:
+				vote = self._judge.interpret(problem, response)
+				votes.append({**response, **vote})
+
+		return {'votes': votes, 'judge_stats': judge_stats}
+
+	def aggregate(self, problem: JSONOBJ, votes: List[JSONOBJ]) -> JSONOBJ:
+
+		tally = Counter(vote['decision'] for vote in votes['votes'] if 'decision' in vote)
+		tally = dict(tally)
+
+		if len(tally) == 0:
+			raise StrategyFailure('No valid votes collected')
+
+		votes['failed_votes'] = self.n_votes - sum(tally.values())
+
+		best = max(tally.values())
+		decisions = [k for k, v in tally.items() if v == best]
+		if len(decisions) == 1:
+			final = self._judge.format_answer(decisions[0])
+		else:
+			raise StrategyFailure(f'Tie in votes: {decisions}')
+
+		votes['tally'] = tally
+		votes['final'] = final
+		return votes
+
+	def solve(self, problem: JSONOBJ) -> JSONOBJ:
+		votes = self.collect_votes(problem)
+		result = self.aggregate(problem, votes)
+		return result
+
+
+@fig.component('majority-vote')
+class SimpleMajorityVote(MajorityVote, ZeroShotPrompting):
+
+	@property
+	def name(self) -> str:
+		name = f'{self._name or "mv"}{self.n_votes}'
+		return name
 
 
 @fig.component('few-shot')

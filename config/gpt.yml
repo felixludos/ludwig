@@ -1,0 +1,10 @@
+
+_base: [c/azure, basic-view]
+
+
+use-wandb: yes
+
+
+limit: 10
+
+root: local_data/

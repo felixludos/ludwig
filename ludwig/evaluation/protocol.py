@@ -28,8 +28,8 @@ class DefaultProtocol(ProtocolBase):
 		self._answer_type = None
 
 		self._task = task
+		self._judge = judge
 		self.strategy = strategy
-		self.judge = judge
 
 	@property
 	def name(self) -> str:
@@ -39,6 +39,15 @@ class DefaultProtocol(ProtocolBase):
 	def task(self) -> AbstractTask:
 		"""The task used in this protocol"""
 		return self._task
+
+	@property
+	def judge(self) -> Optional[AbstractJudge]:
+		if self._judge is not None:
+			return self._judge
+		if self.task.is_judge:
+			return self.task
+		return None
+
 
 	def prepare(self) -> None:
 		self.task.prepare(self._master_seed)
@@ -209,7 +218,7 @@ class DefaultProtocol(ProtocolBase):
 		if len(stats):
 			log.update(stats)
 
-		judge = self.task if self.judge is None and self.task.is_judge else self.judge
+		judge = self.judge
 		if failed or judge is None:
 			verdict = None
 			judgement = None

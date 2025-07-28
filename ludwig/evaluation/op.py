@@ -3,7 +3,7 @@ from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
 from ..util import AbstractBroker, DefaultBroker
 # from ..base import Task, Strategy
 import pandas as pd
-from os import symlink
+from os import symlink, environ
 
 try:
 	import wandb
@@ -37,6 +37,7 @@ def eval_task(cfg: fig.Configuration):
 	:type protocol: AbstractProtocol
 	:return:
 	"""
+	environ['WANDB_PROGRAM'] = 'eval'
 	limit = cfg.pull('limit', None)
 
 	out_root = cfg.pull('root', None)

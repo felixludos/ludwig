@@ -8,6 +8,8 @@ pandas
 matplotlib
 wandb
 
+chess
+
 # inference
 vllm
 openai
