@@ -134,9 +134,9 @@ class FormatJudge(JudgeBase):
 			   'responding with only one of the following options: {{{options}}}.',
 	}
 	_answer_regex = {
-		'final-answer': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b',
+		'final-answer': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**',
 		'boxed': r'(?ix)\\boxed\s*\{{\s*({options})\s*}}',
-		'end': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**\b',
+		'end': r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**({options})\**',
 	}
 
 	@property

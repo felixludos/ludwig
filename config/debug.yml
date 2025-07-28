@@ -40,13 +40,14 @@ _meta.script_name: eval
 
 ##################
 
-_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 
-obs-rep: fen
+obs-rep: active
 hint: all
 
 ##############
-use-chat-completion: no
+#use-chat-completion: no
 #tool-style: json
 
 limit: 10

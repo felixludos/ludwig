@@ -306,7 +306,7 @@ class DefaultProtocol(ProtocolBase):
 			info.update({key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)})
 		elif self._answer_type is None:
 			pass
-		elif self._answer_type == 'yes/no':
+		elif self._answer_type == 'yes/no' or self._answer_type == 'option':
 			pass
 		else:
 			raise ValueError(f'Unknown answer type: {self._answer_type}')

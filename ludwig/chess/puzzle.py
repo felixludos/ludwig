@@ -134,6 +134,10 @@ class ChessPuzzle(TaskBase):
 			question = f'{question}\n{hint}'
 
 		ctx['question'] = question
+
+		ctx['rationale'] = list(self._rationale(board, raw['Themes'].split(), answer,
+												[move['Move'] for move in analysis['moves'][:4]]))
+
 		ctx['answer'] = [answer, board.san(board.parse_uci(answer))]
 
 		ctx['system'] = self._system_context
@@ -150,15 +154,113 @@ class ChessPuzzle(TaskBase):
 		else:
 			raise ValueError(f'Unsupported observation representation: {self._obs_rep!r}')
 
+	def _rationale(self, board: chess.Board, tags: List[str], answer: str, top_moves: List[str]) -> Iterator[str]:
+		# https://gemini.google.com/app/65c85f24a87f2712
+		tag_set = set(tags)
+
+		# Expanded tag definitions based on the new list
+		PHASE_TAGS = {
+			'opening': "the **opening**", 'middlegame': "the **middlegame**",
+			'endgame': "the **endgame**", 'rookEndgame': "a **rook endgame**",
+			'knightEndgame': "a **knight endgame**", 'bishopEndgame': "a **bishop endgame**",
+			'queenEndgame': "a **queen endgame**", 'pawnEndgame': "a **pawn endgame**",
+			'queenRookEndgame': "a **queen and rook endgame**"
+		}
+		TACTIC_TAGS = {
+			'pin': 'pin', 'fork': 'fork', 'skewer': 'skewer', 'sacrifice': 'sacrifice',
+			'discoveredAttack': 'discovered attack', 'doubleCheck': 'double check',
+			'attraction': 'attraction', 'deflection': 'deflection', 'interference': 'interference',
+			'clearance': 'clearance', 'xRayAttack': 'x-ray attack',
+			'hangingPiece': 'hanging piece', 'trappedPiece': 'trapped piece',
+			'capturingDefender': 'capturing a defender', 'exposedKing': 'exposed king',
+			'advancedPawn': 'advanced pawn', 'promotion': 'promotion', 'underPromotion': 'underpromotion',
+			'enPassant': 'en passant', 'zugzwang': 'zugzwang', 'intermezzo': 'intermezzo',
+			'quietMove': 'quiet move', 'attackingF2F7': 'attack on f2/f7',
+			'kingsideAttack': 'kingside attack', 'queensideAttack': 'queenside attack',
+			'backRankMate': 'back-rank mate', 'anastasiaMate': "anastasia's mate",
+			'arabianMate': "arabian mate", 'dovetailMate': "dovetail mate",
+			'hookMate': "hook mate", 'doubleBishopMate': 'double bishop mate'
+		}
+
+		### Step 1: Assess Phase and Goal
+		# Prioritize specific endgame tags over general ones
+		phase = next((desc for tag, desc in PHASE_TAGS.items() if tag in tag_set and 'Endgame' in tag), None)
+		if not phase:
+			phase = next((desc for tag, desc in PHASE_TAGS.items() if tag in tag_set), "the position")
+
+		goal = "find the best move"
+		if 'mate' in tag_set:
+			mate_in = next((t.replace('mateIn', ' in ') for t in tag_set if t.startswith('mateIn')), "")
+			goal = f"deliver **checkmate**{mate_in}"
+		elif 'crushing' in tag_set:
+			goal = "achieve a **crushing** advantage"
+		elif 'advantage' in tag_set:
+			goal = "gain a decisive **advantage**"
+		elif 'defensiveMove' in tag_set:
+			goal = "find the crucial **defensive move**"
+
+		yield f"First, I'll assess {phase}. The main objective is to {goal}."
+
+		### Step 2: Identify Key Tactics
+		found_tactics = [desc for tag, desc in TACTIC_TAGS.items() if tag in tag_set]
+		if found_tactics:
+			if len(found_tactics) > 1:
+				tactics_str = ", ".join(f"**{t}**" for t in found_tactics[:-1]) + f" and **{found_tactics[-1]}**"
+				yield f"The key tactical motifs to consider are {tactics_str}."
+			else:
+				yield f"The key tactical motif appears to be a **{found_tactics[0]}**."
+		else:
+			yield "I will scan for general tactical weaknesses and forcing moves."
+
+		### Step 3: Formulate a Plan
+		plan = "I will search for candidate moves based on these ideas."
+		if 'defensiveMove' in tag_set:
+			plan = "My plan is to identify the opponent's primary threat and find the precise move to neutralize it."
+		elif 'zugzwang' in tag_set:
+			plan = "The plan is likely to involve a subtle **quiet move** to pass the turn, putting the opponent in **zugzwang**."
+		elif 'quietMove' in tag_set:
+			plan = "I'll look for a surprising **quiet move** that sets up an unstoppable threat."
+		elif 'capturingDefender' in tag_set:
+			plan = "I will formulate a plan to execute a **capturing defender** tactic, removing a key defensive piece."
+		elif found_tactics:
+			plan = f"My search will focus on moves that create opportunities for a {', a '.join(f'**{t}**' for t in found_tactics)}."
+		yield plan
+
+		### Step 4: Verify the Solution
+		verification = "Finally, I must calculate the sequence to ensure it is winning."
+		if 'defensiveMove' in tag_set:
+			verification = "I will verify that this move successfully parries all threats and secures the position."
+		elif mate_in := next((t for t in tag_set if t.startswith('mateIn')), None):
+			verification = f"I must verify the chosen move forces **{mate_in.replace('mateIn', 'mate in ')}** against all defenses."
+		elif 'advantage' in tag_set or 'crushing' in tag_set:
+			verification = f"I will confirm the move leads to the stated **advantage**."
+
+		length_desc = ""
+		if 'oneMove' in tag_set:
+			length_desc = "The solution is a single, decisive move."
+		elif 'short' in tag_set:
+			length_desc = "The sequence should be **short** and forceful."
+		elif 'long' in tag_set:
+			length_desc = "The sequence is **long**, requiring deep calculation."
+		elif 'veryLong' in tag_set:
+			length_desc = "The sequence is **very long**, demanding precise, extended calculation."
+
+		yield f"{verification} {length_desc}".strip()
+
+		moves = ', '.join(sorted(top_moves))
+		yield f'Based on this analysis, some candidate best moves are {moves}.'
+
+		yield f'Upon further thought, the best next move appears to be **{answer}**.'
+
 
 
 def test_chess_task():
 
-	task = ChessPuzzle(obs_rep='fen', options=3)
+	task = ChessPuzzle(obs_rep='fen', hint=3)
 	task.prepare()
 
 	ctx = task.ask(0)
-
+	print()
 	print(ctx)
 
 

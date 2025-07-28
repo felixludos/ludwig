@@ -441,11 +441,13 @@ class OpenaiClientBase(ClientBase):
 class vllm_Client(OpenaiClientBase):
 	def __init__(self, addr: Union[str, int], *, use_chat_completion: bool = False, tool_style: str = 'pythonic',
 				 chat_template_path: Optional[str] = None, chat_template: Optional[str] = None,
-				 no_think: bool = False,
+				 enable_thinking: bool = False,
 				 add_generation_prompt: bool = True, continue_final_message: bool = False, **kwargs):
 		assert tool_style in (None, 'pythonic', 'json')
 		assert chat_template_path is None or chat_template is None, \
 			f'Cannot specify both chat_template_path and chat_template'
+		if use_chat_completion:
+			raise NotImplementedError(f'Not supported (anymore)')
 		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
 		self._add_generation_prompt = add_generation_prompt
 		self._continue_final_message = continue_final_message
@@ -453,7 +455,7 @@ class vllm_Client(OpenaiClientBase):
 		self._chat_template = chat_template
 		self._use_chat = use_chat_completion
 		self._tool_style = tool_style
-		self._no_think = no_think
+		self._enable_thinking = enable_thinking
 
 	def json(self) -> JSONOBJ:
 		info = super().json()
@@ -466,7 +468,7 @@ class vllm_Client(OpenaiClientBase):
 		if self._chat_template_path is not None:
 			info['tool_style'] = self._tool_style
 		if self.model_name is not None and self.model_name.startswith('Qwen/'):
-			info['no_think'] = self._no_think
+			info['enable_thinking'] = self._enable_thinking
 		return info
 
 	@staticmethod
@@ -504,13 +506,18 @@ class vllm_Client(OpenaiClientBase):
 		chat = data.pop('messages', None)
 		if chat is not None:
 
+			tok_args = {
+				'tokenize': False,
+				'tools': tools,
+				'documents': docs,
+				'add_generation_prompt': self._add_generation_prompt,
+				'continue_final_message': self._continue_final_message,
+				'chat_template': self._chat_template,
+			}
+			if 'qwen' in self.model_name.lower():
+				tok_args['enable_thinking'] = self._enable_thinking
 			try:
-
-				prompt = self._tokenizer.apply_chat_template(chat, tokenize=False, tools=tools, documents=docs,
-															 add_generation_prompt=self._add_generation_prompt,
-															 continue_final_message=self._continue_final_message,
-															 enable_thinking=not self._no_think,
-															 chat_template=self._chat_template)
+				prompt = self._tokenizer.apply_chat_template(chat, **tok_args)
 
 			except Exception:
 				# pretty print
