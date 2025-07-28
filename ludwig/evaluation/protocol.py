@@ -185,6 +185,8 @@ class DefaultProtocol(ProtocolBase):
 			metrics = None
 		elif self._answer_type is None:
 			metrics = None
+		elif self._answer_type == 'option':
+			metrics = None
 		else:
 			raise ValueError(f'Unknown answer type: {spec["answer"]}')
 
@@ -268,7 +270,7 @@ class DefaultProtocol(ProtocolBase):
 	def _aggregate_verdict(self, idx: int = None, verdict: JSONDATA = None):
 		if verdict is None:
 			return
-		if self._answer_type == 'yes/no':
+		if self._answer_type == 'yes/no' or self._answer_type == 'option':
 			return verdict
 		elif isinstance(self._answer_type, list):
 			for key, val in verdict.items():

@@ -197,7 +197,7 @@ class FormatJudge(JudgeBase):
 		if isinstance(options, str):
 			options = problem[options]
 
-		pattern = self._answer_regex[self._style].format(options='|'.join(options))
+		pattern = self._answer_regex[self._style].format(options='|'.join(map(re.escape,options)))
 
 		match = self._find_last(pattern, final.strip())
 		if match:

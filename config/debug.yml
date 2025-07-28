@@ -33,16 +33,21 @@ _meta.script_name: eval
 #_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 
-_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+#obs-rep: compact
+##obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
+
+##################
+
+_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+
+obs-rep: fen
+hint: all
 
 ##############
 use-chat-completion: no
 #tool-style: json
-
-obs-rep: compact
-#obs-rep: moves
 
 limit: 10
 
@@ -51,8 +56,8 @@ use-wandb: no
 root: local_data/debug
 
 #no-think: yes
-temperature: 1.0
-n-votes: 3
+#temperature: 1.0
+#n-votes: 3
 
 # for format judge: j/format
 #style: end

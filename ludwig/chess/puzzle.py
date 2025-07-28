@@ -12,15 +12,15 @@ import chess
 class ChessPuzzle(TaskBase):
 	_problem_path = repo_root().joinpath('assets', 'chess', 'puzzles.csv')
 	_analysis_path = repo_root().joinpath('assets', 'chess', 'analysis.json')
-	def __init__(self, *, obs_rep: str = 'fen', options: Optional[int] = None, **kwargs):
+	def __init__(self, *, obs_rep: str = 'fen', hint: Optional[int] = None, **kwargs):
 		assert obs_rep in ['fen', 'pgn', 'white', 'active', 'unicode', 'minimal', 'border'], \
 			f'Invalid observation representation: {obs_rep}'
-		assert isinstance(options, int) or options in [None, 'all'], f'Invalid options: {options!r}'
+		assert isinstance(hint, int) or hint in [None, 'all'], f'Invalid options: {hint!r}'
 		if obs_rep == 'pgn':
 			raise NotImplementedError
 		super().__init__(**kwargs)
 		self._obs_rep = obs_rep
-		self._options = options
+		self._options = hint
 		self.data = None
 		self.analysis = None
 
@@ -49,7 +49,7 @@ class ChessPuzzle(TaskBase):
 	def json(self) -> JSONOBJ:
 		return {
 			'obs_rep': self._obs_rep,
-			'options': self._options,
+			'hint': self._options,
 		}
 
 	@property
@@ -63,7 +63,13 @@ class ChessPuzzle(TaskBase):
 		raise NotImplementedError
 
 	def specification(self) -> JSONOBJ:
-		return {'answer': 'word', 'options': 'legal'}
+		return {'answer': 'option', 'options': 'legal'}
+
+	def context(self) -> str:
+		return self._system_context
+
+	def description(self) -> str:
+		return self._task_description
 
 	_system_context = "Implement all the rules of chess to solve some chess problems."
 	_task_description = ("Can you solve this chess puzzle? You will be given a board position and you must "
@@ -100,12 +106,12 @@ class ChessPuzzle(TaskBase):
 			obs = template.format(board=self._render_board(board))
 
 		question = (f"Given the board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
-						   f"Answer using the SAN format.")
+						   f"Answer using the UCI or SAN format.")
 
 		ctx['fen'] = fen
 		ctx['player'] = active_player
 
-		ctx['legal'] = sorted(board.san(move) for move in board.legal_moves)
+		ctx['legal'] = [board.san(move) for move in board.legal_moves] + [move.uci() for move in board.legal_moves]
 		hint = None
 		if self._options is None:
 			pass
@@ -128,7 +134,7 @@ class ChessPuzzle(TaskBase):
 			question = f'{question}\n{hint}'
 
 		ctx['question'] = question
-		ctx['answer'] = answer
+		ctx['answer'] = [answer, board.san(board.parse_uci(answer))]
 
 		ctx['system'] = self._system_context
 		ctx['task'] = self._task_description

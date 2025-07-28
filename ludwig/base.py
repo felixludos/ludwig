@@ -46,7 +46,15 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> JSONDATA:
 		assert 'answer' in problem, 'Problem must contain an answer'
 		assert 'decision' in response or 'final' in response, 'Problem must contain a decision or final answer'
-		return problem['answer'] == response.get('decision', response.get('final', None))
+
+		allowed = problem['answer']
+		if isinstance(allowed, str):
+			allowed = [allowed]
+
+		for ans in allowed:
+			if ans == response.get('decision', response.get('final', None)):
+				return True
+		return False
 
 	def json(self) -> JSONOBJ:
 		return {}
