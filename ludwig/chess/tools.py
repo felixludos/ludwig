@@ -44,7 +44,10 @@ class NextMove(ToolBase):
 		if fen is None or not isinstance(fen, str):
 			raise ToolError('FEN string is required')
 
-		board = chess.Board(fen)
+		try:
+			board = chess.Board(fen)
+		except ValueError as e:
+			raise ToolError(f'Invalid FEN string: {fen!r}. Error: {e}')
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')
 
@@ -92,7 +95,10 @@ class DrawBoard(ToolBase):
 		if fen is None or not isinstance(fen, str):
 			raise ToolError('FEN string is required')
 
-		board = chess.Board(fen)
+		try:
+			board = chess.Board(fen)
+		except ValueError as e:
+			raise ToolError(f'Invalid FEN string: {fen!r}. Error: {e}')
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')
 
@@ -151,7 +157,10 @@ class StockfishBestNextMove(StockfishTool):
 		if fen is None or not isinstance(fen, str):
 			raise ToolError('FEN string is required')
 
-		board = chess.Board(fen)
+		try:
+			board = chess.Board(fen)
+		except ValueError as e:
+			raise ToolError(f'Invalid FEN string: {fen!r}. Error: {e}')
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')
 
@@ -201,7 +210,10 @@ class StockfishEvalBoard(StockfishTool):
 		if fen is None or not isinstance(fen, str):
 			raise ToolError('FEN string is required')
 
-		board = chess.Board(fen)
+		try:
+			board = chess.Board(fen)
+		except ValueError as e:
+			raise ToolError(f'Invalid FEN string: {fen!r}. Error: {e}')
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')
 
@@ -267,7 +279,10 @@ class StockfishEvalMove(StockfishTool):
 		if move is None or not isinstance(move, str):
 			raise ToolError('Move in UCI format is required')
 
-		board = chess.Board(fen)
+		try:
+			board = chess.Board(fen)
+		except ValueError as e:
+			raise ToolError(f'Invalid FEN string: {fen!r}. Error: {e}')
 
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')

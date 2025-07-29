@@ -23,33 +23,33 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 
-#_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
-#_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
-_base: [s/mv, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-#_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
-
-obs-rep: compact
-##obs-rep: moves
+##_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
+##_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/mv, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+##_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
+#
+#obs-rep: compact
+###obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
 ##################
 
-##_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-##_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 #_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-##_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-#
-##obs-rep: active
+_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+
+obs-rep: active
 #obs-rep: fen
-##hint: all
-#
-##check-work: 2
+#hint: all
+
+#check-work: 2
 
 #stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
 
@@ -82,8 +82,8 @@ addr: 8002
 #client._mod.logged: yes
 
 #max-tokens: 1024
-#max-tokens: 4096 # needed for qwen due to reasoning
-max-tokens: 8196 # needed for qwen due to reasoning
+max-tokens: 4096 # needed for qwen due to reasoning
+#max-tokens: 8196 # needed for qwen due to reasoning
 #max-tokens: 1024
 
 #temperature: 0.6
