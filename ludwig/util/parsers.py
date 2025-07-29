@@ -31,6 +31,9 @@ class MessageParser(AbstractParser):
 		content = text.strip()
 		message = {'content': None, 'role': role, 'tool_calls': []}
 
+		toolnames = [tool['function']['name'] for tool in context.get('tools', [])
+					 if 'name' in tool.get('function', {})]
+
 		# region extract reasoning content
 		match = re.search(r"(.*?)<think>(.*?)</think>(.*)", content, re.DOTALL)
 		if match:
@@ -82,14 +85,27 @@ class MessageParser(AbstractParser):
 			clean_content = []
 			tool_calls = []
 			for line in lines:
-				if line.startswith('[') and line.endswith(']'):
-					tool_calls.extend(parse_pythonic_tool_calls(line))
-					try:
-						tool_calls.extend(parse_json_tool_calls(line))
-					except:
-						pass
-				elif line.startswith('{') and line.endswith('}'):
-					tool_calls.extend(parse_json_tool_calls(line))
+				if (line.startswith('[') and line.endswith(']')) or any(line.startswith(name) for name in toolnames):
+					calls = parse_pythonic_tool_calls(line)
+					if calls:
+						tool_calls.extend(calls)
+					else:
+						try:
+							calls = parse_json_tool_calls(line)
+						except:
+							clean_content.append(line)
+						else:
+							if calls:
+								tool_calls.extend(calls)
+							else:
+								clean_content.append(line)
+
+				elif (line.startswith('{') and line.endswith('}')) or any(name in line for name in toolnames):
+					calls = parse_json_tool_calls(line)
+					if calls:
+						tool_calls.extend(calls)
+					else:
+						clean_content.append(line)
 				else:
 					clean_content.append(line)
 			if tool_calls:

@@ -1,7 +1,7 @@
 
 strategy._type: tool-use
 
-template: tool-use
+#template: tool-use
 
 strategy.max-turns: 20
 

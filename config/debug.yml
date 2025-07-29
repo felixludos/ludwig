@@ -41,14 +41,21 @@ _meta.script_name: eval
 ##################
 
 #_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
 
-obs-rep: active
-hint: all
+#obs-rep: active
+obs-rep: fen
+#hint: all
+
+check-work: 2
 
 ##############
 #use-chat-completion: no
 #tool-style: json
+#enable-thinking: yes
+stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
 
 limit: 10
 
@@ -64,7 +71,7 @@ root: local_data/debug
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8001
+addr: 8003
 #client.addr: 8001
 #judge.addr: 8001
 
@@ -74,7 +81,8 @@ addr: 8001
 #client._mod.logged: yes
 
 #max-tokens: 1024
-#max-tokens: 4096 # needed for qwen3-8b due to reasoning
+#max-tokens: 4096 # needed for qwen due to reasoning
+#max-tokens: 8196 # needed for qwen due to reasoning
 #max-tokens: 1024
 
 #temperature: 0.6

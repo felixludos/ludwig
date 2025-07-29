@@ -9,6 +9,7 @@ matplotlib
 wandb
 
 chess
+stockfish
 
 # inference
 vllm

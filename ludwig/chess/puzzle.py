@@ -22,29 +22,37 @@ class ChessPuzzle(TaskBase):
 		self._obs_rep = obs_rep
 		self._options = hint
 		self.data = None
+		self.dev_data = None
 		self.analysis = None
 
 	@property
 	def name(self) -> str:
 		return "ChessPuzzle"
 
+	_dev_set_cut = 100
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		super().prepare(seed)
 		if not self._problem_path.exists():
 			raise FileNotFoundError(f"Problem data file not found: {self._problem_path}")
 		import pandas as pd
-		self.data = pd.read_csv(self._problem_path, header=0)
+		full_data = pd.read_csv(self._problem_path, header=0)
+		# split into dev and train sets
+		self.data = full_data.iloc[self._dev_set_cut:].reset_index(drop=True)
+		self.dev_data = full_data.iloc[:self._dev_set_cut].reset_index(drop=True)
 		self.analysis = json.loads(self._analysis_path.read_text())
 
 	def show_keys(self) -> Iterator[str]:
 		yield 'question'
 		yield 'system'
 		yield 'task'
+		yield 'legal' # enables judge.interpret() calls in the strategy
 
 	def store_keys(self) -> Iterator[str]:
-		yield 'problem'
+		yield 'fen'
 		yield 'question'
 		yield 'answer'
+		yield 'puzzle_id'
+		yield 'num_legal_moves'
 
 	def json(self) -> JSONOBJ:
 		return {
@@ -60,7 +68,9 @@ class ChessPuzzle(TaskBase):
 
 	@property
 	def total_dev_questions(self) -> Optional[int]:
-		raise NotImplementedError
+		if self.dev_data is None:
+			return None
+		return len(self.dev_data)
 
 	def specification(self) -> JSONOBJ:
 		return {'answer': 'option', 'options': 'legal'}
@@ -71,14 +81,20 @@ class ChessPuzzle(TaskBase):
 	def description(self) -> str:
 		return self._task_description
 
+	def ask_dev(self, index: int) -> JSONOBJ:
+		"""Ask a question from the development set."""
+		ctx = self.ask(index, dev=True)
+		ctx['answer'] = ctx['answer'][0]
+		return ctx
+
 	_system_context = "Implement all the rules of chess to solve some chess problems."
 	_task_description = ("Can you solve this chess puzzle? You will be given a board position and you must "
 						 "find the best move for the side to move. ")
-	def ask(self, index: int) -> JSONOBJ:
+	def ask(self, index: int, dev: bool = False) -> JSONOBJ:
 		ctx = {}
 
 		# dict of data
-		raw = self.data.iloc[index].to_dict()
+		raw = (self.dev_data if dev else self.data).iloc[index].to_dict()
 		ctx['puzzle_id'] = raw['PuzzleId']
 		analysis = self.analysis[raw['PuzzleId']]
 		board = chess.Board(raw['FEN'])
@@ -90,6 +106,7 @@ class ChessPuzzle(TaskBase):
 		fen = board.fen()
 
 		active_player = 'white' if board.turn == chess.WHITE else 'black'
+		opponent = 'black' if active_player == 'white' else 'white'
 
 		template = '{board}\n\n(where uppercase letters are white pieces and lowercase letters are black pieces)'
 		if self._obs_rep == 'fen':
@@ -105,19 +122,21 @@ class ChessPuzzle(TaskBase):
 		else:
 			obs = template.format(board=self._render_board(board))
 
-		question = (f"Given the board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
+		question = (f"{opponent.capitalize()} just played {moves[0]}. "
+					f"Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
 						   f"Answer using the UCI or SAN format.")
 
 		ctx['fen'] = fen
 		ctx['player'] = active_player
 
 		ctx['legal'] = [board.san(move) for move in board.legal_moves] + [move.uci() for move in board.legal_moves]
+		ctx['num_legal_moves'] = len(ctx['legal']) // 2
 		hint = None
 		if self._options is None:
 			pass
 		elif self._options == 'all':
 			# return all legal moves as options in san format
-			options = sorted(board.san(move) for move in board.legal_moves)
+			options = sorted(move.uci() for move in board.legal_moves)
 			ctx['options'] = options
 			options = ', '.join(sorted(options))
 			hint = f'Possible moves are (the correct answer is one of these): {options}'

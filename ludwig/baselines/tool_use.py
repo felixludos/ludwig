@@ -11,6 +11,7 @@ class ToolUse(ZeroShotPrompting):
 	"""
 	_name = 'tool'
 	def __init__(self, tools: Union[Dict[str, AbstractTool], Iterable[AbstractTool]] = None, max_turns: int = None,
+				 check_work: Optional[int] = 0,
 				 **kwargs):
 		if tools is None:
 			tools = []
@@ -21,11 +22,14 @@ class ToolUse(ZeroShotPrompting):
 		self._tool_code = hash_str(''.join(sorted(self.tools.keys())))
 		self._tool_stats = {}
 		self._max_turns = max_turns
+		self._check_work = check_work
+		self.judge = None
 
 	def prepare(self, task: 'AbstractTask', judge: 'AbstractJudge' = None, **kwargs):
 		super().prepare(task, judge, **kwargs)
 		if not len(self.tools):
 			raise ValueError('No tools provided for tool use strategy')
+		self.judge = judge
 
 	@property
 	def name(self) -> str:
@@ -35,6 +39,7 @@ class ToolUse(ZeroShotPrompting):
 		return {
 			'tool_code': self._tool_code,
 			'tools': [tool.json() for tool in self.tools.values()],
+			'check_work': self._check_work,
 			**super().json()
 		}
 
@@ -55,6 +60,7 @@ class ToolUse(ZeroShotPrompting):
 
 		tool_calls = []
 
+		checks = self._check_work
 		chat = self.client.begin_chat(prompt)
 		msg = None
 		for resp in self.client.multi_turn(chat, dict(tools=tool_schemas, tool_choice='none')):
@@ -79,6 +85,11 @@ class ToolUse(ZeroShotPrompting):
 
 			elif msg['content'] is None:
 				raise StrategyFailure('No response from model (and no tool calls)')
+			elif checks and self.judge.interpret(problem, {'final': msg['content']}).get('decision') is None:
+				checks -= 1
+				chat.append({'role': 'user', 'content': 'You have not answered the question yet. If necessary, '
+														'continue calling functions or reasoning and then when you have '
+														'an answer, provide it precisely in the specified format.'})
 			else:
 				break
 

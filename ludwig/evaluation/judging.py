@@ -167,7 +167,8 @@ class FormatJudge(JudgeBase):
 		self._options = options
 
 	def format_description(self, task_description: str) -> str:
-		lines = [task_description, self._answer_styles[self._style].format(options='/'.join(self._options))]
+		options = 'answer' if isinstance(self._options, str) else '/'.join(self._options)
+		lines = [task_description, self._answer_styles[self._style].format(options=options)]
 		return '\n'.join(lines)
 
 	def format_answer(self, answer: str) -> str:
