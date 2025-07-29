@@ -43,6 +43,7 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 	def hint(self, ctx: JSONOBJ) -> None:
 		pass
 
+	_ignore_case = True
 	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> JSONDATA:
 		assert 'answer' in problem, 'Problem must contain an answer'
 		assert 'decision' in response or 'final' in response, 'Problem must contain a decision or final answer'
@@ -51,8 +52,13 @@ class JudgeBase(fig.Configurable, AbstractJudge):
 		if isinstance(allowed, str):
 			allowed = [allowed]
 
+		sol = response.get('decision', response.get('final', None))
+		if self._ignore_case and isinstance(sol, str):
+			sol = sol.lower()
 		for ans in allowed:
-			if ans == response.get('decision', response.get('final', None)):
+			if self._ignore_case:
+				ans = ans.lower()
+			if ans == sol:
 				return True
 		return False
 

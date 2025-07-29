@@ -128,7 +128,7 @@ class SimpleMajorityVote(MajorityVote, ZeroShotPrompting):
 
 	@property
 	def name(self) -> str:
-		name = f'{self._name or "mv"}{self.n_votes}'
+		name = f'mv{self.n_votes}-{self._name}' if self._name else f'mv{self.n_votes}'
 		return name
 
 

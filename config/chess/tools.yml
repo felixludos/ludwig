@@ -2,9 +2,9 @@
 
 tools:
   next-move._type: chess/tool/next-move
-  eval-board._type: chess/tool/stockfish/eval-board
+#  eval-board._type: chess/tool/stockfish/eval-board
   eval-move._type: chess/tool/stockfish/eval-move
-  draw-board._type: chess/tool/draw-board
+#  draw-board._type: chess/tool/draw-board
 
 
 oracle-tool._type: chess/tool/stockfish/best-move

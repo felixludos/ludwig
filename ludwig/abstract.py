@@ -422,7 +422,6 @@ class AbstractJudge:
 
 
 
-
 class AbstractProtocol:
 	def prepare(self, root: Path = None) -> Optional[JSONOBJ]:
 		"""(optional) Prepare all the necessary state for this protocol"""

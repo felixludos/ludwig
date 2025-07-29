@@ -1,5 +1,5 @@
 
 strategy._type: majority-vote
 
-n-votes: 5
+n-votes: 8
 
