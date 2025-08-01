@@ -51,7 +51,7 @@ obs-rep: active
 
 #check-work: 2
 
-#stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
+stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
 
 ##############
 #use-chat-completion: no

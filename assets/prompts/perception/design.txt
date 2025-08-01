@@ -1,0 +1,40 @@
+You are an expert AI system designer specializing in knowledge representation for automated reasoning. Your task is to design a structured data representation for the class of problems exemplified below.
+
+The designed representation must meet two primary objectives:
+
+1.  **Formalization**: It must decompose each problem into its fundamental, modular components (e.g., objects, agents, premises, constraints). The structure should be clear, consistent, and unambiguous.
+2.  **Manipulability**: The structure must be optimized for systematic, programmatic manipulation. It should be easy to access, modify, add, or remove individual components and their properties. This is critical because this representation will serve as the state that is transformed by a set of operations in a subsequent reasoning process.
+
+After analyzing the samples, propose a general and robust **JSON schema** for this representation. Provide a brief justification for your design choices, explaining how they support the objectives of formalization and manipulability. Avoid ambiguity and redundancy in the representation, while making sure that the samples can be accurately, and faithfuly represented - including all relevant details to solve the specific task.
+
+---
+
+## Task Description
+
+Here is a description of the task:
+
+{task}
+
+---
+
+## Sample Problems
+
+**Problem 1:**
+
+```
+{observation1}
+```
+
+**Problem 2:**
+
+```
+{observation2}
+```
+
+**Problem 3:**
+
+```
+{observation3}
+```
+
+

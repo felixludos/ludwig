@@ -81,36 +81,38 @@ class TakeTheMiddle(TaskBase):
 		ctx['problem'] = problem
 		ctx['answer'] = answer
 
-
-		question = 'Should I play in the central cell - is that my best move?'
-		template = 'Alice is "X" and I am "O". Take a careful look at the current situation:\n{board}\n{question}'
+		template = 'Alice is "X" and I am "O". Take a careful look at the current situation:\n{board}'
 
 		if self._obs_rep == 'moves':
 			template = ("Alice started with the {0} and I played the {1}. She took the {2}, so I responded with the {3}. "
-						"Now Alice played at the {4}. {question}")
+						"Now Alice played at the {4}.")
 
 			actions = self._to_action_sequence(problem)
 			ctx['actions'] = actions
-			prompt = template.format(*actions, question=question)
+			observation = template.format(*actions)
 
 		elif self._obs_rep in {'grid', 'compact', 'minimal',}:
 			board = view_ttt(problem, self._obs_rep)
-			prompt = template.format(question=question, board=board)
+			observation = template.format(board=board)
 			# ctx['board'] = board
 
 		elif self._obs_rep == 'pythonic':
 			board = str(to_nested(problem))
-			prompt = template.format(question=question, board=board)
+			observation = template.format(board=board)
 			# ctx['board'] = board
 
 		else:
 			raise ValueError(f'Invalid observation representation: {self._obs_rep}')
 
+
+		question = '{observation}\nShould I play in the central cell - is that my best move?'
+
+		ctx['observation'] = observation
 		ctx['rationale'] = list(self._rationale(ctx))
 
 		ctx['board'] = view_ttt(problem, 'minimal')
 
-		ctx['question'] = prompt
+		ctx['question'] = question.format(observation=observation)
 		ctx['system'] = self._system_context
 		ctx['task'] = self._task_description
 		return ctx
