@@ -10,6 +10,7 @@ requests/
 local_data/
 extra/
 secrets/
+plugh.json
 
 # C extensions
 *.so
