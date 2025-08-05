@@ -251,32 +251,32 @@ def parse_json_tool_calls(raw_string: str) -> List[JSONOBJ]:
 
 
 def _parse_arguments(arg_string: str) -> Dict[str, Any]:
-    """
-    Parses a string of Python keyword arguments into a dictionary using AST.
-    This version handles both quoted literals (e.g., 'val') and unquoted
-    name-like values (e.g., city=Barcelona), treating the latter as strings.
-    """
-    if not arg_string.strip():
-        return {}
-    try:
-        # Wrap arguments in a dummy function call to parse them
-        call_node = ast.parse(f"dummy({arg_string})", mode='eval').body
-        args = {}
-        for kw in call_node.keywords:
-            arg_name = kw.arg
-            arg_value_node = kw.value
-            # If the value is an ast.Name, it's an unquoted value like 'Barcelona'.
-            # We will treat its ID ('Barcelona') as a string.
-            if isinstance(arg_value_node, ast.Name):
-                args[arg_name] = arg_value_node.id
-            # For all other literal types (strings, numbers, lists, dicts, etc.),
-            # ast.literal_eval is the safe way to get the Python object.
-            else:
-                args[arg_name] = ast.literal_eval(arg_value_node)
-        return args
-    except (SyntaxError, ValueError) as e:
-        print(f"Could not parse arguments using AST: '{arg_string}'. Error: {e}")
-        return {}
+	"""
+	Parses a string of Python keyword arguments into a dictionary using AST.
+	This version handles both quoted literals (e.g., 'val') and unquoted
+	name-like values (e.g., city=Barcelona), treating the latter as strings.
+	"""
+	if not arg_string.strip():
+		return {}
+	try:
+		# Wrap arguments in a dummy function call to parse them
+		call_node = ast.parse(f"dummy({arg_string})", mode='eval').body
+		args = {}
+		for kw in call_node.keywords:
+			arg_name = kw.arg
+			arg_value_node = kw.value
+			# If the value is an ast.Name, it's an unquoted value like 'Barcelona'.
+			# We will treat its ID ('Barcelona') as a string.
+			if isinstance(arg_value_node, ast.Name):
+				args[arg_name] = arg_value_node.id
+			# For all other literal types (strings, numbers, lists, dicts, etc.),
+			# ast.literal_eval is the safe way to get the Python object.
+			else:
+				args[arg_name] = ast.literal_eval(arg_value_node)
+		return args
+	except (SyntaxError, ValueError) as e:
+		print(f"Could not parse arguments using AST: '{arg_string}'. Error: {e}")
+		return {}
 
 
 def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
@@ -336,8 +336,47 @@ def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	return tool_calls
 
 
+def extract_code_blocks(markdown_text: str, *languages: Optional[str]) -> Iterator[str]:
+	"""
+	Extracts code blocks from a markdown string.
+
+	Args:
+		markdown_text: The string containing markdown with code blocks.
+		language: Optional language identifier to filter by (e.g., 'json', 'python').
+				  If None, all code blocks are extracted.
+
+	Returns:
+		A list of strings, where each string is a code block content.
+	"""
+	# This regex pattern finds all code blocks and captures the language and the code.
+	# The `re.DOTALL` flag allows `.` to match newlines.
+	pattern = r"```(\w*)\s*\n(.*?)\n?```"
+	matches = re.findall(pattern, markdown_text, re.DOTALL)
+
+	if languages:
+		# Filter for a specific language
+		yield from (code.strip() for lang, code in matches if lang in languages)
+	else:
+		# Return all found code blocks
+		yield from (code.strip() for lang, code in matches)
 
 
+
+def find_last(pattern, text) -> Optional[re.Match]:
+	options = re.findall(pattern, text, re.IGNORECASE)
+	if not options:
+		return None
+	return options[-1]
+
+def find_first(pattern, text) -> Optional[re.Match]:
+	"""
+	Finds the first match of the given regex pattern in the text.
+	Returns None if no match is found.
+	"""
+	match = re.search(pattern, text, re.IGNORECASE)
+	if match:
+		return match
+	return None
 
 
 

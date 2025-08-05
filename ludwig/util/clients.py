@@ -201,7 +201,7 @@ class MockEndpoint(ClientBase):
 		self.history = []
 		self._last_response = None
 
-	def prepare(self) -> Self:
+	def prepare(self) -> 'Self':
 		self.history = []
 		self._last_response = None
 		return self
@@ -296,7 +296,7 @@ class OpenaiClientBase(ClientBase):
 			name = name.split('hub/models--')[-1].split('/')[0].replace('--', '/')
 		return name
 
-	def prepare(self) -> Self:
+	def prepare(self) -> 'Self':
 		self.history = []
 		try:
 			import tiktoken
@@ -362,7 +362,7 @@ class OpenaiClientBase(ClientBase):
 		# for m in chat:
 		# 	assert all(k in self._valid_chat_keys for k in m), f'Invalid keys in chat message: {m.keys()}'
 		messages = [{key: val for key, val in m.items() if key in self._valid_chat_keys} for m in chat]
-		if self.max_tokens is None:
+		if self.max_tokens is None and (params is None or 'max_tokens' not in params):
 			print(f'WARNING: `max_tokens` cannot be None, setting to 2048 for now.')
 			self.max_tokens = 2048
 		args = {'messages': messages, 'model': self._model_name, 'max_tokens': self.max_tokens,
@@ -563,7 +563,7 @@ class vllm_Client(OpenaiClientBase):
 		return AutoTokenizer.from_pretrained(model_name, **kwargs)
 
 	_default_chat_template = '{root}/tools-{tool_style}/{model_name}.jinja'
-	def prepare(self) -> Self:
+	def prepare(self) -> 'Self':
 		super().prepare()
 		# info = self.endpoint.models.list()
 		# self._model_name = info.data[0].id
@@ -732,7 +732,7 @@ class Logged(ClientBase):
 		now = datetime.now()
 		self._timestamp = now.strftime('%y%m%d-%H%M%S')
 
-	def prepare(self) -> Self:
+	def prepare(self) -> 'Self':
 		out = super().prepare()
 		if self._active:
 			self._log_dir = self._log_root / pformat(self._log_dir_fmt, client=self, now=datetime.now(),
@@ -821,7 +821,7 @@ class Tool_Client(ClientBase):
 			data['tools'] = [tool.json() for tool in self.tools.values()]
 		return data
 
-	def register_tools(self, *tools: AbstractTool) -> Self:
+	def register_tools(self, *tools: AbstractTool) -> 'Self':
 		for tool in tools:
 			self.tools[tool.name] = tool
 		return self

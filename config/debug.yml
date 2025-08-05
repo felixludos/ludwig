@@ -43,7 +43,7 @@ _meta.script_name: eval
 #_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
 #_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 #_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view, gen]
 
 obs-rep: active
 #obs-rep: fen
@@ -51,7 +51,6 @@ obs-rep: active
 
 #check-work: 2
 
-stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
 
 ##############
 #use-chat-completion: no
@@ -72,7 +71,7 @@ n-votes: 3
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8002
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 

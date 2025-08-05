@@ -68,20 +68,24 @@ class ToolUse(ZeroShotPrompting):
 			if msg.get('tool_calls'):
 				for tool_call in msg.get('tool_calls'):
 					info = tool_call['function']
-					assert info['name'] in self.tools, f'Tool {info["name"]} not registered'
-					tool = self.tools[info['name']]
-					arguments = info['arguments']
-					while isinstance(arguments, str):
-						arguments = json.loads(arguments)
-					try:
-						result = tool.call(arguments)
-					except ToolError as e:
-						result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
-					chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call['id'], })#'name': info.name})
-					tool_calls.append({'name': info['name'],
-									   'arguments': str(arguments),
-									   'result': str(result),
-									   })
+					if info['name'] in self.tools:
+						tool = self.tools[info['name']]
+						arguments = info['arguments']
+						while isinstance(arguments, str):
+							arguments = json.loads(arguments)
+						try:
+							result = tool.call(arguments)
+						except ToolError as e:
+							result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
+						chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call['id'], })#'name': info.name})
+						tool_calls.append({'name': info['name'],
+										   'arguments': str(arguments),
+										   'result': str(result),
+										   })
+					else:
+						chat.append({'role': 'tool', 'content': f'Error: {info["name"]!r} does not exist',
+									 'tool_call_id': tool_call['id'],})
+
 
 			elif msg['content'] is None:
 				raise StrategyFailure('No response from model (and no tool calls)')

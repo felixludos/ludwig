@@ -9,7 +9,7 @@ class AbstractClient:
 	def ping(self) -> bool:
 		raise NotImplementedError
 
-	def prepare(self) -> Self:
+	def prepare(self) -> 'Self':
 		raise NotImplementedError
 
 	def json(self) -> JSONOBJ:
