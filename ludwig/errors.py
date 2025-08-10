@@ -12,6 +12,10 @@ class StrategyFailure(Exception):
 
 class BudgetExceededError(StrategyFailure):
 	"""Raised when the maximum budget is exceeded."""
+	def __init__(self, message: str, resp: JSONOBJ = None):
+		super().__init__(message)
+		self.message = message
+		self.resp = resp
 
 
 class ParsingError(StrategyFailure):

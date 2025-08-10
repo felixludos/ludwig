@@ -72,7 +72,9 @@ class TakeTheMiddle(TaskBase):
 		pass
 
 	_system_context = "Implement all the rules of tic-tac-toe."
-	_task_description = "We're playing tic-tac-toe, and I have a question about the best move to make."
+	# _task_description = "We're playing tic-tac-toe, and I have a question about the best move to make."
+	_task_description = ("We're playing tic-tac-toe, and, given the current game state, "
+						 "I would like to know specifically whether or not I should play in the middle next.")
 	def ask(self, index: int, dev: bool = False) -> JSONOBJ:
 		ctx = {}
 

@@ -30,6 +30,10 @@ class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 		"""
 		return True
 
+	@property
+	def is_judge(self):
+		return False
+
 
 
 class JudgeBase(fig.Configurable, AbstractJudge):

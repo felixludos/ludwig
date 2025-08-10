@@ -336,7 +336,7 @@ def parse_pythonic_tool_calls(raw_string: str) -> List[JSONOBJ]:
 	return tool_calls
 
 
-def extract_code_blocks(markdown_text: str, *languages: Optional[str]) -> Iterator[str]:
+def extract_code_blocks(markdown_text: str, *languages: Optional[str], boundary='```') -> Iterator[str]:
 	"""
 	Extracts code blocks from a markdown string.
 
@@ -350,7 +350,7 @@ def extract_code_blocks(markdown_text: str, *languages: Optional[str]) -> Iterat
 	"""
 	# This regex pattern finds all code blocks and captures the language and the code.
 	# The `re.DOTALL` flag allows `.` to match newlines.
-	pattern = r"```(\w*)\s*\n(.*?)\n?```"
+	pattern = fr"{boundary}(\w*)\s*\n(.*?)\n?{boundary}"
 	matches = re.findall(pattern, markdown_text, re.DOTALL)
 
 	if languages:

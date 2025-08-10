@@ -1,0 +1,12 @@
+Now try to formalize the following example problem using the schema you designed:
+```json
+{json.dumps(schema, indent=2)}
+```
+
+Now, carefully read the following problem instance and convert it into a single JSON object that conforms to the schema above to help solve this task:
+{task}
+
+** Specific Problem: **
+```
+{example['question']}
+```

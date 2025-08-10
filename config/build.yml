@@ -1,0 +1,7 @@
+strategy._type: ours/tree-builder
+
+n: 10
+
+protocol:
+  task: <>n
+  name: '{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}'

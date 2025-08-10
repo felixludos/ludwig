@@ -1,0 +1,5 @@
+Now your task is to implement the `expand` function in Python. This function takes a single state object (conforming to the schema) and returns a list of all valid next states.
+
+The function should only contain the minimal logic necessary to generate the next states (i.e., the "rules" of the task). Do not include any recursion, search, or heuristic logic within this function.
+
+Provide the implementation as a Python function named `expand` inside a ```python ... ``` block. If you need helper functions, make sure they are defined within the same block so the block can stand alone.

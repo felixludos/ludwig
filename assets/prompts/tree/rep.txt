@@ -1,11 +1,11 @@
-'We will solve the following task using a structured tree-search framework.
+We will solve the following task using a structured tree-search framework.
 
 **Task Description:**
 {task}
 
 **Example Problem:**
 ```
-{observation}
+{examples[0]['question']}
 ```
 
 Your first task is to design an optimal state representation for this kind of problem. The representation must be:
