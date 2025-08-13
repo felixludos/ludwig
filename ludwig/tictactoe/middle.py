@@ -1,5 +1,3 @@
-import random
-
 from ..abstract import PROBLEM
 from ..imports import *
 from ..base import TaskBase
