@@ -33,8 +33,8 @@ _meta.script_name: eval
 ##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ##_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 #
-#obs-rep: compact
-##obs-rep: moves
+obs-rep: compact
+#obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -47,15 +47,18 @@ _meta.script_name: eval
 #
 #obs-rep: active
 #obs-rep: fen
-obs-rep: pgn
+#obs-rep: pgn
 ##hint: all
 #
 ##check-work: 2
 
 #################
 
-#_base: [build, ttt/take-the-middle, c/vllm, basic-view]
-_base: [build, chess/puzzle, c/vllm, basic-view]
+_base: [build, ttt/take-the-middle, c/vllm, basic-view]
+#_base: [build, chess/puzzle, c/vllm, basic-view]
+#_base: [build, chess/puzzle, c/saia, basic-view]
+#
+#model: openai-gpt-oss-120b
 
 
 ##############

@@ -1,0 +1,5 @@
+
+_base: [secrets/saia]
+
+client._type: saia
+client._mod.logged: yes

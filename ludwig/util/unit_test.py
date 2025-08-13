@@ -2,7 +2,7 @@ import random
 
 from .imports import *
 from .files import repo_root
-from .clients import vllm_Client, OpenaiAzure_Client, Openai_Client, Tool_Client
+from .clients import vllm_Client, OpenaiAzure_Client, Openai_Client, Tool_Client, SAIA_Client
 from .prompts import ChatTemplate
 from .search import GenericSearch
 from .coding import PythonParser
@@ -96,9 +96,7 @@ def test_tool():
 			# return f"The weather in {city}, {country} is {temp} degrees {unit} and {weather}."
 			return json.dumps({'city': city, 'country': country, 'unit': unit, 'temp': temp, 'weather': weather})
 
-	class Client(Tool_Client, vllm_Client):
-		pass
-
+	class Client(Tool_Client, vllm_Client): pass
 	addr = '8002'
 	client = Client(addr=addr, tools=[GetWeather()])
 	client.prepare()

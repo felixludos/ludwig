@@ -458,7 +458,6 @@ class OSSClient(OpenaiClientBase):
 
 	def json(self) -> JSONOBJ:
 		info = super().json()
-		info['addr'] = str(self.endpoint.base_url)
 		info['add_generation_prompt'] = self._add_generation_prompt
 		info['continue_final_message'] = self._continue_final_message
 		info['chat_template_path'] = None if self._chat_template_path is None else str(self._chat_template_path)
@@ -515,6 +514,11 @@ class OSSClient(OpenaiClientBase):
 			data['messages'] = chat
 		return resp
 
+	_model_tokenizer_key = {
+		'openai-gpt-oss-120b': 'openai/gpt-oss-120b',
+		'qwen3-235b-a22b': 'Qwen/Qwen3-235B-A22B-Thinking-2507',
+	}
+
 	def _build_tokenizer(self, model_name: str, *, trust_remote_code: bool = True, **kwargs) -> 'AutoTokenizer':
 		"""
 		Builds a tokenizer for the specified model.
@@ -530,11 +534,13 @@ class OSSClient(OpenaiClientBase):
 			return tokenizer
 
 		from transformers import AutoTokenizer
+
 		if ('phi' in name and 'microsoft' in model_name) \
 			or ('tencent' in name and 'hunyuan' in model_name):
 			return AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, **kwargs)
 
-		return AutoTokenizer.from_pretrained(model_name, **kwargs)
+		name = self._model_tokenizer_key.get(model_name, model_name)
+		return AutoTokenizer.from_pretrained(name, **kwargs)
 
 	_default_chat_template = '{root}/tools-{tool_style}/{model_name}.jinja'
 	def prepare(self) -> 'Self':
@@ -610,6 +616,11 @@ class vllm_Client(OSSClient):
 	def __init__(self, addr: Union[str, int], **kwargs):
 		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
 	
+	def json(self) -> JSONOBJ:
+		info = super().json()
+		info['addr'] = str(self.endpoint.base_url)
+		return info
+	
 	@staticmethod
 	def _to_full_addr(addr: Union[str, int]) -> str:
 		addr = str(addr)
@@ -637,11 +648,11 @@ class vllm_Client(OSSClient):
 			return {}
 
 	def prepare(self) -> 'Self':
-		super().prepare()
 		# info = self.endpoint.models.list()
 		# self._model_name = info.data[0].id
 		info = self._server_model_info()
 		self._model_name = info['data'][0]['id']
+		super().prepare()
 	
 	def ping(self) -> bool:
 		try:
@@ -658,10 +669,12 @@ class vllm_Client(OSSClient):
 @fig.component('saia')
 class SAIA_Client(OSSClient):
 	@fig.silent_config_args('api_key')
-	def __init__(self, model_name: str = None, *, api_key: str, **kwargs):
+	def __init__(self, model: str = None, *, api_key: str, **kwargs):
 		super().__init__(endpoint=openai.OpenAI(base_url='https://chat-ai.academiccloud.de/v1',
 												api_key=api_key), **kwargs)
-		self._model_name = model_name
+		if self._my_config is not None:
+			self._my_config.root.push('api-key', '-hidden-', silent=True)
+		self._model_name = model
 
 	def available_models(self) -> JSONOBJ:
 		"""
@@ -676,6 +689,8 @@ class Openai_Client(OpenaiClientBase):
 	@fig.silent_config_args('api_key')
 	def __init__(self, model_name: str = None, *, api_key: str, **kwargs):
 		super().__init__(endpoint=openai.OpenAI(api_key=api_key), **kwargs)
+		if self._my_config is not None:
+			self._my_config.root.push('api-key', '-hidden-', silent=True)
 		self._model_name = model_name
 
 	def available_models(self) -> JSONOBJ:
@@ -732,6 +747,8 @@ class OpenaiAzure_Client(OpenaiClientBase):
 	def __init__(self, model_name: str, *, api_base: str, api_key: str, api_version: str, **kwargs):
 		endpoint = openai.AzureOpenAI(azure_endpoint=api_base, api_key=api_key, api_version=api_version)
 		super().__init__(endpoint=endpoint, **kwargs)
+		if self._my_config is not None:
+			self._my_config.root.push('api-key', '-hidden-', silent=True)
 		self._model_name = model_name
 
 
