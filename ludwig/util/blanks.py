@@ -20,7 +20,11 @@ class StubTask(AbstractTask):
 
 	@property
 	def name(self) -> str:
-		raise ValueError
+		return f'stub{self.n}'
+
+	@property
+	def is_judge(self):
+		return False
 
 	def store_keys(self) -> Iterator[str]:
 		yield self.index_key
@@ -30,9 +34,27 @@ class StubTask(AbstractTask):
 		yield self.index_key
 		yield self.seed_key
 
+	def status(self) -> Optional[JSONOBJ]:
+		return {}
+
+	def resolve(self, problem: JSONOBJ, response: JSONOBJ) -> JSONOBJ:
+		pass
+
 	def json(self) -> JSONOBJ:
 		return {'n': self.n, 'master_seed': self.master_seed,
-				'index_key': self.index_key, 'seed_key': self.seed_key, **super().json()}
+				'index_key': self.index_key, 'seed_key': self.seed_key}
+
+	def context(self) -> str:
+		return ''
+
+	def description(self) -> str:
+		return ''
+
+	def specification(self) -> JSONOBJ:
+		return {}
+
+	def checkpoint(self, path: Optional[Path] = None) -> Optional[JSONOBJ]:
+		pass
 
 	@property
 	def total_questions(self) -> Optional[int]:

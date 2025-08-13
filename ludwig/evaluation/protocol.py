@@ -1,14 +1,17 @@
 from .imports import *
-
+from ..util import StubTask
 
 
 @fig.component('default-protocol')
 class DefaultProtocol(ProtocolBase):
-	def __init__(self, task: AbstractTask, strategy: AbstractStrategy, judge: AbstractJudge = None, *,
+	_default_task_type = StubTask
+	def __init__(self, task: Union[AbstractTask, int], strategy: AbstractStrategy, judge: AbstractJudge = None, *,
 				 seed: Optional[int] = random.randint(0, 2**31 - 1),
 				 # name: str = '{task.name}_{strategy.name}_{now:%y%m%d-%H%M%S}',
 				 name: str = '{task.name}_{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
 				 include_gt_info: bool = False, **kwargs):
+		if isinstance(task, int):
+			task = self._default_task_type(task, seed=seed)
 		super().__init__(**kwargs)
 		self._name_template = name
 		self._name = None
@@ -298,9 +301,11 @@ class DefaultProtocol(ProtocolBase):
 		strategy_status = self.strategy.status()
 		if strategy_status is not None:
 			info['strategy'] = strategy_status
-		judge_status = self.judge.status()
-		if judge_status is not None:
-			info['judge'] = judge_status
+		judge = self.judge
+		if judge is not None:
+			judge_status = self.judge.status()
+			if judge_status is not None:
+				info['judge'] = judge_status
 
 		if isinstance(self._answer_type, list):
 			info.update({key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)})
@@ -331,8 +336,11 @@ class DefaultProtocol(ProtocolBase):
 		task_json['name'] = self.task.name
 		strategy_json = self.strategy.json()
 		strategy_json['name'] = self.strategy.name
-		judge_json = self.judge.json()
-		judge_json['name'] = self.judge.name
+		if self.judge is None:
+			judge_json = None
+		else:
+			judge_json = self.judge.json()
+			judge_json['name'] = self.judge.name
 		return {
 			'task': task_json,
 			'strategy': strategy_json,
@@ -351,7 +359,8 @@ class DefaultProtocol(ProtocolBase):
 			raise FileExistsError(f'checkpoint directory already exists: {path}')
 		assert path.is_dir(), f'path must be a directory: {path}'
 
-		task_path = self.task.checkpoint(path.joinpath('task')).relative_to(path)
+		task_ckpt = self.task.checkpoint(path.joinpath('task'))
+		task_path = None if task_ckpt is None else task_ckpt.relative_to(path)
 		strat_path = self.strategy.checkpoint(path.joinpath('strategy')).relative_to(path)
 
 		data = self._checkpoint_data(str(task_path), str(strat_path))

@@ -34,22 +34,28 @@ _meta.script_name: eval
 ##_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 #
 #obs-rep: compact
-###obs-rep: moves
+##obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
 ##################
 
-#_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-#_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
-#_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view, gen]
-
-obs-rep: active
+##_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+##_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+##_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view, gen]
+#
+#obs-rep: active
 #obs-rep: fen
-#hint: all
+obs-rep: pgn
+##hint: all
+#
+##check-work: 2
 
-#check-work: 2
+#################
+
+#_base: [build, ttt/take-the-middle, c/vllm, basic-view]
+_base: [build, chess/puzzle, c/vllm, basic-view]
 
 
 ##############

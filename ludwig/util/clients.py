@@ -76,14 +76,14 @@ class ClientBase(fig.Configurable, AbstractClient):
 
 		data = self.wrap_chat(chat, params)
 		if data.get('n', 1) > 1:
-			raise NotImplementedError(f'Multiple responses not supported: {data["n"]} responses requested')
+			print(f'WARNING: Multiple responses is unsupported: {data["n"]} responses requested')
 
 		resp = self.send(data)
 		# assert len(resp.choices) > 1, f'Expected one response, got {len(resp.choices)} choices'
 
 		if self._raise_length_limit and resp['choices'][0]['finish_reason'] == 'length':
 			raise BudgetExceededError(f'Response length limit reached {resp["usage"]["completion_tokens"]} tokens '
-									  f'(try increasing `max_tokens`)')
+									  f'(try increasing `max_tokens`)', resp)
 
 		input_length = len(chat)
 

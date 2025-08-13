@@ -45,13 +45,18 @@ except ImportError:
 			d = items
 			for k in keys[:-1]:
 				if k not in d:
-					d[k] = {} if keys[-1].isdigit() else []
+					d[k] = {}
 				d = d[k]
-			if keys[-1].isdigit():
-				d.append(value)
-			else:
-				d[keys[-1]] = value
-		return items
+			d[keys[-1]] = value
+		return fix_lists_deep(items)
+
+	def fix_lists_deep(data: JSONDATA) -> JSONDATA:
+		if not isinstance(data, dict):
+			return data
+		if all(str(i) in data for i in range(len(data))):
+			# If all keys are numeric, convert to list
+			return [fix_lists_deep(data[str(i)]) for i in range(len(data))]
+		return {k: fix_lists_deep(v) for k, v in data.items()}
 
 
 	_empty_json = object()

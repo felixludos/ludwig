@@ -4,20 +4,20 @@ from ..util import repo_root
 
 from .helpers import *
 
+import io
 import chess
+import chess.pgn
 
 # https://github.com/kagisearch/llm-chess-puzzles/tree/main
 
 @fig.component('chess/puzzle')
 class ChessPuzzle(TaskBase):
-	_problem_path = repo_root().joinpath('assets', 'chess', 'puzzles.csv')
+	_problem_path = repo_root().joinpath('assets', 'chess', 'puzzles_with_pgn.csv')
 	_analysis_path = repo_root().joinpath('assets', 'chess', 'analysis.json')
 	def __init__(self, *, obs_rep: str = 'fen', hint: Optional[int] = None, **kwargs):
 		assert obs_rep in ['fen', 'pgn', 'white', 'active', 'unicode', 'minimal', 'border'], \
 			f'Invalid observation representation: {obs_rep}'
 		assert isinstance(hint, int) or hint in [None, 'all'], f'Invalid options: {hint!r}'
-		if obs_rep == 'pgn':
-			raise NotImplementedError
 		super().__init__(**kwargs)
 		self._obs_rep = obs_rep
 		self._options = hint
@@ -36,6 +36,8 @@ class ChessPuzzle(TaskBase):
 			raise FileNotFoundError(f"Problem data file not found: {self._problem_path}")
 		import pandas as pd
 		full_data = pd.read_csv(self._problem_path, header=0)
+		full_data['GameID'] = full_data['GameUrl'].apply(
+			lambda x: x.split('/')[-2] if 'black#' in x else x.split('/')[-1].split('#')[0])
 		# split into dev and train sets
 		self.data = full_data.iloc[self._dev_set_cut:].reset_index(drop=True)
 		self.dev_data = full_data.iloc[:self._dev_set_cut].reset_index(drop=True)
@@ -99,20 +101,26 @@ class ChessPuzzle(TaskBase):
 		analysis = self.analysis[raw['PuzzleId']]
 		board = chess.Board(raw['FEN'])
 
+		game = chess.pgn.read_game(io.StringIO(raw['PGN']))
 		moves = raw['Moves'].split()
+
 		assert len(moves) >= 2, f'Not enough moves in puzzle {index}: {moves!r}'
 		first_move, answer, *other = moves
-		board.push_san(first_move)
+		board = game.end().board()
+		move = board.push_san(first_move)
+		game.end().add_main_variation(move)
+		game.headers.clear()
+
 		fen = board.fen()
 
 		active_player = 'white' if board.turn == chess.WHITE else 'black'
 		opponent = 'black' if active_player == 'white' else 'white'
 
 		template = '{board}\n\n(where uppercase letters are white pieces and lowercase letters are black pieces)'
-		if self._obs_rep == 'fen':
+		if self._obs_rep == 'pgn':
+			obs = f'PGN: {game}'
+		elif self._obs_rep == 'fen':
 			obs = f"FEN: {fen}"
-		elif self._obs_rep == 'pgn':
-			raise NotImplementedError
 		elif self._obs_rep == 'white':
 			obs = template.format(board=analysis['white_view'])
 		elif self._obs_rep == 'active':

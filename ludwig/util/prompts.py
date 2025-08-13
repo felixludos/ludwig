@@ -42,7 +42,12 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		self._loaded_template = True
 		path = raw
 		if path.suffix == '':
-			path = path.with_suffix('.txt')
+			candidates = list(repo_root().joinpath('assets', 'prompts').glob(f'{path}.*'))
+			if len(candidates) == 0:
+				raise FileNotFoundError(f'prompt template not found: {raw}')
+			if len(candidates) > 1:
+				raise ValueError(f'Expected exactly one prompt template for {path.name}, found {len(candidates)}')
+			path = candidates[0]
 		if not path.exists():
 			path = repo_root().joinpath('assets', 'prompts') / path
 		if not path.exists():
@@ -82,7 +87,7 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		Fill the template with the given keyword arguments.
 		"""
 		# return self._template_data.format(**kwargs)
-		return pformat(self._template_data, kwargs)
+		return pformat(self._template_data, kwargs, json=json)
 
 
 

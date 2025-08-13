@@ -1,4 +1,9 @@
-I was given this code snippet and I would like to test it.
+Carefully analyze the following code snippet.
+
+Does the following Python code contain one or more high-risk operations, such as any file I/O, suspicious library imports, OS command execution, or insecure deserialization (`pickle`, `eval`, `exec`)?
+
+Answer only with "yes" or "no".
+
 ```python
 {code}
 ```

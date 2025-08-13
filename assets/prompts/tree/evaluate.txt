@@ -1,0 +1,13 @@
+To make the search more efficient, we may need a heuristic `evaluate` function.
+
+This function's goal is to guide the search by prioritizing more promising states to solve the problem.
+
+First, state whether a heuristic is necessary for this task.
+- If not, explain why (e.g., the search space is small enough).
+- If it is, explain your chosen approach (e.g., scoring individual states, or sorting a list of candidates) and implement the `evaluate` function.
+
+The two possible approaches are:
+1. **Score-based**: The function takes a single state and returns a score indicating its desirability. States with higher scores are considered and expanded first.
+2. **Comparison-based**: The function takes a list of states and sorts them in which the most promising states come first. The search will then expand states in this order.
+
+Provide your reasoning and, if applicable, the Python implementation inside a ```python ... ``` block. If you need helper functions, make sure they are defined within the same block so the block can stand alone.

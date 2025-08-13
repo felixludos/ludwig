@@ -1,0 +1,34 @@
+Your task is to perform auto-formalization to help solve the following task:
+{task}
+
+You will be given a problem instance description and the JSON schema that defines its formal state representation. You must convert the natural language description into a single JSON object that strictly adheres to the schema.
+
+---
+
+**State Representation Schema:**
+This is the target structure for the output. Pay close attention to property names, data types (`string`, `integer`, `boolean`, `array`, `object`), and required fields and descriptions of what information each field should contain.
+
+```json
+{json.dumps(schema, indent=2)}
+```
+
+-----
+
+**Problem Instance:**
+This is the unstructured input you must formalize. The input may contain a question, context, and other relevant details that need to be distilled into the schema. You should NOT try to answer the question directly, but rather extract the necessary information to create a valid state representation.
+
+```text
+{example['question']}
+```
+
+-----
+
+**Instructions:**
+
+1.  **Analyze:** Carefully read the "Problem Instance".
+2.  **Map:** Identify and extract every piece of information relevant to the state representation.
+3.  **Formalize:** Construct a single JSON object that represents the initial state of the problem.
+      * **Completeness:** Ensure every relevant detail from the instance is captured in the corresponding schema field.
+      * **Accuracy:** Ensure all values are correct and use the exact data types specified in the schema.
+      * **Exclusivity:** Omit any details from the original description that are irrelevant to the state as defined by the schema or the task.
+4.  **Output:** Respond only with the final, valid JSON object. Do not include any other text or explanation.

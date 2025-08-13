@@ -1,0 +1,8 @@
+Next, your task is to implement the `extract` function in Python. This function analyzes a search path to find results or decide if the path should be abandoned. Its signature and return values should be:
+- **Input:** Either a single state or a list of states (a trajectory).
+- **Returns `str`:** An extracted result or piece of information. Prune the search here. If the string is not empty, it indicates some useful information has been found to help solve the problem.
+- **Returns `None`:** No result found yet. The search continues down this path.
+
+First, state whether a **state-based** or **trajectory-based** input is more suitable for this task and briefly explain why.
+
+Then, implement the `extract` function based on your choice. Provide the implementation inside a ```python ... ``` block. If you need helper functions, make sure they are defined within the same block so the block can stand alone.
