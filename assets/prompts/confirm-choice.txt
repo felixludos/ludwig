@@ -1,0 +1,1 @@
+Just to confirm, which of the following options did you choose: {choices}? Answer only with the option you selected.

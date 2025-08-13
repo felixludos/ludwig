@@ -1,0 +1,5 @@
+I was given this code snippet and I would like to test it.
+```python
+{code}
+```
+Please review the code and provide feedback on its safety and security. Are there any potential risks or vulnerabilities? Answer only with "yes" or "no".

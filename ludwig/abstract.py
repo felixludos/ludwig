@@ -104,7 +104,7 @@ class AbstractTask:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def prepare(self, seed: int) -> None:
+	def prepare(self, seed: Optional[int] = None) -> None:
 		"""
 		(optional) Setup any necessary state for this task
 

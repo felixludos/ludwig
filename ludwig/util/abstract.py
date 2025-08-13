@@ -24,7 +24,7 @@ class AbstractClient:
 	def wrap_prompt(self, prompt: str, params: JSONOBJ = {}) -> JSONOBJ:
 		raise NotImplementedError
 
-	def begin_chat(self, prompt: str, *, role: str = 'user') -> List[Dict[str, str]]:
+	def begin_chat(self, prompt: Optional[str] = None, *, role: str = 'user') -> List[Dict[str, str]]:
 		raise NotImplementedError
 
 	def wrap_chat(self, chat: List[Dict[str, str]], params: JSONOBJ = {}) -> JSONOBJ:
