@@ -26,7 +26,44 @@ def test_parse_message():
 
 
 class MessageParser(AbstractParser):
+	def parse_openai(self, text: str, data: JSONOBJ = None, resp: JSONOBJ = None, *, role: str = 'assistant') -> JSONOBJ:
+		"""
+		Parse a message from OpenAI's ChatCompletion API format.
+		This method is specifically designed to handle OpenAI's structured responses.
+		"""
+
+		lines = text.strip().splitlines()
+		if len(lines) < 2:
+			raise ValueError("Empty response received from OpenAI's ChatCompletion API.")
+		if not lines[0].startswith('analysis'):
+			raise ValueError(f"Confusing response by {data.get("model")}: {text!r}")
+
+		# reasoning starts with "analysis" until "assistantfinal"
+
+		reasoning_lines = [lines[0][len('analysis'):]]
+		content_lines = []
+		reasoning = True
+		for line in lines[1:]:
+			if reasoning and 'assistantfinal' in line:
+				reasoning = False
+				content_lines.append(line.replace('assistantfinal', ''))
+			elif reasoning:
+				reasoning_lines.append(line)
+			else:
+				content_lines.append(line)
+
+		message = {'content': None, 'role': role, 'tool_calls': []}
+		if reasoning_lines:
+			# Join reasoning lines and strip leading/trailing whitespace
+			message['reasoning_content'] = '\n'.join(reasoning_lines).strip()
+		message['content'] = '\n'.join(content_lines).strip()
+		return message
+
 	def parse(self, text: str, data: JSONOBJ = None, resp: JSONOBJ = None, *, role: str = 'assistant') -> JSONOBJ:
+		if data is not None and 'openai' in data.get('model', '') and 'gpt-oss' in data.get('model', ''):
+			# This is a special case for OpenAI's GPT-OSS model, which uses a different format.
+			return self.parse_openai(text, data, resp, role=role)
+
 		context = data or {}
 		content = text.strip()
 		message = {'content': None, 'role': role, 'tool_calls': []}
