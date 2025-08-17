@@ -81,7 +81,7 @@ class ClientBase(fig.Configurable, AbstractClient):
 		resp = self.send(data)
 		# assert len(resp.choices) > 1, f'Expected one response, got {len(resp.choices)} choices'
 
-		if self._raise_length_limit and resp['choices'][0]['finish_reason'] == 'length':
+		if self._raise_length_limit and resp['choices'][0].get('finish_reason') == 'length':
 			raise BudgetExceededError(f'Response length limit reached {resp["usage"]["completion_tokens"]} tokens '
 									  f'(try increasing `max_tokens`)', resp)
 
@@ -218,9 +218,9 @@ class MockEndpoint(ClientBase):
 
 	def stats(self, starting_from: int = 0) -> JSONOBJ:
 		return {
-			'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
-			'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
-			'requests': len(self.history[starting_from:]),
+			# 'input_tokens': sum(h['input_tokens'] for h in self.history[starting_from:]),
+			# 'output_tokens': sum(h['output_tokens'] for h in self.history[starting_from:]),
+			# 'requests': len(self.history[starting_from:]),
 		}
 
 	def _record_send(self, data: JSONOBJ):
@@ -229,16 +229,16 @@ class MockEndpoint(ClientBase):
 
 	def _record_response(self, data: JSONOBJ, resp: JSONOBJ):
 		self.history[-1].update({
-			'output_tokens': self.count_tokens(resp['response']),
+			'output_tokens': self.count_tokens(resp['choices'][0]['message']['content']),
 			'end_time': time.time(),
 		})
-		self._last_response = [resp['response']]
+		self._last_response = [resp['choices'][0]['message']['content']]
 
 	def _record_step(self, data: JSONOBJ, step: JSONOBJ):
 		if 'output_tokens' not in self.history[-1]:
 			self.history[-1]['output_tokens'] = 0
 		self.history[-1]['output_tokens'] += 1
-		self._last_response.append(step['response'])
+		self._last_response.append(step['choices'][0]['message']['content'])
 
 	def last_response(self) -> str:
 		if self._last_response is not None:
@@ -249,17 +249,18 @@ class MockEndpoint(ClientBase):
 			return len(message.split())
 		return sum(self.count_tokens(m['content']) for m in message)
 
-	def wrap_chat(self, chat: List[Dict[str, str]], **params) -> JSONOBJ:
+	def wrap_chat(self, chat: List[Dict[str, str]], params = None) -> JSONOBJ:
 		return {'chat': chat}
 
 	def extract_response(self, data):
-		return data['response']
+		return data['choices'][0]['message']['content']
 
 	def _send(self, data: JSONOBJ) -> JSONOBJ:
 		assert 'chat' in data
 		chat = data['chat']
-		return {'response': self.responses.pop() if len(self.responses)
-				else f'This is the mock response to a chat with {len(chat)} messages.'}
+		return {'choices':[{'message': {'content': self.responses.pop() if len(self.responses)
+				else f'This is the mock response to a chat with {len(chat)} messages.',
+										'role': 'assistant'}}]}
 
 	def _send_no_wait(self, data):
 		resp = self._send(data)

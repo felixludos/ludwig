@@ -18,7 +18,7 @@ This is the target structure for the output. Pay close attention to property nam
 This is the unstructured input you must formalize. The input may contain a question, context, and other relevant details that need to be distilled into the schema. You should NOT try to answer the question directly, but rather extract the necessary information to create a valid state representation.
 
 ```text
-{example['question']}
+{observation}
 ```
 
 -----

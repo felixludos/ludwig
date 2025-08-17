@@ -22,6 +22,125 @@ class AbstractTemplate:
 		raise NotImplementedError
 
 
+class AbstractFormalizer:
+	@property
+	def ident(self) -> Optional[str]:
+		return None
+
+	def prepare(self, task: 'AbstractTask'):
+		pass
+	
+	def schema(self) -> JSONOBJ:
+		raise NotImplementedError
+	
+	def compare(self, context: JSONOBJ, formal: JSONOBJ) -> JSONOBJ:
+		return {}
+
+	def correct(self, context: JSONOBJ, formal: JSONOBJ) -> bool:
+		raise NotImplementedError
+
+	def formalize(self, context: JSONOBJ) -> JSONOBJ:
+		raise NotImplementedError
+
+	def formalization_args(self, context: JSONOBJ) -> JSONOBJ:
+		raise NotImplementedError
+
+	def json(self):
+		return {}
+
+
+class SimpleFormalizer(AbstractFormalizer):
+	def correct(self, context: JSONOBJ, formal: JSONOBJ) -> bool:
+		if formal is None:
+			return None
+		gt = self.formalize(context)
+		assert len(gt)
+		for key, val in gt.items():
+			if val != formal.get(key, object()):
+				return False
+		return True
+
+	def formalize(self, context: JSONOBJ) -> JSONOBJ:
+		info = self.formalization_args(context)
+		return self.default_formalize(**info)
+
+	def default_formalize(self):
+		raise NotImplementedError
+
+
+_schema_bad_keys = {'uniqueItems', '$schema'}
+def filter_schema(data):
+	if isinstance(data, dict):
+		if data.get('type') == 'array' and 'items' not in data:
+			raise ValueError("Array schema must have 'items' key")
+		if 'items' in data and isinstance(data['items'], list):
+			assert len(data['items']) == 1
+			data['items'] = data['items'][0]
+		return {key: filter_schema(val) for key, val in data.items() if key not in _schema_bad_keys}
+	if isinstance(data, list):
+		return [filter_schema(item) for item in data]
+	return data
+
+
+@fig.component('custom-formalizer')
+class Custom_Formalizer(SimpleFormalizer):
+	def __init__(self, path: str, index: int = None, **kwargs):
+		if isinstance(path, str):
+			path = Path(pformat(path, root=repo_root()))
+		super().__init__(**kwargs)
+		self.path = path
+		self.index = index
+
+		self.extractor = None
+
+		if not path.exists():
+			raise FileNotFoundError(path)
+
+		data = None
+		with path.open('r') as f:
+			for i, line in enumerate(f):
+				if index is None or index == i:
+					data = json.loads(line)
+		if data is None:
+			raise ValueError(f'Invalid index: {index!r}.')
+		self.data = data
+		self._schema = None
+		self._code = None
+		self._fn = None
+
+	def json(self):
+		return {
+			'path': self.path,
+			'index': self.index,
+			**super().json(),
+		}
+
+	def prepare(self, task: 'AbstractTask'):
+		super().prepare(task)
+		self.extractor = task.formalizer()
+
+		if 'rep' not in self.data['table']:
+			raise ValueError(f'Missing rep')
+		self._schema = filter_schema(self.data['table']['rep'])
+		if 'formalize_code' not in self.data['table']:
+			raise ValueError(f'Missing formalize_code')
+		self._code = self.data['table']['formalize_code']
+
+		objs = {}
+		exec(self._code, objs)
+		self._fn = objs.get('formalize')
+		if self._fn is None:
+			raise ValueError(f'Missing `formalize` fn')
+
+	def schema(self) -> JSONOBJ:
+		return self._schema
+
+	def formalize(self, context: JSONOBJ) -> JSONOBJ:
+		info = self.extractor.formalization_args(context)
+		return self._fn(**info)
+
+
+
 
 @fig.component('prompt-template')
 class PromptTemplate(fig.Configurable, AbstractTemplate):
@@ -63,7 +182,7 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		if self._template_name is not None:
 			return self._template_name
 		if self._loaded_template:
-			return str(self.template)
+			return str(self.template).replace('/', '-')
 		return self.code[:4]
 
 	@property

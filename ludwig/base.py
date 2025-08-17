@@ -1,7 +1,7 @@
 from .imports import *
 from .abstract import AbstractTool, AbstractTask, AbstractStrategy, AbstractProtocol, AbstractJudge, PROBLEM, ANSWER
 from .errors import ToolError, OptionalMethodNotImplemented, AmbiguousFormalizationError
-from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, EmptyStats
+from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, EmptyStats, AbstractFormalizer
 
 
 
@@ -33,6 +33,19 @@ class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
 	@property
 	def is_judge(self):
 		return False
+	
+	def formalizer(self) -> AbstractFormalizer:
+		raise NotImplementedError
+
+
+
+class JudgedTask(TaskBase, AbstractJudge):
+	@property
+	def is_judge(self):
+		return True
+	
+	def collect_stats(self) -> AbstractStats:
+		return EmptyStats()
 
 
 

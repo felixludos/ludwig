@@ -54,11 +54,19 @@ obs-rep: compact
 
 #################
 
-_base: [build, ttt/take-the-middle, c/vllm, basic-view]
+#_base: [build, ttt/take-the-middle, c/mock, basic-view]
 #_base: [build, chess/puzzle, c/vllm, basic-view]
 #_base: [build, chess/puzzle, c/saia, basic-view]
 #
 #model: openai-gpt-oss-120b
+
+##############
+
+_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
+
+template: tree/encode
+
+rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
 
 
 ##############

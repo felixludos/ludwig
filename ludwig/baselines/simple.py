@@ -37,6 +37,12 @@ class ZeroShotPrompting(ClientStrategy):
 	# 	self.task_context = desc
 
 
+	def prepare(self, task: AbstractTask, judge: Optional[AbstractJudge] = None) -> Any:
+		super().prepare(task, judge)
+		spec = task.specification()
+		if 'schema' in spec:
+			self.params['grammar'] = spec['schema']
+
 	def solve(self, problem: JSONOBJ) -> JSONOBJ:
 		# assert 'question' in problem, 'Problem must contain a question'
 		# question = problem['question']

@@ -377,13 +377,16 @@ class AbstractJudge:
 		"""A unique and description name for this judge"""
 		raise NotImplementedError
 
+	def hint(self, ctx: JSONOBJ) -> None:
+		pass
+
 	def format_description(self, task_description: str) -> str:
 		"""
 		(optional) Format the task description for the strategy so the judge can understand responses better.
 
 		For example, the judge may request the answers to be formated in a specific way.
 		"""
-		raise OptionalMethodNotImplemented
+		return task_description
 
 	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
 		"""

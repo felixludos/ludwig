@@ -23,6 +23,16 @@ class CanIAvoid(TaskBase):
 			raise FileNotFoundError(f"Data file not found: {self._data_path}")
 		self._data = json.load(self._data_path.open('r'))
 
+	def show_keys(self) -> Iterator[str]:
+		yield 'question'
+		yield 'system'
+		yield 'task'
+
+	def store_keys(self) -> Iterator[str]:
+		yield 'problem'
+		yield 'question'
+		yield 'answer'
+
 
 
 

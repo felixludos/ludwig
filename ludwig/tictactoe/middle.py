@@ -24,6 +24,9 @@ class TakeTheMiddle(TaskBase):
 	def name(self) -> str:
 		return f"TakeTheMiddle"
 
+	def formalizer(self) -> AbstractFormalizer:
+		return TTT_Formalizer()
+
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		super().prepare(seed)
 		if not self._problem_path.exists():

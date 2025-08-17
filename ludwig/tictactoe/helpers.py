@@ -1,5 +1,6 @@
 from ..imports import *
-from ..util import repo_root
+from ..util import repo_root, AbstractFormalizer
+from ..util.prompts import SimpleFormalizer
 from tabulate import tabulate
 
 _ttt_data = json.load(repo_root().joinpath('assets', 'ttt', 'minimax.json').open('r'))
@@ -143,6 +144,36 @@ def best_moves(state: str, starting_player: str = 'X') -> Iterator[int]:
 
 
 
+class TTT_Formalizer(SimpleFormalizer):
+	def schema(self) -> JSONOBJ:
+		return {'title': 'TicTacToeGameState',
+ 'description': 'Represents the state of a Tic-Tac-Toe game.',
+ 'type': 'object',
+ 'properties': {'board': {'type': 'array',
+   'description': 'A 2D array representing the Tic-Tac-Toe board.',
+   'items': {'type': 'array',
+    'items': {'type': 'string',
+     'enum': ['', 'X', 'O'],
+     'description': "Represents a cell on the board. ' ' for empty, 'X' for player X, and 'O' for player O."}},
+   'minItems': 3,
+   'maxItems': 3},
+  'currentPlayer': {'type': 'string',
+   'enum': ['X', 'O'],
+   'description': "Indicates which player's turn it is."},
+ 'required': ['board', 'currentPlayer']}}
+
+	@staticmethod
+	def default_formalize(board, active_player):
+		symbols = {' ': ''}
+		board = [symbols.get(cell, cell) for cell in board]
+		state = {
+			'board': [[board[0], board[1], board[2]], [board[3], board[4], board[5]], [board[6], board[7], board[8]]],
+			'currentPlayer': active_player,
+		}
+		return state
+
+	def formalization_args(self, context: JSONOBJ) -> JSONOBJ:
+		return {'board': context['problem'], 'active_player': 'O'}
 
 
 
