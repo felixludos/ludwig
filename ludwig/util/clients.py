@@ -269,6 +269,28 @@ class MockEndpoint(ClientBase):
 			yield {'response': token}
 
 
+class LiveClient(ClientBase):
+	"""Clients that are not managed manually but are always accessible (i.e. with an API key)"""
+	@classmethod
+	def connect(cls, **kwargs) -> 'LiveClient':
+		"""Connect using the default API key (if one can be found)"""
+		raise NotImplementedError
+
+	def available_models(self) -> JSONOBJ:
+		"""
+		List available models where keys are the model_name which can be fed into `set_model` and the values are
+		any information about the model.
+		"""
+		raise NotImplementedError
+
+	def set_model(self, model_name: str) -> 'Self':
+		"""
+		Sets the model to be used for subsequent requests.
+		:param model_name: The name of the model to use.
+		:return: self
+		"""
+		raise NotImplementedError
+
 
 class OpenaiClientBase(ClientBase):
 	def __init__(self, endpoint: Union[openai.OpenAI, str], *, max_tokens: int = None, seed: int = None,
@@ -668,7 +690,7 @@ class vllm_Client(OSSClient):
 
 
 @fig.component('saia')
-class SAIA_Client(OSSClient):
+class SAIA_Client(OSSClient, LiveClient):
 	@fig.silent_config_args('api_key')
 	def __init__(self, model: str = None, *, api_key: str, **kwargs):
 		super().__init__(endpoint=openai.OpenAI(base_url='https://chat-ai.academiccloud.de/v1',
@@ -677,16 +699,28 @@ class SAIA_Client(OSSClient):
 			self._my_config.root.push('api-key', '-hidden-', silent=True)
 		self._model_name = model
 
+	@classmethod
+	def connect(cls, **kwargs):
+		path = repo_root().joinpath('config', 'secrets', 'saia.yml')
+		with path.open('r') as f:
+			secrets = yaml.safe_load(f)
+		return cls(api_key=secrets['api-key'], **kwargs)
+
 	def available_models(self) -> JSONOBJ:
 		"""
 		Returns a list of available models from the OpenAI API.
 		"""
 		response = self.endpoint.models.list()
-		return response.to_dict()['data']
+		raw = response.to_dict()['data']
+		return {m['id']: m for m in raw}
+
+	def set_model(self, model_name: str) -> 'Self':
+		self._model_name = model_name
+		return self
 
 
 @fig.component('openai')
-class Openai_Client(OpenaiClientBase):
+class Openai_Client(OpenaiClientBase, LiveClient):
 	@fig.silent_config_args('api_key')
 	def __init__(self, model_name: str = None, *, api_key: str, **kwargs):
 		super().__init__(endpoint=openai.OpenAI(api_key=api_key), **kwargs)
@@ -694,12 +728,24 @@ class Openai_Client(OpenaiClientBase):
 			self._my_config.root.push('api-key', '-hidden-', silent=True)
 		self._model_name = model_name
 
+	@classmethod
+	def connect(cls, model_name='gpt-3.5-turbo', **kwargs):
+		path = repo_root().joinpath('config', 'secrets', 'openai.yml')
+		with path.open('r') as f:
+			openai_config = yaml.safe_load(f)
+		return cls(api_key=openai_config['api-key'], model_name=model_name, **kwargs)
+
 	def available_models(self) -> JSONOBJ:
 		"""
 		Returns a list of available models from the OpenAI API.
 		"""
 		response = self.endpoint.models.list()
-		return response.to_dict()['data']
+		raw = response.to_dict()['data']
+		return {m['id']: m for m in raw}
+
+	def set_model(self, model_name: str) -> 'Self':
+		self._model_name = model_name
+		return self
 
 	def _clean_schema(self, schema: JSONDATA):
 		"""because openai's grammar is weaker than vllm's"""

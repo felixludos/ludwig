@@ -158,17 +158,19 @@ def test_azure_client():
 
 
 def test_openai_client():
-
-	path = repo_root().joinpath('config', 'secrets', 'openai.yml')
-	import yaml
-	with path.open('r') as f:
-		openai_config = yaml.safe_load(f)
-	client = Openai_Client(api_key=openai_config['api-key'], model_name='gpt-3.5-turbo')
+	client = Openai_Client.connect()
 
 	models = client.available_models()
 
 	print(len(models))
 
+
+def test_saia_client():
+	client = SAIA_Client.connect()
+
+	models = client.available_models()
+
+	print(len(models))
 
 
 def test_vllm_client():
