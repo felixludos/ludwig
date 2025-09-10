@@ -62,7 +62,8 @@ obs-rep: compact
 
 ##############
 
-_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
+#_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
+_base: [s/zshot, formal, chess/puzzle, c/mock, basic-view]
 
 template: tree/encode
 

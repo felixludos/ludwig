@@ -1,6 +1,7 @@
 from ..imports import *
 from ..base import TaskBase
 from ..util import repo_root
+from ..util.prompts import SimpleFormalizer
 
 from .helpers import *
 
@@ -9,6 +10,20 @@ import chess
 import chess.pgn
 
 # https://github.com/kagisearch/llm-chess-puzzles/tree/main
+
+
+class Chess_Formalizer(SimpleFormalizer):
+	def schema(self) -> JSONOBJ:
+		raise NotImplementedError
+
+	@staticmethod
+	def default_formalize(fen):
+		raise NotImplementedError
+
+	def formalization_args(self, context: JSONOBJ) -> JSONOBJ:
+		return {'fen': context['fen']}
+
+
 
 @fig.component('chess/puzzle')
 class ChessPuzzle(TaskBase):

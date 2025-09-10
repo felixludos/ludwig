@@ -36,7 +36,7 @@ class MessageParser(AbstractParser):
 		if len(lines) < 2:
 			raise ValueError("Empty response received from OpenAI's ChatCompletion API.")
 		if not lines[0].startswith('analysis'):
-			raise ValueError(f"Confusing response by {data.get("model")}: {text!r}")
+			raise ValueError(f"Confusing response by {data.get('model')}: {text!r}")
 
 		# reasoning starts with "analysis" until "assistantfinal"
 
