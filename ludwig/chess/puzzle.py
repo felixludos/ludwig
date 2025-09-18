@@ -123,6 +123,7 @@ class ChessPuzzle(TaskBase):
 		assert len(moves) >= 2, f'Not enough moves in puzzle {index}: {moves!r}'
 		first_move, answer, *other = moves
 		board = game.end().board()
+		movesan = board.san(board.parse_uci(first_move))
 		move = board.push_san(first_move)
 		game.end().add_main_variation(move)
 		game.headers.clear()
@@ -146,7 +147,7 @@ class ChessPuzzle(TaskBase):
 		else:
 			obs = template.format(board=self._render_board(board))
 
-		question = (f"{opponent.capitalize()} just played {moves[0]}. "
+		question = (f"{opponent.capitalize()} just played {movesan}. "
 					f"Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
 						   f"Answer using the UCI or SAN format.")
 
