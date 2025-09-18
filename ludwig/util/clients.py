@@ -566,8 +566,11 @@ class OSSClient(OpenaiClientBase):
 		msg = None
 		for out in resp['output']:
 			if out['type'] == 'reasoning':
-				assert reasoning is None, f'Multiple reasoning outputs found: {resp}'
-				reasoning = '\n'.join(item.get('text', '') for item in out.get('content', []))
+				new_reasoning = '\n'.join(item.get('text', '') for item in out.get('content', []))
+				if reasoning is None:
+					reasoning = new_reasoning
+				else:
+					reasoning += '\n\n' + new_reasoning
 			elif out['type'] == 'tool_call' or out['type'] == 'function_call':
 				tools.append({'function': out, **out})
 			elif out['type'] == 'message':
