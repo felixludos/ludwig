@@ -45,7 +45,7 @@ class ChessPuzzle(TaskBase):
 		return "ChessPuzzle"
 
 	_dev_set_cut = 100
-	def prepare(self, seed: Optional[int] = None) -> Any:
+	def prepare(self, seed: Optional[int] = None) -> 'Self':
 		super().prepare(seed)
 		if not self._problem_path.exists():
 			raise FileNotFoundError(f"Problem data file not found: {self._problem_path}")
@@ -57,6 +57,7 @@ class ChessPuzzle(TaskBase):
 		self.data = full_data.iloc[self._dev_set_cut:].reset_index(drop=True)
 		self.dev_data = full_data.iloc[:self._dev_set_cut].reset_index(drop=True)
 		self.analysis = json.loads(self._analysis_path.read_text())
+		return self
 
 	def show_keys(self) -> Iterator[str]:
 		yield 'question'

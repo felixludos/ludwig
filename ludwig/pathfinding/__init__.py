@@ -1,1 +1,1 @@
-from .avoidance import CanIAvoid
+from .involved import DirectRoute

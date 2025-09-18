@@ -11,7 +11,7 @@ debug-log: yes
 _meta.script_name: eval
 
 # _base: [demo]
-#_base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/zshot, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/dp, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/dpp, ttt/take-the-middle, j/client, c/vllm]
@@ -21,20 +21,23 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
 #_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/azure]
-#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/client, c/vllm]
+#_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm]
+#_base: [s/cot, path/direct, c/mock, basic-view]
+#_base: [s/tool, ttt/tools, path/direct, j/client, c/vllm]
 
-##_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#graph: 2
+
+#_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ##_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
-##_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/fs, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/mv, ttt/take-the-middle, j/format, c/vllm, basic-view]
-##_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
+_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ##_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ##_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 #
-obs-rep: compact
-#obs-rep: moves
+#obs-rep: compact
+obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -62,12 +65,12 @@ obs-rep: compact
 
 ##############
 
-#_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
-_base: [s/zshot, formal, chess/puzzle, c/mock, basic-view]
-
-template: tree/encode
-
-rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
+##_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
+##_base: [s/zshot, formal, chess/puzzle, c/mock, basic-view]
+#
+#template: tree/encode
+#
+#rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
 
 
 ##############
@@ -84,6 +87,7 @@ root: local_data/debug
 temperature: 1
 n-votes: 3
 
+enable-thinking: no
 
 # for format judge: j/format
 #style: end

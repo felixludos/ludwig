@@ -1,3 +1,5 @@
+import uuid
+
 import openai
 
 from .imports import *
@@ -127,14 +129,14 @@ class ClientBase(fig.Configurable, AbstractClient):
 			'system_message': self.system_message,
 		}
 
-	def send(self, data: JSONOBJ) -> openai.ChatCompletion:
+	def send(self, data: JSONOBJ) -> JSONOBJ:
 		self._record_send(data)
 		resp = self._send(data)
 		resp = self._post_response_fixes(data, resp)
 		self._record_response(data, resp)
 		return resp
 
-	def _post_response_fixes(self, data: REQUEST_PARAMS, resp: RESPONSE) -> openai.ChatCompletion:
+	def _post_response_fixes(self, data: REQUEST_PARAMS, resp: RESPONSE) -> JSONOBJ:
 		"""
 		Override this method to apply any post-processing fixes to the response.
 		For example, to handle reasoning content or tool calls.
@@ -492,8 +494,117 @@ class OSSClient(OpenaiClientBase):
 			info['enable_thinking'] = self._enable_thinking
 		return info
 
+	def _to_response_API_tool(self, tool):
+		return {'type': 'function', **tool['function']}
+
+	def _to_response_API_message(self, msg, index=None):
+
+		# if 'tool_calls' in item:
+		# 	for tool_call in item['tool_calls']:
+		# 		info = tool_call['function']
+		# 		assert info['name'] in self.tools, f'Tool {info["name"]} not registered'
+		# 		tool = self.tools[info['name']]
+		# 		arguments = info['arguments']
+		# 		if isinstance(arguments, str):
+		# 			arguments = json.loads(arguments)
+		# 		try:
+		# 			result = tool.call(arguments)
+		# 		except ToolError as e:
+		# 			result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
+		# 		tool_results.append({'role': 'tool',
+		# 							 'content': result,
+		# 							 'tool_call_id': tool_call['id'],
+		# 							 'name': info['name']})
+
+		if index is None:
+			index = uuid.uuid4()
+
+		if msg.get('role') == 'user':
+			yield msg
+
+		elif msg.get('role') == 'assistant':
+			if 'reasoning_content' in msg:
+				yield {
+					'id': f'reasoning-{index}',
+					'summary': [],
+					'type': 'reasoning',
+					'status': None,
+					'content': [{'type': 'reasoning_text', 'text': msg['reasoning_content']}],
+					'encrypted_content': None,
+				}
+			if msg.get('content'):
+				# {'id': 'msg_abb7241b7b7e41b7ab0f4f82124315a5',
+				#  'content': [{'annotations': [],
+				# 			  'text': '**Dallas ... for a different unit).',
+				# 			  'type': 'output_text',
+				# 			  'logprobs': None}
+				yield {'id': f'msg-{index}', 'role': 'assistant', 'content': msg['content']}
+			if 'tool_calls' in msg:
+				for tid, tool_call in enumerate(msg['tool_calls']):
+					info = tool_call['function']
+					yield {'arguments': info['arguments'],
+							  'call_id': tool_call['id'],
+							  'name': info['name'],
+							  'type': 'function_call',
+							  'id': f'tool-{tid}-{index}',
+							  'status': None}
+
+		elif msg.get('role') == 'tool':
+			yield {'type': 'function_call_output',
+				  'call_id': msg['tool_call_id'],
+				  'output': msg['content']}
+
+		else:
+			raise ValueError(f'Unexpected message: {msg}')
+
+	def _from_response_API_response(self, resp: JSONOBJ) -> JSONOBJ:
+
+		assert resp['object'] == 'response', f'Unknown response format: {resp}'
+		assert 'output' in resp, f'No output found in response: {resp}'
+		reasoning = None
+		tools = []
+		msg = None
+		for out in resp['output']:
+			if out['type'] == 'reasoning':
+				assert reasoning is None, f'Multiple reasoning outputs found: {resp}'
+				reasoning = '\n'.join(item.get('text', '') for item in out.get('content', []))
+			elif out['type'] == 'tool_call' or out['type'] == 'function_call':
+				tools.append({'function': out, **out})
+			elif out['type'] == 'message':
+				assert msg is None, f'Multiple message outputs found: {resp}'
+				msg = {'role': 'assistant',
+					   'content': '\n'.join(item.get('text', '') for item in out.get('content', []))}
+			else:
+				raise ValueError(f'Unknown output type: {out["type"]!r} in response: {resp}')
+
+		if msg is None:
+			msg = {'role': 'assistant', 'content': None}
+		msg['tool_calls'] = tools
+		msg['reasoning_content'] = reasoning
+		resp['choices'] = [{'message': msg}]
+
+		resp['usage'].update({'prompt_tokens': resp['usage'].get('input_tokens', 0),
+							  'completion_tokens': resp['usage'].get('output_tokens', 0)})
+		return resp
 
 	def _send(self, data: JSONOBJ) -> RESPONSE:
+		if 'gpt' in self.model_name.lower():
+			if not self._enable_thinking:
+				data['reasoning'] = {'effort':'low'}
+			if 'tools' in data:
+				data['tools'] = [self._to_response_API_tool(tool) for tool in data['tools']]
+				data['tool_choice'] = 'auto'
+
+			data['input'] = [inp for i, msg in enumerate(data.pop('messages', []))
+							 for inp in self._to_response_API_message(msg, index=i)]
+
+			if 'max_tokens' in data:
+				data['max_output_tokens'] = data.pop('max_tokens')
+			if 'seed' in data:
+				data.pop('seed')
+
+			resp = self.endpoint.responses.create(**data).model_dump()
+			return self._from_response_API_response(resp)
 		if self._tokenizer is None:
 			return super()._send(data)
 
@@ -501,7 +612,6 @@ class OSSClient(OpenaiClientBase):
 		data.pop('tool_choice', None)
 		chat = data.pop('messages', None)
 		if chat is not None:
-
 			tok_args = {
 				'tokenize': False,
 				'tools': tools,
@@ -512,6 +622,7 @@ class OSSClient(OpenaiClientBase):
 			}
 			if 'qwen' in self.model_name.lower():
 				tok_args['enable_thinking'] = self._enable_thinking
+
 			try:
 				prompt = self._tokenizer.apply_chat_template(chat, **tok_args)
 
@@ -550,6 +661,9 @@ class OSSClient(OpenaiClientBase):
 		:return: An instance of AutoTokenizer.
 		"""
 		name = model_name.lower()
+
+		if 'gpt' in name:
+			return None
 
 		if 'mistral' in name:
 			from mistral_common.tokens.tokenizers.mistral import MistralTokenizer

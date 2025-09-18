@@ -46,7 +46,11 @@ class MessageParser(AbstractParser):
 		for line in lines[1:]:
 			if reasoning and 'assistantfinal' in line:
 				reasoning = False
-				content_lines.append(line.replace('assistantfinal', ''))
+				r, c = line.split('assistantfinal', 1)
+				if len(r.strip()):
+					reasoning_lines.append(r)
+				if len(c.strip()):
+					content_lines.append(c)
 			elif reasoning:
 				reasoning_lines.append(line)
 			else:

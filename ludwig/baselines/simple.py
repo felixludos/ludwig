@@ -196,7 +196,8 @@ class FewShotPrompting(ClientStrategy):
 				shot = task.ask_dev(i)
 
 				if 'rationale' in shot:
-					shot['rationale'] = '\n'.join(f'{i + 1}. {line}' for i, line in enumerate(shot['rationale']))
+					steps = [line.replace('\n', '\n\t') for line in shot['rationale']]
+					shot['rationale'] = '\n'.join(f'{i + 1}. {line}' for i, line in enumerate(steps))
 
 				if judge is not None:
 					judge.hint(shot)
@@ -207,7 +208,8 @@ class FewShotPrompting(ClientStrategy):
 	def solve(self, problem: JSONOBJ) -> JSONOBJ:
 
 		if 'rationale' in problem:
-			problem['rationale'] = '\n'.join(f'{i+1}. {line}' for i, line in enumerate(problem['rationale']))
+			steps = [line.replace('\n', '\n\t') for line in problem['rationale']]
+			problem['rationale'] = '\n'.join(f'{i+1}. {line}' for i, line in enumerate(steps))
 
 		first, *shots = self._shots
 		chat = [{'role': 'user', 'content': self.intro_template.fill(**first)},

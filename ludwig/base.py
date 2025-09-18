@@ -6,7 +6,7 @@ from .util import Checkpointable, AbstractClient, AbstractStats, ClientStats, Em
 
 
 class TaskBase(fig.Configurable, Checkpointable, AbstractTask):
-	def prepare(self, seed: Optional[int] = None) -> Any:
+	def prepare(self, seed: Optional[int] = None) -> 'Self':
 		pass
 
 	def status(self) -> Optional[JSONOBJ]:

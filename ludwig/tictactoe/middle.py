@@ -38,6 +38,7 @@ class TakeTheMiddle(TaskBase):
 		if not self._action_path.exists():
 			raise FileNotFoundError(f"Action data file not found: {self._action_path}")
 		self._action_data = yaml.safe_load(self._action_path.open('r'))
+		return self
 
 	def show_keys(self) -> Iterator[str]:
 		yield 'question'

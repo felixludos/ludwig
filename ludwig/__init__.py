@@ -8,4 +8,5 @@ from . import ours
 from . import servers
 from .tictactoe import *
 from .chess import *
+from .pathfinding import *
 from .util import repo_root
