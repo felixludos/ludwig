@@ -192,6 +192,9 @@ class FormatJudge(JudgeBase):
 	def interpret(self, problem: JSONOBJ, response: JSONOBJ) -> JSONOBJ:
 		assert 'final' in response, 'Response must contain a final response to interpret'
 		final = response['final']
+		if final is None:
+			self._failures += 1
+			return {'decision': None}
 		decision = None
 
 		options = self._options
