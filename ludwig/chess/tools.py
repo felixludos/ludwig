@@ -296,12 +296,14 @@ class StockfishEvalMove(StockfishTool):
 			except chess.AmbiguousMoveError:
 				raise ToolError('Ambiguous move provided. Please use UCI format or provide a clear SAN move.')
 			except chess.IllegalMoveError:
-				raise ToolError(f'Illegal move provided: {move}. Please provide a valid UCI or SAN move.')
+				raise ToolError(f'Illegal move provided: {move!r}. Please provide a valid UCI or SAN move.')
+			except chess.InvalidMoveError:
+				raise ToolError(f'Invalid move provided: {move!r}. Please provide a valid UCI or SAN move.')
 			if chess_move is None:
-				raise ToolError(f'Invalid move provided: {move}. Please provide a valid UCI or SAN move.')
+				raise ToolError(f'Invalid move provided: {move!r}. Please provide a valid UCI or SAN move.')
 
 		if chess_move not in board.legal_moves:
-			raise ToolError(f'Move {move} is not legal for the given board position')
+			raise ToolError(f'Move {move!r} is not legal for the given board position')
 
 		board.push(chess_move)
 		self.stockfish.set_fen_position(board.fen())
