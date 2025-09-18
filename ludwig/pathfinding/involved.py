@@ -171,7 +171,7 @@ Based on the text, does a route without backtracking exist from the starting to 
 		yield (f"**Find Direct Paths:** First, let's identify all direct paths from **{start}** to **{end}**. "
 			   f"Here are the paths found:\n- {path_info}")
 
-		if ctx['answer']:
+		if ctx['answer'] == 'yes':
 			output = f'At least one of these paths includes **{target}**.'
 		else:
 			output = f'It appears that none of these paths include **{target}**.'

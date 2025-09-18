@@ -25,7 +25,12 @@ _meta.script_name: eval
 #_base: [s/cot, path/direct, c/mock, basic-view]
 #_base: [s/tool, ttt/tools, path/direct, j/client, c/vllm]
 
-#graph: 2
+#_base: [s/zshot, path/direct, j/format, c/vllm, basic-view]
+_base: [s/cot, path/direct, j/format, c/vllm, basic-view]
+
+graph: 2
+
+##################
 
 ##_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
@@ -44,7 +49,7 @@ _meta.script_name: eval
 ##################
 
 ##_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 ##_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
 #_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
 #

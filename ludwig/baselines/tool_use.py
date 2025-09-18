@@ -1,3 +1,5 @@
+import json
+
 from .imports import *
 from ..abstract import AbstractTool
 from ..util import ToolError, parse_pythonic_tool_calls, parse_json_tool_calls
@@ -71,12 +73,14 @@ class ToolUse(ZeroShotPrompting):
 					if info['name'] in self.tools:
 						tool = self.tools[info['name']]
 						arguments = info['arguments']
-						while isinstance(arguments, str):
-							arguments = json.loads(arguments)
 						try:
+							while isinstance(arguments, str):
+								arguments = json.loads(arguments)
 							result = tool.call(arguments)
 						except ToolError as e:
 							result = str(e) if type(e) == ToolError else f'{e.__class__.__name__}: {e}'
+						except json.JSONDecodeError as e:
+							result = f'JSONDecodeError: {e}'
 						chat.append({'role': 'tool', 'content': result, 'tool_call_id': tool_call['id'], })#'name': info.name})
 						tool_calls.append({'name': info['name'],
 										   'arguments': str(arguments),

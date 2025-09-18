@@ -91,7 +91,29 @@ class Pathfinding(ToolBase):
 		}
 
 	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
-		raise NotImplementedError
+		assert isinstance(arguments, dict), f'Invalid arguments type: {arguments}'
+		nodes = arguments.get('nodes', None)
+		edges = arguments.get('edges', None)
+		source = arguments.get('source', None)
+		target = arguments.get('target', None)
 
+		if not isinstance(nodes, list) or not all(isinstance(n, str) for n in nodes):
+			raise ToolError('Invalid nodes list')
+		if not isinstance(edges, list) or not all(isinstance(e, list) and len
+(e) == 2 and all(isinstance(n, str) for n in e) for e in edges):
+			raise ToolError('Invalid edges list')
+		if not isinstance(source, str) or source not in nodes:
+			raise ToolError('Invalid source node')
+		if not isinstance(target, str) or target not in nodes:
+			raise ToolError('Invalid target node')
+		if source == target:
+			raise ToolError('Source and target nodes must be different')
+		G = nx.Graph()
+		G.add_nodes_from(nodes)
+		G.add_edges_from(edges)
+		if not nx.has_path(G, source, target):
+			raise ToolError(f'No path between {source!r} and {target!r}')
+		paths = all_paths(G, source, target)
+		return json.dumps(paths)
 
 
