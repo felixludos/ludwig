@@ -27,9 +27,9 @@ _meta.script_name: eval
 
 #_base: [s/zshot, path/direct, j/format, c/vllm, basic-view]
 #_base: [s/tool, path/tools, path/direct, j/format, c/vllm]
-_base: [s/oracle-tool, path/tools, path/direct, j/format, c/vllm]
+#_base: [s/oracle-tool, path/tools, path/direct, j/format, c/vllm]
 
-graph: 90
+#graph: 90
 
 ##################
 
@@ -39,11 +39,11 @@ graph: 90
 ##_base: [s/mv, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-##_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 ##
 ##obs-rep: compact
-#obs-rep: moves
+obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -56,7 +56,7 @@ graph: 90
 #
 #obs-rep: active
 #obs-rep: fen
-obs-rep: pgn
+#obs-rep: pgn
 ##hint: all
 #
 ##check-work: 2
