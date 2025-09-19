@@ -611,11 +611,19 @@ class OSSClient(OpenaiClientBase):
 
 			try:
 				resp = self.endpoint.responses.create(**data).model_dump()
-			except openai.BadRequestError:
+			except openai.BadRequestError as e:
 				# pretty print
 				print(f'Error sending request to {self.ident} with data:')
 				print(json.dumps(data, indent=2, ensure_ascii=False))
-				raise
+
+				print(f'Error: {e}')
+				print(f'Trying again...')
+				try:
+					resp = self.endpoint.responses.create(**data).model_dump()
+				except openai.BadRequestError as e2:
+					print(f'Error again: {e2}')
+					print(f'Giving up.')
+					raise e2
 			return self._from_response_API_response(resp)
 		if self._tokenizer is None:
 			return super()._send(data)
