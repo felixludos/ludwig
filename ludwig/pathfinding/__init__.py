@@ -1,2 +1,2 @@
-from .involved import DirectRoute
+from .tasks import DirectRoute
 from . import tools

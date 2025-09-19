@@ -17,6 +17,7 @@ class DirectRoute(PathTask):
 
 	@property
 	def name(self) -> str:
+		return 'DirectRoute'
 		return f"DirectRoute{self._graph_index}"
 
 	def show_keys(self) -> Iterator[str]:
@@ -31,7 +32,7 @@ class DirectRoute(PathTask):
 
 	def json(self) -> JSONOBJ:
 		return {
-			'graph_index': self._graph_index,
+			'graph': self._graph_index,
 			'data_path': str(self._data_path),
 		}
 

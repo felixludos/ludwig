@@ -91,11 +91,12 @@ class ClientBase(fig.Configurable, AbstractClient):
 
 		# update chat with the response
 		msg = resp['choices'][0]['message']
-		assistant_turn = {'role': msg['role']}
-		assistant_turn['content'] = msg['content']
-		if msg.get('tool_calls'):
-			assistant_turn['tool_calls'] = resp['choices'][0]['message'].get('tool_calls', [])
-		chat.append(assistant_turn)
+		# assistant_turn = {'role': msg['role']}
+		# assistant_turn['content'] = msg['content']
+		# if msg.get('tool_calls'):
+		# 	assistant_turn['tool_calls'] = resp['choices'][0]['message'].get('tool_calls', [])
+		# chat.append(assistant_turn)
+		chat.append(msg.copy())
 
 		# extract additional chat relevant info
 		extra_info = resp['choices'][0].get('model_extra', {})

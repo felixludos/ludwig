@@ -100,7 +100,7 @@ class FindPaths(ToolBase):
 		return 'find_all_paths'
 
 	def description(self) -> str:
-		return ('A tool to find paths between two nodes of the given in the story. Returns a list of paths, '
+		return ('A tool to find paths between two nodes in the graph of the given story. Returns a list of paths, '
 				'where each path is represented as a list of node identifiers starting from the source node '
 				'and ending at the target node. If there are no paths, return an empty list.')
 
