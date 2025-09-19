@@ -39,14 +39,11 @@ _meta.script_name: eval
 ##_base: [s/mv, ttt/take-the-middle, j/format, c/vllm, basic-view]
 #_base: [s/cot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
-_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/zshot, ttt/take-the-middle, j/format, c/azure]
 ##
 ##obs-rep: compact
-obs-rep: moves
-
-#strategy.template: "{task}\n\nNote the available tools will be helpful for this task. You must use at least one tool at least once to help you answer the question.\n\n{question}"
-strategy.template: encourage-tool
+#obs-rep: moves
 
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
@@ -55,10 +52,10 @@ strategy.template: encourage-tool
 ##_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
 #_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 ##_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-#_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
 #
 #obs-rep: active
-#obs-rep: fen
+obs-rep: fen
 #obs-rep: pgn
 ##hint: all
 #
@@ -87,6 +84,9 @@ strategy.template: encourage-tool
 #use-chat-completion: no
 #tool-style: json
 #enable-thinking: yes
+
+
+strategy.template: encourage-tool
 
 limit: 10
 
