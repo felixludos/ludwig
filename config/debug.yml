@@ -45,6 +45,9 @@ _base: [s/oracle-tool, ttt/tools, ttt/take-the-middle, j/format, c/vllm, basic-v
 ##obs-rep: compact
 obs-rep: moves
 
+#strategy.template: "{task}\n\nNote the available tools will be helpful for this task. You must use at least one tool at least once to help you answer the question.\n\n{question}"
+strategy.template: encourage-tool
+
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
 ##################
@@ -77,6 +80,7 @@ obs-rep: moves
 #template: tree/encode
 #
 #rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
+
 
 
 ##############
