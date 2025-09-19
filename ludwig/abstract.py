@@ -20,6 +20,9 @@ class AbstractTool(AbstractJsonable):
 		"""
 		raise OptionalMethodNotImplemented
 
+	def prepare(self, task: 'AbstractTask') -> 'Self':
+		return self
+
 	def description(self) -> str:
 		"""
 		Detailed description of what this tool does and how to call it.

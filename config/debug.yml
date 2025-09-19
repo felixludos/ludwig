@@ -26,7 +26,7 @@ _meta.script_name: eval
 #_base: [s/tool, ttt/tools, path/direct, j/client, c/vllm]
 
 #_base: [s/zshot, path/direct, j/format, c/vllm, basic-view]
-_base: [s/cot, path/direct, j/format, c/vllm, basic-view]
+_base: [s/tool, path/tools, path/direct, j/format, c/vllm]
 
 graph: 2
 

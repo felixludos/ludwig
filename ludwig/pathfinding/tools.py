@@ -1,60 +1,19 @@
 from ..imports import *
-from ..util import ToolBase, ToolError, repo_root
+from ..util import ToolBase, ToolError
 
-import itertools
 import networkx as nx
-
-
-def to_graph(item):
-	edges = item['task1']['target']
-	G = nx.Graph()
-	for s, e in edges:
-		G.add_edge(s, e)
-	return G
-
-
-def generate_candidates(G):
-	distances = dict(nx.floyd_warshall(G))
-	nodes = list(G.nodes())
-
-	for a, b in itertools.permutations(nodes, 2):
-		if distances[a][b] >= 2:
-			yield a, b
-
-
-def all_paths(G, source, target):
-	return list(nx.all_simple_paths(G, source=source, target=target))
-
-
-def unused_nodes(G, path):
-	for node in G.nodes():
-		if node not in path:
-			yield node
-
-
-def path_nodes(G, a, b):
-	used = {n for path in all_paths(G, a, b) for n in path if n != a and n != b}
-	unused = {n for n in G.nodes() if n not in used and n != a and n != b}
-	return used, unused
-
-
-def select_paths(G):
-	tbl = [[a, b, *path_nodes(G, a, b)] for a, b in generate_candidates(G)]
-	tbl = sorted(tbl, key=lambda x: (abs(len(x[2]) - len(x[3])), len(x[0]) + len(x[1])))
-	assert len(tbl)
-	best = [item for item in tbl if abs(len(item[2]) - len(item[3])) == abs(len(tbl[0][2]) - len(tbl[0][3]))]
-	return best
+from .util import all_paths
 
 
 
-@fig.component('path/tool/finding')
-class Pathfinding(ToolBase):
+@fig.component('path/tool/graph')
+class GraphPaths(ToolBase):
 	@property
 	def name(self) -> str:
-		return 'path_finder'
+		return 'all_paths_in_graph'
 
 	def description(self) -> str:
-		return ('A tool to find a path between two nodes in an undirected graph. Returns a list of paths, '
+		return ('A tool to find all paths between two nodes in an undirected graph. Returns a list of paths, '
 				'where each path is represented as a list of node identifiers starting from the source node '
 				'and ending at the target node.')
 
@@ -97,17 +56,25 @@ class Pathfinding(ToolBase):
 		source = arguments.get('source', None)
 		target = arguments.get('target', None)
 
-		if not isinstance(nodes, list) or not all(isinstance(n, str) for n in nodes):
-			raise ToolError('Invalid nodes list')
-		if not isinstance(edges, list) or not all(isinstance(e, list) and len
-(e) == 2 and all(isinstance(n, str) for n in e) for e in edges):
-			raise ToolError('Invalid edges list')
-		if not isinstance(source, str) or source not in nodes:
-			raise ToolError('Invalid source node')
-		if not isinstance(target, str) or target not in nodes:
-			raise ToolError('Invalid target node')
+		if not isinstance(nodes, list):
+			raise ToolError('Nodes must be a list')
+		if not all(isinstance(n, str) for n in nodes):
+			raise ToolError('All nodes must be strings')
+		if not isinstance(edges, list):
+			raise ToolError('Edges must be a list')
+		if not all(isinstance(e, list) and len(e) == 2 and all(isinstance(n, str) for n in e) for e in edges):
+			raise ToolError('All edges must be lists of two strings')
+		if not isinstance(source, str):
+			raise ToolError('Source must be a string')
+		if source not in nodes:
+			raise ToolError(f'Source node {source!r} not in nodes')
+		if not isinstance(target, str):
+			raise ToolError('Target must be a string')
+		if target not in nodes:
+			raise ToolError(f'Target node {target!r} not in nodes')
 		if source == target:
 			raise ToolError('Source and target nodes must be different')
+
 		G = nx.Graph()
 		G.add_nodes_from(nodes)
 		G.add_edges_from(edges)
@@ -116,4 +83,68 @@ class Pathfinding(ToolBase):
 		paths = all_paths(G, source, target)
 		return json.dumps(paths)
 
+
+
+@fig.component('path/tool/finding')
+class FindPaths(ToolBase):
+	def __init__(self, **kwargs):
+		super().__init__(**kwargs)
+		self._task = None
+
+	def prepare(self, task: 'PathTask'):
+		self._task = task
+		return self
+
+	@property
+	def name(self) -> str:
+		return 'find_all_paths'
+
+	def description(self) -> str:
+		return ('A tool to find paths between two nodes of the given in the story. Returns a list of paths, '
+				'where each path is represented as a list of node identifiers starting from the source node '
+				'and ending at the target node. If there are no paths, return an empty list.')
+
+	def schema(self, style: str = None) -> JSONOBJ:
+		return {
+			"type": "function",
+			"function": {
+				"name": self.name,
+				"description": self.description(),
+				"parameters": {
+					"type": "object",
+					"properties": {
+						"source": {
+							"type": "string",
+							"description": "The identifier of the starting node."
+						},
+						"target": {
+							"type": "string",
+							"description": "The identifier of the target node."
+						}
+					},
+					"required": ["source", "target"],
+				}
+			}
+		}
+
+	def call(self, arguments: JSONOBJ, *, seed: Optional[int] = None) -> str:
+		assert isinstance(arguments, dict), f'Invalid arguments type: {arguments}'
+		source = arguments.get('source', None)
+		target = arguments.get('target', None)
+
+		if self._task is None:
+			raise ValueError(f'This tool has not been prepared with a PathTask before use.')
+		graph = self._task.get_current_graph()
+
+		if not isinstance(source, str):
+			raise ToolError('Source must be a string')
+		if source not in graph.nodes():
+			raise ToolError(f'Source node {source!r} not in nodes')
+		if not isinstance(target, str):
+			raise ToolError('Target must be a string')
+		if target not in graph.nodes():
+			raise ToolError(f'Target node {target!r} not in nodes')
+
+		paths = all_paths(graph, source, target)
+		return json.dumps(paths)
 

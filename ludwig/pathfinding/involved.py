@@ -1,42 +1,6 @@
-import random
-
-from ..abstract import PROBLEM
 from ..imports import *
-from ..base import TaskBase
-from ..util import ToolBase, ToolError, repo_root
 
-from .tools import to_graph, all_paths, select_paths
-
-
-
-class PathTask(TaskBase):
-	def __init__(self, data_path: Union[str, Path] = repo_root().joinpath('assets', 'plugh', 'plugh.json'),
-				 **kwargs):
-		data_path = Path(data_path)
-		super().__init__(**kwargs)
-		self._data_path = data_path
-		self._data = None
-
-	@staticmethod
-	def download(path: Union[str, Path] = repo_root().joinpath('assets', 'plugh', 'plugh.json')):
-		path = Path(path)
-		if path.exists():
-			return
-		path.parent.mkdir(parents=True, exist_ok=True)
-		url = 'https://github.com/altsoph/PLUGH/raw/refs/heads/main/plugh.json'
-		import requests
-		r = requests.get(url)
-		if r.status_code != 200:
-			raise ToolError(f"Failed to download data from {url}: {r.status_code}")
-		with path.open('w') as f:
-			f.write(r.text)
-
-	def prepare(self, seed: Optional[int] = None) -> Any:
-		super().prepare(seed)
-		if not self._data_path.exists():
-			raise FileNotFoundError(f"Data file not found: {self._data_path}")
-		self._data = json.load(self._data_path.open('r'))
-		return self
+from .util import PathTask, to_graph, all_paths, select_paths
 
 
 
@@ -47,6 +11,9 @@ class DirectRoute(PathTask):
 		self._graph_index = graph
 		self._graph = None
 		self._path_questions = None
+
+	def get_current_graph(self):
+		return self._graph
 
 	@property
 	def name(self) -> str:

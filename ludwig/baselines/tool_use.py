@@ -33,6 +33,9 @@ class ToolUse(ZeroShotPrompting):
 			raise ValueError('No tools provided for tool use strategy')
 		self.judge = judge
 
+		for tool in self.tools.values():
+			tool.prepare(task)
+
 	@property
 	def name(self) -> str:
 		return f'{self._name}-{self.template.ident}-{self._tool_code[:4]}'

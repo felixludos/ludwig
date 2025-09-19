@@ -1,0 +1,5 @@
+
+tools:
+  graph-paths._type: path/tool/graph
+
+oracle-tool._type: path/tool/finding
