@@ -1,4 +1,12 @@
 
+_base: [
+  s/zshot,
+  c/mock
+]
+
+# available strategies:
+
+
 seed: 1000000009
 
 limit: 4
@@ -7,8 +15,16 @@ use-wandb: no
 
 task._type: ttt/take-the-middle
 
-strategy._type: direct-prompting
-template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+# change the prompt template by referring to a file in `assets/prompts` or directly writing it here
+strategy._type: encourage-tool
+#strategy.template: "{task_context}\n\n{question}\n\nTake a deep breath and think step-by-step."
+
+
+# clients available c/vllm, c/saia, c/azure, c/mock
 client._type: mock
 
+
+# judges interpret model output to expected answer format (e.g. yes/no)
+# there is `j/client` (ask an LLM to interpret results + structured output) and `j/format` (ask the model to directly output the final answer in a certain format + regex to parse)
+# generally always just use the format-judge for simplicity
 judge._type: format-judge

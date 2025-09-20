@@ -609,21 +609,24 @@ class OSSClient(OpenaiClientBase):
 			if 'seed' in data:
 				data.pop('seed')
 
-			try:
-				resp = self.endpoint.responses.create(**data).model_dump()
-			except openai.BadRequestError as e:
-				# pretty print
-				print(f'Error sending request to {self.ident} with data:')
-				print(json.dumps(data, indent=2, ensure_ascii=False))
-
-				print(f'Error: {e}')
-				print(f'Trying again...')
+			errs = []
+			resp = None
+			for _ in range(3):
 				try:
 					resp = self.endpoint.responses.create(**data).model_dump()
-				except openai.BadRequestError as e2:
-					print(f'Error again: {e2}')
-					print(f'Giving up.')
-					raise e2
+				except openai.BadRequestError as e:
+					errs.append(e)
+				else:
+					break
+			if resp is None:
+				print(f'Multiple errors when sending request to {self.ident} with data:')
+				print(json.dumps(data, indent=2, ensure_ascii=False))
+
+				print(f'Errors:')
+				for e in errs:
+					print(f'- {e}')
+
+				raise errs[-1]
 			return self._from_response_API_response(resp)
 		if self._tokenizer is None:
 			return super()._send(data)
