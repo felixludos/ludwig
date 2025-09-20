@@ -674,6 +674,7 @@ class OSSClient(OpenaiClientBase):
 	_model_tokenizer_key = {
 		'openai-gpt-oss-120b': 'openai/gpt-oss-120b',
 		'qwen3-235b-a22b': 'Qwen/Qwen3-235B-A22B-Thinking-2507',
+		'qwen3-next': 'Qwen/Qwen3-Next-80B-A3B-Instruct',
 	}
 
 	def _build_tokenizer(self, model_name: str, *, trust_remote_code: bool = True, **kwargs) -> 'AutoTokenizer':
