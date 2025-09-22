@@ -1,6 +1,7 @@
 import uuid
 
 import openai
+from openai.types.chat import ChatCompletion
 
 from .imports import *
 from .abstract import AbstractClient
@@ -151,6 +152,11 @@ class ClientBase(fig.Configurable, AbstractClient):
 		if msg is None:
 			text = resp['choices'][0].get('text')
 			msg = {'role': 'assistant', 'content': text, 'tool_calls': []}
+		if 'mistral' in data.get('model', ''):
+			parsed = self._message_parser.parse_mistral(msg.get('content', ''), data, resp)
+			msg['content'] = parsed.get('content', msg.get('content'))
+			if 'tool_calls' in parsed and not len(msg.get('tool_calls', [])):
+				msg['tool_calls'] = parsed['tool_calls']
 		assert msg is not None, f'No message found in response: {resp}'
 		if 'content' not in msg:
 			msg['content'] = None
@@ -646,8 +652,14 @@ class OSSClient(OpenaiClientBase):
 			if 'qwen' in self.model_name.lower():
 				tok_args['enable_thinking'] = self._enable_thinking
 
+
 			try:
-				prompt = self._tokenizer.apply_chat_template(chat, **tok_args)
+				if 'mistral' in self.model_name.lower():
+					from mistral_common.protocol.instruct.request import ChatCompletionRequest
+					tokenized = self._tokenizer.encode_chat_completion(ChatCompletionRequest(messages=chat, tools=tools))
+					prompt = tokenized.text
+				else:
+					prompt = self._tokenizer.apply_chat_template(chat, **tok_args)
 
 			except Exception:
 				# pretty print
@@ -690,6 +702,7 @@ class OSSClient(OpenaiClientBase):
 			return None
 
 		if 'mistral' in name:
+			return None
 			from mistral_common.tokens.tokenizers.mistral import MistralTokenizer
 			tokenizer = MistralTokenizer.from_hf_hub(model_name)
 			return tokenizer

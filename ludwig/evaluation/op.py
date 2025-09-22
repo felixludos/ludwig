@@ -127,11 +127,7 @@ def eval_task(cfg: fig.Configuration):
 		# if 'JOB_ID' in environ:
 		# 	wandb_run.tags += (environ['JOB_ID'],)
 		if 'JOB_ID' in environ:
-			# save to config
-			try:
-				wandb_run.config['JOB_ID'] = environ['JOB_ID']
-			except:
-				pass
+			wandb_run.config['JOB_ID'] = environ['JOB_ID']
 		if 'JOB_NAME' in environ:
 			wandb_run.tags += (environ['JOB_NAME'],)
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'

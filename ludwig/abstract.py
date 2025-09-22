@@ -117,6 +117,12 @@ class AbstractTask:
 		"""
 		pass
 
+	def download(self) -> Path:
+		"""
+		(optional) Downloads any necessary data for this task
+		"""
+		raise OptionalMethodNotImplemented
+
 	def ask(self, index: int) -> JSONOBJ:
 		raise NotImplementedError
 
@@ -391,7 +397,7 @@ class AbstractJudge:
 		"""
 		return task_description
 
-	def interpret(self, question: str, response: str) -> Tuple[DECISION, Optional[JSONOBJ]]:
+	def interpret(self, problem: JSONOBJ, response: JSONOBJ) -> JSONOBJ:
 		"""
 		(optional) Interprets the response of the strategy and returns a decision and any additional information.
 
@@ -400,7 +406,7 @@ class AbstractJudge:
 		"""
 		raise OptionalMethodNotImplemented
 
-	def judge(self, decision: DECISION, answer: JSONDATA, info: Optional[JSONOBJ] = None) -> JSONDATA:
+	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> JSONDATA:
 		raise NotImplementedError
 
 	def prepare(self, task_spec: JSONOBJ) -> None:

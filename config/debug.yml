@@ -48,18 +48,27 @@ _meta.script_name: eval
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
 ##################
+#
+###_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
+##_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
+###_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+##
+##obs-rep: active
+#obs-rep: fen
+##obs-rep: pgn
+###hint: all
+##
+###check-work: 2
 
-##_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-#_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
-##_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-#
-#obs-rep: active
-obs-rep: fen
-#obs-rep: pgn
-##hint: all
-#
-##check-work: 2
+#################
+
+_base: [s/zshot, livebench/reasoning, c/vllm, basic-view]
+
+subtask: zebra_puzzle
+task.download: yes
+
+
 
 #################
 
@@ -103,8 +112,8 @@ stockfish-path: 'C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\sto
 #style: end
 
 #addr: http://wagner.is.localnet:8000
-addr: 8011
-#addr: 8002
+#addr: 8012
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 

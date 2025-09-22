@@ -52,7 +52,10 @@ class ZeroShotPrompting(ClientStrategy):
 
 		prompt = self.template.fill(**problem)
 
-		response = self.client.get_response(prompt, **self.params)
+		# response = self.client.get_response(prompt, **self.params)
+		resp = self.client.step(prompt, **self.params)
+
+		response = self.client.extract_response(resp)
 
 		return {'prompt': prompt, 'final': response}
 

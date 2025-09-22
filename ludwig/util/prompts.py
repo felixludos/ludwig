@@ -144,13 +144,14 @@ class Custom_Formalizer(SimpleFormalizer):
 
 @fig.component('prompt-template')
 class PromptTemplate(fig.Configurable, AbstractTemplate):
-	def __init__(self, template: Union[str, Path], ident: str = None, **kwargs):
+	def __init__(self, template: Union[str, Path], ident: str = None, autostrip: bool = True, **kwargs):
 		super().__init__(**kwargs)
 		self.template = template
 		self._template_name = ident
 		self._loaded_template = False
 		self._template_data = self._process_template(template)
 		self._template_code = hash_str(self._template_data)
+		self._autostrip = autostrip
 
 	def _process_template(self, template):
 		if isinstance(template, Path) or '{' not in template:
@@ -206,7 +207,10 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		Fill the template with the given keyword arguments.
 		"""
 		# return self._template_data.format(**kwargs)
-		return pformat(self._template_data, kwargs, json=json)
+		res = pformat(self._template_data, kwargs, json=json)
+		if self._autostrip:
+			res = res.strip()
+		return res
 
 
 

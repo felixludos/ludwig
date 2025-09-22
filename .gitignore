@@ -9,6 +9,7 @@ requests/
 .idea/
 local_data/
 extra/
+assets/livebench/
 assets/chess/games/
 secrets/
 plugh.json
@@ -160,6 +161,7 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+assets/api_keys.yml
 
 # Pyre type checker
 .pyre/

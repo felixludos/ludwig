@@ -56,9 +56,9 @@ class PathTask(TaskBase):
 		self._data_path = data_path
 		self._data = None
 
-	@staticmethod
-	def download(path: Union[str, Path] = repo_root().joinpath('assets', 'plugh', 'plugh.json')):
-		path = Path(path)
+	def download(self, path: Union[str, Path] = None):
+		if path is None:
+			path = self._data_path
 		if path.exists():
 			return
 		path.parent.mkdir(parents=True, exist_ok=True)
@@ -69,6 +69,7 @@ class PathTask(TaskBase):
 			raise ToolError(f"Failed to download data from {url}: {r.status_code}")
 		with path.open('w') as f:
 			f.write(r.text)
+		return path
 
 	def prepare(self, seed: Optional[int] = None) -> Any:
 		super().prepare(seed)

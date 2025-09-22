@@ -63,10 +63,79 @@ class MessageParser(AbstractParser):
 		message['content'] = '\n'.join(content_lines).strip()
 		return message
 
+	def parse_mistral(self, text: str, data: JSONOBJ = None, resp: JSONOBJ = None) -> JSONOBJ:
+		"""
+		Parses various Mistral tool call formats, including enclosed blocks
+		and unclosed `[TOOL_CALLS]` tags.
+		"""
+		content = text.strip()
+		message = {'content': None, 'role': 'assistant', 'tool_calls': []}
+		all_parsed_calls = []
+
+		# --- 1. First, parse enclosed tool call blocks ---
+		block_pattern = r"(?:<s>)?\s*\[(ASSISTANT_TASKS|ACTIONS|TOOL_CALLS)\](.*?)\[/\1\]"
+		found_blocks = re.findall(block_pattern, content, re.DOTALL)
+
+		if found_blocks:
+			for tag_name, block_content in found_blocks:
+				block_content = block_content.strip()
+
+				if tag_name in ('ASSISTANT_TASKS', 'ACTIONS'):
+					# Handles simple JSON array content
+					if block_content:
+						parsed_calls = parse_json_tool_calls(block_content)
+						if parsed_calls:
+							all_parsed_calls.extend(parsed_calls)
+
+				elif tag_name == 'TOOL_CALLS':
+					# Handles the complex format: {args}tool_name
+					call_pattern = r"(?:\[TOOL_ARGS\])?\s*(\{.*?\})\s*([a-zA-Z_]\w*)"
+					matches = re.findall(call_pattern, block_content, re.DOTALL)
+					for args_json, tool_name in matches:
+						try:
+							arguments = json.loads(args_json)
+							all_parsed_calls.append({'name': tool_name, 'arguments': arguments})
+						except json.JSONDecodeError:
+							raise ValueError(f"Failed to parse tool call JSON: {args_json}")
+
+			# If blocks were found and parsed, remove them from the content
+			if all_parsed_calls:
+				content = re.sub(block_pattern, "", content, flags=re.DOTALL).strip()
+
+		# --- 2. Second, parse the unclosed [TOOL_CALLS]name{args} format ---
+		unclosed_tag_pattern = r"\[TOOL_CALLS\]([a-zA-Z_]\w*)(\{.*?\})"
+		unclosed_matches = re.findall(unclosed_tag_pattern, content, re.DOTALL)
+
+		if unclosed_matches:
+			for tool_name, args_json in unclosed_matches:
+				try:
+					arguments = json.loads(args_json.strip())
+					all_parsed_calls.append({'name': tool_name, 'arguments': arguments})
+				except json.JSONDecodeError:
+					raise ValueError(f"Failed to parse tool call JSON: {args_json}")
+
+			# If matches were found and parsed, remove them from the content
+			content = re.sub(unclosed_tag_pattern, "", content, flags=re.DOTALL).strip()
+
+		# --- 3. Finalize the message ---
+		if all_parsed_calls:
+			for call in all_parsed_calls:
+				call['id'] = f"{uuid.uuid4().hex}"[:9]
+			message['tool_calls'] = all_parsed_calls
+		# The original error for "detected blocks but failed to parse" is removed
+		# as the new logic handles multiple formats sequentially. A JSONDecodeError
+		# will now be the primary failure indicator.
+
+		message['content'] = content
+		return message
+
 	def parse(self, text: str, data: JSONOBJ = None, resp: JSONOBJ = None, *, role: str = 'assistant') -> JSONOBJ:
 		if data is not None and 'openai' in data.get('model', '') and 'gpt-oss' in data.get('model', ''):
 			# This is a special case for OpenAI's GPT-OSS model, which uses a different format.
 			return self.parse_openai(text, data, resp, role=role)
+
+		if data is not None and 'mistral' in data.get('model', '').lower():
+			return self.parse_mistral(text, data, resp)
 
 		context = data or {}
 		content = text.strip()

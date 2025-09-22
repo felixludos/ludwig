@@ -190,6 +190,8 @@ class DefaultProtocol(ProtocolBase):
 			metrics = None
 		elif self._answer_type == 'option':
 			metrics = None
+		elif self._answer_type == 'free-response':
+			raise NotImplementedError
 		else:
 			raise ValueError(f'Unknown answer type: {spec["answer"]}')
 
@@ -263,8 +265,14 @@ class DefaultProtocol(ProtocolBase):
 
 	def _default_stats(self) -> JSONFLAT:
 		stats = {}
-		stats['score'] = sum(self.scores) / len(self.scores) if len(self.scores) else None
-		stats['correct'] = sum(self.scores) / len(self.history) if len(self.history) else None
+		if len(self.scores) and isinstance(self.scores[0], (int, float, bool)):
+			stats['score'] = sum(self.scores) / len(self.scores)
+			stats['correct'] = sum(self.scores) / len(self.history)
+		elif len(self.scores) and isinstance(self.scores[0], dict):
+			key = next(iter(self.scores[0]))
+			vals = [score[key] for score in self.scores if key in score]
+			stats['score'] = sum(vals) / len(vals) if len(vals) else 0
+			stats['correct'] = sum(vals) / len(self.history) if len(vals) else 0
 		stats['iterations'] = len(self.history)
 		stats['fails'] = len(self.fails)
 		stats['invalid'] = len(self.history) - len(self.scores)
@@ -279,7 +287,10 @@ class DefaultProtocol(ProtocolBase):
 			for key, val in verdict.items():
 				if val is not None:
 					self.metrics.setdefault(key, []).append(val)
+			return verdict
 			return {key: sum(vals) / len(vals) for key, vals in self.metrics.items() if len(vals)}
+		elif isinstance(verdict, (int, float)):
+			return verdict
 		elif self._answer_type is None:
 			return
 		else:

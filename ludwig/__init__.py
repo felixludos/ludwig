@@ -3,10 +3,12 @@ from .errors import ParsingError, ToolError, AmbiguousFormalizationError, Option
 from .base import TaskBase, ClientStrategy, ProtocolBase
 from . import baselines
 from . import evaluation
+from . import scripts
 from . import formalization
 from . import ours
 from . import servers
 from .tictactoe import *
 from .chess import *
 from .pathfinding import *
+from .livebench import *
 from .util import repo_root
