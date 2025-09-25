@@ -175,7 +175,7 @@ class StockfishBestNextMove(StockfishTool):
 		if best_move:
 			board = chess.Board(fen)
 			move = board.parse_san(best_move)
-			return str(move)
+			return board.san(move)
 		return ''
 
 

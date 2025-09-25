@@ -55,10 +55,10 @@ _meta.script_name: eval
 ###_base: [s/zshot, chess/puzzle, c/vllm, basic-view]
 ##_base: [s/cot, chess/puzzle, c/vllm, basic-view]
 ###_base: [s/tool, chess/tools, chess/puzzle,c/vllm, basic-view]
-_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
 ##
 ##obs-rep: active
-obs-rep: white
+#obs-rep: white
 #obs-rep: fen
 ##obs-rep: pgn
 ###hint: all
@@ -101,17 +101,18 @@ obs-rep: white
 ##_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, j/format, c/vllm, basic-view]
 #
 ##_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
-#_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
+_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
 #
 #obs-rep: active
+obs-rep: white
 ##obs-rep: fen
 ##obs-rep: pgn
 #
-#adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
-#rep-index: 3
+adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
+rep-index: 0
 #
 #
-#strategy.template: encourage-tool
+strategy.template: encourage-tool
 
 # endregion
 #################
@@ -155,7 +156,7 @@ stockfish-path: 'C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\sto
 
 #addr: http://wagner.is.localnet:8000
 #addr: 8012
-addr: 8002
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 
