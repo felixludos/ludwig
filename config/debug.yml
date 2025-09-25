@@ -109,7 +109,7 @@ obs-rep: white
 ##obs-rep: pgn
 #
 adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
-rep-index: 0
+rep-index: 4
 #
 #
 strategy.template: encourage-tool
