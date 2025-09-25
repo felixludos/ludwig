@@ -24,5 +24,8 @@ def download_task_assets(cfg: fig.Configuration):
 
 	print(f'Task {task} is prepared and ready to use.')
 
+@fig.script('test-args')
+def arg_test_script(cfg: fig.Configuration):
 
+	print(cfg)
 

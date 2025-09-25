@@ -216,7 +216,7 @@ class TreeBuilder(ClientStrategy):
 			return states
 
 	def _confirm_choice(self, chat: List[Dict[str, JSONDATA]], choices: List[str], *,
-						clean_up: bool = True, max_tokens: int = 10) -> str:
+						clean_up: bool = True, max_tokens: int = 1024) -> str:
 		chat.append({'role': 'user', 'content': self.confirm_choice_template.fill(choices=choices)})
 		resp = self.client.step(chat, max_tokens=max_tokens, grammar=choices)
 		pick = chat[-1]['content']

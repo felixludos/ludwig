@@ -118,6 +118,7 @@ class StockfishTool(ToolBase):
 		self._stockfish_path = stockfish_path
 		import stockfish
 		self.stockfish = stockfish.Stockfish(str(self._stockfish_path))
+		self._stockfish_error = stockfish.StockfishException
 
 
 @fig.component('chess/tool/stockfish/best-move')
@@ -166,7 +167,10 @@ class StockfishBestNextMove(StockfishTool):
 
 		self.stockfish.set_fen_position(fen)
 
-		best_move = self.stockfish.get_best_move()
+		try:
+			best_move = self.stockfish.get_best_move()
+		except self._stockfish_error as e:
+			raise ToolError(str(e))
 
 		if best_move:
 			board = chess.Board(fen)
