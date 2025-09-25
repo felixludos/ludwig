@@ -261,6 +261,8 @@ class DefaultProtocol(ProtocolBase):
 		sample['idx'] = idx
 		sample['failed'] = failed
 		sample.update(self._default_stats())
+		if 'score' not in sample:
+			sample['score'] = 0
 		return sample
 
 	def _default_stats(self) -> JSONFLAT:
@@ -347,7 +349,7 @@ class DefaultProtocol(ProtocolBase):
 		task_json['name'] = self.task.name
 		strategy_json = self.strategy.json()
 		strategy_json['name'] = self.strategy.name
-		if self.judge is None:
+		if self.judge is None or self.judge is self.task:
 			judge_json = None
 		else:
 			judge_json = self.judge.json()

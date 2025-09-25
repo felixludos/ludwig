@@ -1,0 +1,150 @@
+{
+  "code": "3efaaef23d6bf20bfaea4dbb03fcd95f5662d7f73b7fdd0ee4d92da715d7d9a5",
+  "json": {
+    "code": "3efaaef23d6bf20bfaea4dbb03fcd95f5662d7f73b7fdd0ee4d92da715d7d9a5",
+    "entra": {},
+    "judge": null,
+    "model": "openai/gpt-oss-20b",
+    "seed": 1000000009,
+    "strategy": {
+      "client": {
+        "add_generation_prompt": true,
+        "addr": "http://localhost:8001/v1/",
+        "base_url": "http://localhost:8001/v1/",
+        "chat_template_path": null,
+        "continue_final_message": false,
+        "max_tokens": 4096,
+        "model_name": "/fast/fleeb/huggingface_cache/hub/models--openai--gpt-oss-20b/snapshots/2e8f8052ee2aeee907f76e08c08b9fdde8677ca8",
+        "seed": 1000000009,
+        "system_message": null,
+        "temperature": 1,
+        "top_p": null
+      },
+      "code": "e17231945620104a4f08a8bef00ed80b4db33f53cdd829d67e9752ea3d38cf07",
+      "confirm_choice_template": {
+        "code": "0fc7a7f73cb7fdc3aa4cebd8111873a3dfdd6915c14ff0083bb49099094787f0",
+        "template": "confirm-choice"
+      },
+      "encode_template": {
+        "code": "432dbde776302e7014066b20f504aba6cfb1815ba46cfd6a3699e778f6103ae6",
+        "template": "tree/encode"
+      },
+      "evaluate_template": {
+        "code": "27c5e086370e01f1bb5427df1da8074be15df0d63f111d249e689600f8baf263",
+        "template": "tree/evaluate"
+      },
+      "expand_template": {
+        "code": "d41b7337d7413479b87f186952df6cc231a98ffedc4509c172a447d7233e4632",
+        "template": "tree/expand"
+      },
+      "extract_template": {
+        "code": "e42bca8c4ed95517e833916300ce6dd5cda303b228f002adea57cc56afd3b3a8",
+        "template": "tree/extract"
+      },
+      "name": "tree-build-ChessPuzzle-c635",
+      "num_examples": 1,
+      "rep_template": {
+        "code": "34caac419cb51dd9d299afdf473b58c06f5445fd80b8886e4821a49b171c3579",
+        "template": "tree/rep"
+      },
+      "safety_template": {
+        "code": "b32580843253bda12b096929fac13740e131eee98f70f33f0d87261d6e8b4d95",
+        "template": "safe-code"
+      },
+      "task": {
+        "hint": null,
+        "obs_rep": "fen"
+      }
+    },
+    "task": {
+      "index_key": "index",
+      "master_seed": 1000000009,
+      "n": 10,
+      "name": "stub10",
+      "seed_key": "seed"
+    }
+  },
+  "name": "tree-build-ChessPuzzle-c635_250923-154828",
+  "state": {
+    "fails": [],
+    "history": [
+      [
+        0,
+        false,
+        null
+      ],
+      [
+        1,
+        false,
+        null
+      ],
+      [
+        2,
+        false,
+        null
+      ],
+      [
+        3,
+        false,
+        null
+      ],
+      [
+        4,
+        false,
+        null
+      ],
+      [
+        5,
+        false,
+        null
+      ],
+      [
+        6,
+        false,
+        null
+      ],
+      [
+        7,
+        false,
+        null
+      ],
+      [
+        8,
+        false,
+        null
+      ],
+      [
+        9,
+        false,
+        null
+      ]
+    ],
+    "metrics": null,
+    "scores": []
+  },
+  "status": {
+    "fails": 0,
+    "invalid": 10,
+    "iterations": 10,
+    "strategy": {
+      "client": {
+        "input_tokens": 252967,
+        "output_tokens": 55274,
+        "requests": 95,
+        "time": {
+          "max": 14.79127025604248,
+          "mean": 3.0419661270944696,
+          "min": 0.19081568717956543
+        },
+        "tok_per_sec": {
+          "max": 218.05887577321187,
+          "mean": 135.2024375815494,
+          "min": 25.87327701337676
+        }
+      }
+    },
+    "task": {}
+  },
+  "strategy": "strategy.json",
+  "task": "None"
+}

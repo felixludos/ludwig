@@ -1,6 +1,7 @@
 from .imports import *
 from .files import repo_root, hash_str
 from omnibelt import pformat_vars
+from .abstract import AbstractTool
 
 
 class AbstractTemplate:
@@ -139,6 +140,87 @@ class Custom_Formalizer(SimpleFormalizer):
 		info = self.extractor.formalization_args(context)
 		return self._fn(**info)
 
+
+
+@fig.modifier('tool-adapter')
+class ToolAdapter(fig.Configurable, AbstractTool):
+	def __init__(self, adapter_path: Union[Path, str], rep_index: int, adapter_description: str = None, **kwargs):
+		if isinstance(adapter_path, str):
+			adapter_path = Path(adapter_path.format(root=repo_root()))
+		super().__init__(**kwargs)
+		self.rep_index = rep_index
+		self.adapter_path = adapter_path
+		self._adapter_description = adapter_description
+		self.decoder_fn = None
+		self.adapter_rep = None
+
+	def json(self) -> 'JSONLIKEOBJ':
+		return {
+			'adapter_path': str(self.adapter_path),
+			'rep_index': self.rep_index,
+			'adapter_description': self._adapter_description,
+			**super().json()
+		}
+
+	def prepare(self, task: 'AbstractTask') -> 'Self':
+		super().prepare(task)
+		if self.adapter_path.is_dir():
+			self.adapter_path = self.adapter_path / 'log-formal.json'
+		if not self.adapter_path.exists():
+			raise FileNotFoundError(f'Adapter file not found: {self.adapter_path}')
+
+		reps = json.load(self.adapter_path.open('r'))
+		if not (-len(reps) <= self.rep_index < len(reps)):
+			raise ValueError(f'Invalid rep index: {self.rep_index} < {len(reps)}')
+		rep = reps[self.rep_index]
+
+		assert 'decode' in rep, f'Adapter is missing the decode function'
+		code = rep['decode']
+		objs = {}
+		exec(code, objs)
+		assert 'decode' in objs, f'Adapter is missing the decode function'
+		self.decoder_fn = objs.get('decode')
+
+		assert 'rep' in rep, f'Adapter is missing the representation schema'
+		self.adapter_rep = rep['rep']
+		if 'name' in self.adapter_rep:
+			del self.adapter_rep['name']
+		if 'description' in self.adapter_rep:
+			del self.adapter_rep['description']
+
+		return self
+
+	def description(self) -> str:
+		if self._adapter_description is not None:
+			return self._adapter_description
+		return super().description()
+
+	def schema(self, style: str = None) -> JSONOBJ:
+		if self.adapter_rep is None:
+			raise ValueError(f'ToolAdapter has not been prepared with a task.')
+		return {
+			'type': 'function', 'function': {
+				"name": self.name,
+				"description": self.description(),
+				"parameters": self.adapter_rep,
+			}
+		}
+
+	def decode(self, raw: JSONOBJ) -> JSONOBJ:
+		if self.decoder_fn is None:
+			raise ValueError(f'ToolAdapter has not been prepared with a task.')
+		return self.decoder_fn(raw)
+
+	def call(self, arguments: JSONDATA, *, seed: Optional[int] = None) -> str:
+		assert isinstance(arguments, dict), f'Invalid arguments type: {arguments}'
+
+		try:
+			fixed = self.decode(arguments)
+		except:
+			raise ToolError(f'The input state was not provided in the correct format.')
+
+		out = super().call(fixed)
+		return out
 
 
 

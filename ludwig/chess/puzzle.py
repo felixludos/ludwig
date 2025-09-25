@@ -1,5 +1,5 @@
 from ..imports import *
-from ..base import TaskBase
+from ..base import TaskBase, JudgedTask
 from ..util import repo_root
 from ..util.prompts import SimpleFormalizer
 
@@ -26,7 +26,7 @@ class Chess_Formalizer(SimpleFormalizer):
 
 
 @fig.component('chess/puzzle')
-class ChessPuzzle(TaskBase):
+class ChessPuzzle(JudgedTask):
 	_problem_path = repo_root().joinpath('assets', 'chess', 'puzzles_with_pgn.csv')
 	_analysis_path = repo_root().joinpath('assets', 'chess', 'analysis.json')
 	def __init__(self, *, obs_rep: str = 'fen', hint: Optional[int] = None, **kwargs):
@@ -149,7 +149,8 @@ class ChessPuzzle(TaskBase):
 
 		question = (f"{opponent.capitalize()} just played {movesan}. "
 					f"Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
-						   f"Answer using the UCI or SAN format.")
+						   f"Answer using either UCI or SAN format."
+					'Give your final answer in the form: "FINAL ANSWER: {move}".')
 
 		ctx['fen'] = fen
 		ctx['player'] = active_player
@@ -182,7 +183,8 @@ class ChessPuzzle(TaskBase):
 		ctx['rationale'] = list(self._rationale(board, raw['Themes'].split(), answer,
 												[move['Move'] for move in analysis['moves'][:4]]))
 
-		ctx['answer'] = [answer, board.san(board.parse_uci(answer))]
+		ctx['answer'] = answer
+		# ctx['answer'] = [answer, board.san(board.parse_uci(answer))]
 
 		ctx['system'] = self._system_context
 		ctx['task'] = self._task_description
@@ -295,6 +297,37 @@ class ChessPuzzle(TaskBase):
 		yield f'Based on this analysis, some candidate best moves are {moves}.'
 
 		yield f'Upon further thought, the best next move appears to be **{answer}**.'
+
+	def format_description(self, task_description: str) -> str:
+		return task_description
+
+	_regex_pattern = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(\w+)\**'
+
+	def interpret(self, problem: JSONOBJ, response: JSONOBJ) -> JSONOBJ:
+		assert 'final' in response, 'Response must contain a final response to interpret'
+		final = response['final']
+		if final is None:
+			return {'decision': None}
+
+		match = re.search(self._regex_pattern, final.strip())
+		if match:
+			decision = match.group(1)
+
+			board = chess.Board(problem['fen'])
+			try:
+				move = board.parse_san(decision)
+			except (chess.InvalidMoveError, chess.IllegalMoveError, chess.AmbiguousMoveError):
+				pass
+			else:
+				fixed = str(move)
+				return {'decision': fixed}
+
+		return {'decision': None}
+
+	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> JSONDATA:
+		if problem.get('answer') and response.get('decision'):
+			answer, decision = problem['answer'], response['decision']
+			return answer == decision
 
 
 

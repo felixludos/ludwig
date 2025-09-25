@@ -226,14 +226,20 @@ class FewShotPrompting(ClientStrategy):
 		if self._as_chat:
 			chat = [*self.client.begin_chat(), *chat]
 
-			response = self.client.get_response(chat, **self.params)
+			# response = self.client.get_response(chat, **self.params)
+			resp = self.client.step(chat, **self.params)
+
+			response = self.client.extract_response(resp)
 
 			return {'chat': chat, 'final': response}
 
 		else:
 			prompt = '\n\n'.join(message['content'] for message in chat)
 
-			response = self.client.get_response(prompt, **self.params)
+			# response = self.client.get_response(prompt, **self.params)
+			resp = self.client.step(prompt, **self.params)
+
+			response = self.client.extract_response(resp)
 
 			return {'prompt': prompt, 'final': response}
 

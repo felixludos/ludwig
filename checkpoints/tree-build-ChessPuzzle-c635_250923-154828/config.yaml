@@ -1,0 +1,33 @@
+_base: [build, chess/puzzle, c/vllm, basic-view]
+_meta: {debug: true, script_name: eval}
+addr: 8001
+broker-type: min-broker
+client: {_type: vllm}
+debug-log: true
+enable-thinking: false
+limit: 10
+log: {_all_: true}
+logger: {_type: default-broker, targets: <>log, untargets: <>unlog}
+max-tokens: 4096
+n: 10
+n-votes: 3
+prelog: {_all_: true}
+prelogger: {_type: default-broker, targets: <>pre, untargets: <>unpre}
+protocol: {_type: default-protocol, name: '{strategy.name}_{now.strftime("%y%m%d-%H%M%S")}',
+  task: <>n}
+root: local_data/debug
+seed: 1000000009
+stockfish-path: C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe
+strategy: {_type: ours/tree-builder}
+task: {_type: chess/puzzle}
+temperature: 1
+use-wandb: false
+viewer: {_type: default-broker, targets: <>viz}
+viz:
+  correct: true
+  fails: true
+  invalid: true
+  iterations: true
+  score: true
+  stats: true
+  table: {_type: formatter/table, expires: 4}

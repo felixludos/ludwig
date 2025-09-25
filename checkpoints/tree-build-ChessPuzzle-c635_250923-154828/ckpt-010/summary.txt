@@ -1,0 +1,14 @@
+--------------------------------  -------------
+iterations                            10
+fails                                  0
+invalid                               10
+strategy.client.input_tokens      252967
+strategy.client.output_tokens      55274
+strategy.client.time.mean              3.04197
+strategy.client.time.min               0.190816
+strategy.client.time.max              14.7913
+strategy.client.tok_per_sec.mean     135.202
+strategy.client.tok_per_sec.min       25.8733
+strategy.client.tok_per_sec.max      218.059
+strategy.client.requests              95
+--------------------------------  -------------

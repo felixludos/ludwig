@@ -1,0 +1,85 @@
+{
+  "0": [
+    "This puzzle's premises lead to a logical contradiction. However, the given answer can be reached by following one line of reasoning while ignoring the paradox.",
+    "First, a direct fact: the person at the **theater (Nia) is a liar**.",
+    "The person at the **art gallery (Jake)** says 'the person at the theater lies.' Since this is a true statement, the person at the **art gallery is a truth-teller**.",
+    "The person at the **campground (Nadia)** says 'the person at the art gallery tells the truth.' This is also a true statement, so the **campground person is a truth-teller**.",
+    "The person at the **aquarium (Ayaan)** says 'the person at the campground tells the truth.' This is true, so the **aquarium person is a truth-teller** (Answer: yes).",
+    "The person at the **amusement park (Mateo)** says 'the person at the aquarium tells the truth.' This is true, so the **amusement park person is a truth-teller** (Answer: yes).",
+    "Finally, the person at the **train station (Kehinde)** says 'the person at the amusement park lies.' This is a false statement, so the **train station person is a liar** (Answer: no).",
+    "(Note: This result makes the theater person's statement 'the train station lies' a true statement, which a liar should not be able to make, indicating an issue with the puzzle's premises.)"
+  ],
+  "1": [
+    "We are given several facts: the people at the **Aquarium**, **Barbershop**, and **Restaurant** are all truth-tellers.",
+    "Let's trace the chain of statements starting from the **Planetarium (Isabella)**, who says 'the library tells the truth.'",
+    "Assuming this is true, the **Library (Luna)** is a truth-teller. Luna says 'the amusement park tells the truth.'",
+    "This means the **Amusement Park (Jaxon)** is a truth-teller. Jaxon says 'the beach tells the truth.'",
+    "This means the **Beach (Hiroshi)** is a truth-teller. Hiroshi says 'the restaurant tells the truth,' which matches our initial fact. Therefore, the entire chain of assumptions is correct.",
+    "So, the **Planetarium person (Isabella) is a truth-teller** (Answer: yes).",
+    "The **Observatory person (Max)** says 'the planetarium lies.' This is false, making the **Observatory person a liar** (Answer: no).",
+    "The **Movie Theater person (Liam)** says 'the observatory lies.' This is true, making the **Movie Theater person a truth-teller** (Answer: yes)."
+  ],
+  "2": [
+    "We start with three direct facts: the **Train Station person (Devika) is a truth-teller**, the **Restaurant person is a liar**, and the **Vineyard person is a liar**.",
+    "The answer for the **Train Station person is yes**.",
+    "The person at the **Botanical Garden (Hiroshi)** says 'the train station lies.' Since we know the train station person tells the truth, this statement is false. Therefore, the **Botanical Garden person is a liar** (Answer: no).",
+    "The person at the **Library (Kehinde)** says 'the botanical garden tells the truth.' Since we just determined the botanical garden person is a liar, this statement is false. Therefore, the **Library person is a liar** (Answer: no)."
+  ],
+  "3": [
+    "We are given several facts, including that the **School person (Hiroshi) tells the truth**.",
+    "The **Barbershop person (Soren)** says 'the school tells the truth.' This is a true statement, making the **Barbershop person a truth-teller**.",
+    "The **Art Gallery person (Farid)** says 'the barbershop lies.' This is a false statement, making the **Art Gallery person a liar**.",
+    "The **Bowling Alley person (Grace)** says 'the art gallery lies.' This is a true statement, making the **Bowling Alley person a truth-teller**.",
+    "The **Airport person (Ryan)** says 'the bowling alley lies.' This is a false statement, making the **Airport person a liar** (Answer: no).",
+    "The **Aquarium person (Elowen)** says 'the airport tells the truth.' This is a false statement, making the **Aquarium person a liar** (Answer: no).",
+    "The **Botanical Garden person (Zara)** says 'the aquarium lies.' This is a true statement, making the **Botanical Garden person a truth-teller** (Answer: yes)."
+  ],
+  "4": [
+    "We are given two facts to start: the **Campground person (Charlie) tells the truth** and the **Restaurant person tells the truth**.",
+    "The **Vineyard person (Beatriz)** says 'the campground tells the truth.' This is a true statement, which means the **Vineyard person is a truth-teller** (Answer: yes).",
+    "The **School person (Soren)** says 'the vineyard tells the truth.' We just found this to be true, so the **School person is a truth-teller** (Answer: yes).",
+    "The **Amusement Park person (Mateo)** says 'the school tells the truth.' This is also a true statement, which means the **Amusement Park person is a truth-teller** (Answer: yes).",
+    "The remaining statements are consistent with these findings."
+  ],
+  "5": [
+    "We start with the direct fact that the **City Hall person (Quan) is a liar**.",
+    "The **Barbershop person (Liam)** says 'the city hall tells the truth.' This is a false statement, making the **Barbershop person a liar**.",
+    "The **Farm person (Hiroshi)** says 'the barbershop lies.' This is a true statement, making the **Farm person a truth-teller** (Answer: yes).",
+    "The **Airport person (Farid)** says 'the farm tells the truth.' This is a true statement, making the **Airport person a truth-teller** (Answer: yes).",
+    "The **Observatory person (Mateo)** says 'the airport lies.' This is a false statement, making the **Observatory person a liar** (Answer: no)."
+  ],
+  "6": [
+    "We start with several facts, including that the **Bookstore person (Tala) tells the truth**.",
+    "The **Art Gallery person (Luna)** says 'the bookstore tells the truth.' This is a true statement, making the **Art Gallery person a truth-teller**.",
+    "The **Zoo person (Ethan)** says 'the art gallery tells the truth.' This is a true statement, making the **Zoo person a truth-teller** (Answer: yes).",
+    "The **Planetarium person (Emily)** says 'the zoo lies.' This is a false statement, making the **Planetarium person a liar** (Answer: no).",
+    "The **Barbershop person (Zara)** says 'the planetarium lies.' This is a true statement, making the **Barbershop person a truth-teller** (Answer: yes)."
+  ],
+  "7": [
+    "We know the **Amusement Park person (Theo) is a truth-teller**.",
+    "The **Ice Skating Rink person (Ethan)** says 'the amusement park tells the truth.' This is a true statement, so the **Ice Skating Rink person is a truth-teller**.",
+    "Now, let's test an assumption: suppose the **Botanical Garden person (Soren) is a truth-teller**.",
+    "This would mean Soren's statement 'the cafe lies' is true, so the Cafe person is a liar.",
+    "If the Cafe person is a liar, their statement 'the aquarium tells the truth' is false, so the Aquarium person is a liar.",
+    "But the Aquarium person says 'the ice skating rink tells the truth,' which we know is a true statement. A liar cannot make a true statement. This is a **contradiction**.",
+    "Therefore, our initial assumption was wrong. The **Botanical Garden person (Soren) must be a liar** (Answer: no).",
+    "Since Soren is a liar, the **Train Station person (Hiroshi)**, who said 'the botanical garden tells the truth,' must also be a **liar** (Answer: no).",
+    "Finally, the **School person (Maya)** says 'the train station lies.' This is a true statement, making the **School person a truth-teller** (Answer: yes)."
+  ],
+  "8": [
+    "We are given several facts, including that the **Ice Skating Rink person (Charlie) tells the truth**.",
+    "The **Library person (Tala)** says 'the ice skating rink lies.' This is a false statement, so the **Library person is a liar**.",
+    "The **Vineyard person (Elowen)** says 'the library lies.' This is a true statement, so the **Vineyard person is a truth-teller**.",
+    "The **Planetarium person (Maya)** says 'the vineyard tells the truth.' This is a true statement, so the **Planetarium person is a truth-teller**.",
+    "The **Beach person (Max)** says 'the planetarium lies.' This is a false statement, so the **Beach person is a liar** (Answer: no).",
+    "The **Skate Park person (Quan)** says 'the beach tells the truth.' This is a false statement, so the **Skate Park person is a liar** (Answer: no).",
+    "The **Zoo person (Soren)** says 'the skate park lies.' This is a true statement, so the **Zoo person is a truth-teller** (Answer: yes)."
+  ],
+  "9": [
+    "We know the **Bookstore person (Grace) is a truth-teller**.",
+    "The **Movie Theater person (Olivia)** says 'the bookstore tells the truth.' This is a true statement, making the **Movie Theater person a truth-teller**.",
+    "The **Library person (Liam)** says 'the movie theater lies.' Since the movie theater person is a truth-teller, this statement is false. This makes the **Library person a liar** (Answer: no).",
+    "The **Vineyard person (Maya)** says 'the library tells the truth.' Since the library person is a liar, this statement is false. This makes the **Vineyard person a liar** (Answer: no).",
+    "The **Farm person (Emily)** says 'the vineyard lies.' Since the vineyard person is a liar, this statement is true. This makes the **Farm person a truth-teller** (Answer: yes)."
+  ]
+}

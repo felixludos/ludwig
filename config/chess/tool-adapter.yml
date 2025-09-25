@@ -1,0 +1,4 @@
+oracle-tool:
+  _type: chess/tool/stockfish/adapted-best-move
+
+  adapter-description: Get the best next move for the given chess game state using Stockfish. Returns an empty string if the game is over.

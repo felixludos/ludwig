@@ -32,6 +32,7 @@ _meta.script_name: eval
 #graph: 90
 
 ##################
+# region take-the-middle
 
 ##_base: [s/zshot, ttt/take-the-middle, j/format, c/vllm, basic-view]
 ###_base: [s/zcot, ttt/take-the-middle, j/client, c/vllm, basic-view]
@@ -44,11 +45,13 @@ _meta.script_name: eval
 ##
 ##obs-rep: compact
 #obs-rep: moves
-
+#
 #_base: [s/dpp, ttt/take-the-middle, j/format, c/vllm]
 
+# endregion
 ##################
-#
+# region chess
+
 ###_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
 ##_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
 ###_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
@@ -61,24 +64,62 @@ _meta.script_name: eval
 ##
 ###check-work: 2
 
+# endregion
 #################
+# region livebench
 
-_base: [s/zshot, livebench/reasoning, c/vllm, basic-view]
+#_base: [s/cot, livebench/reasoning, c/vllm, basic-view]
+#
+##subtask: zebra_puzzle
+#subtask: spatial
+##subtask: web_of_lies_v2
+#
+#task.download: yes
 
-subtask: zebra_puzzle
-task.download: yes
-
-
-
+# endregion
 #################
+# region build
 
 #_base: [build, ttt/take-the-middle, c/mock, basic-view]
-#_base: [build, chess/puzzle, c/vllm, basic-view]
-#_base: [build, chess/puzzle, c/saia, basic-view]
+#obs-rep: moves
+
+_base: [build, chess/puzzle, c/vllm, basic-view]
+obs-rep: fen
+
+#_base: [build, path/direct, c/vllm, basic-view]
+#graph: 90
+
+#_base: [build, livebench/reasoning, c/vllm, basic-view]
+##subtask: spatial
+#subtask: zebra_puzzle
+
+# endregion
+#################
+# region adapted chess tools
+
+##_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, j/format, c/vllm, basic-view]
 #
+##_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
+#
+#obs-rep: active
+##obs-rep: fen
+##obs-rep: pgn
+#
+#adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
+#rep-index: 3
+#
+#
+#strategy.template: encourage-tool
+
+# endregion
+#################
+
+##_base: [build, chess/puzzle, c/saia, basic-view]
 #model: openai-gpt-oss-120b
 
 ##############
+# region formalization
 
 ##_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
 ##_base: [s/zshot, formal, chess/puzzle, c/mock, basic-view]
@@ -88,7 +129,7 @@ task.download: yes
 #rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
 
 
-
+# endregion
 ##############
 #use-chat-completion: no
 #tool-style: json
@@ -113,7 +154,7 @@ stockfish-path: 'C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\sto
 
 #addr: http://wagner.is.localnet:8000
 #addr: 8012
-addr: 8001
+addr: 8002
 #client.addr: 8001
 #judge.addr: 8001
 

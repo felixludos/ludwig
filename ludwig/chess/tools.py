@@ -167,7 +167,29 @@ class StockfishBestNextMove(StockfishTool):
 		self.stockfish.set_fen_position(fen)
 
 		best_move = self.stockfish.get_best_move()
-		return best_move if best_move else ''
+
+		if best_move:
+			board = chess.Board(fen)
+			move = board.parse_san(best_move)
+			return str(move)
+		return ''
+
+
+from ..util.prompts import ToolAdapter
+
+
+@fig.component('chess/tool/stockfish/adapted-best-move')
+class AdaptedStockfishBestNextMove(ToolAdapter, StockfishBestNextMove):
+	def decode(self, raw: JSONOBJ) -> JSONOBJ:
+		return {'fen': super().decode(raw)}
+
+	def call(self, arguments: JSONDATA, *, seed: Optional[int] = None) -> str:
+		try:
+			return super().call(arguments, seed=seed)
+		except ToolError as e:
+			if str(e).startswith('Invalid FEN string'):
+				raise ToolError(f'Invalid game state provided.')
+			raise e
 
 
 

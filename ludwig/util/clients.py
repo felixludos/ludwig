@@ -600,7 +600,7 @@ class OSSClient(OpenaiClientBase):
 		return resp
 
 	def _send(self, data: JSONOBJ) -> RESPONSE:
-		if 'gpt' in self.model_name.lower():
+		if 'gpt' in self.model_name.lower() and data.get('extra_body') is None:
 			if not self._enable_thinking:
 				data['reasoning'] = {'effort':'low'}
 			if 'tools' in data:

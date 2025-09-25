@@ -1,0 +1,89 @@
+{
+  "0": [
+    "The premise 'the person who is a journalist is somewhere to the right of the person who watches adventure' means the adventure watcher must be at position 1 and the journalist at position 2.",
+    "With the jobs assigned, the other job, police-officer, must belong to the person at position 1.",
+    "Similarly, the other movie genre, thriller, must be watched by the person at position 2.",
+    "The premise 'the person who is a police-officer is not the same as the person who likes filmmaking' means the person at position 1 cannot like filmmaking.",
+    "Therefore, the person at position 1 must like collecting, which leaves filmmaking for the person at position 2.",
+    "Based on this, the final arrangement is: Pos 1 (police-officer, collecting, adventure), Pos 2 (journalist, filmmaking, thriller)."
+  ],
+  "1": [
+    "The premise 'the person who is a videographer is somewhere to the left of the person who watches animation' definitively places the videographer at position 1 and the animation watcher at position 2.",
+    "This sets the jobs for both positions: videographer (1) and freelancer (2).",
+    "It also sets the movie genres: thriller (1) and animation (2).",
+    "The premise 'the person who is pakistani is on the immediate left or immediate right of the person who is a videographer' means they are in different positions. With the videographer at 1, the pakistani person must be at 2.",
+    "The remaining nationality, nigerian, must therefore belong to the person at position 1.",
+    "Based on this, the final arrangement is: Pos 1 (videographer, thriller, nigerian), Pos 2 (freelancer, animation, pakistani)."
+  ],
+  "2": [
+    "The premise 'the person who is a chef is in an even position' places the chef at position 2, as it's the only even option.",
+    "This means the other job, architect, must belong to the person at position 1.",
+    "The premise 'the person who plays snowboarding is somewhere to the right of the person who watches musical' places the musical watcher at position 1 and the snowboarder at position 2.",
+    "This sets the sports: skiing must be at position 1.",
+    "It also sets the movie genres: fantasy must be at position 2.",
+    "Based on this, the final arrangement is: Pos 1 (architect, musical, skiing), Pos 2 (chef, fantasy, snowboarding)."
+  ],
+  "3": [
+    "The premise 'the person who likes cooking is somewhere to the left of the person who is thai' places the cooking enthusiast at position 1 and the thai person at position 2.",
+    "This immediately sets the hobbies (cooking at 1, chess at 2) and nationalities (canadian at 1, thai at 2).",
+    "The premise 'the person who is a engineer is not anywhere to the left of the person who likes chess' can be written as 'chess <= engineer'.",
+    "Since the chess player is at position 2, the engineer must also be at position 2.",
+    "This means the other job, chef, must belong to the person at position 1.",
+    "Based on this, the final arrangement is: Pos 1 (cooking, chef, canadian), Pos 2 (chess, engineer, thai)."
+  ],
+  "4": [
+    "The premise 'the person who drinks coffee is in an even position' places the coffee drinker at position 2.",
+    "This immediately sets both beverages: juice is at position 1 and coffee is at position 2.",
+    "The premise 'the person who watches satire is somewhere to the left of the person who watches fantasy' places the satire watcher at 1 and the fantasy watcher at 2.",
+    "The premise 'the person who is a fisherman is somewhere to the right of the person who is a musician' places the musician at 1 and the fisherman at 2.",
+    "Based on this, the final arrangement is: Pos 1 (juice, musician, satire), Pos 2 (coffee, fisherman, fantasy)."
+  ],
+  "95": [
+    "The premise 'the person that likes zucchini is on the far right' places zucchini at position 3.",
+    "The premise 'the person that likes tomato is on the immediate right of the person who drinks cola' creates a '(cola, tomato)' block. Since position 3 is taken, this block must occupy positions 1 and 2.",
+    "This places the cola drinker at position 1.",
+    "The premise 'the person that travels by motorbike is not anywhere to the right of the person who drinks cola' means 'motorbike <= cola'. With cola at 1, the motorbike must be at position 1.",
+    "The foods for positions 2 and 3 are known (tomato, zucchini). The last food, asparagus, must be at position 1.",
+    "Therefore, the person who travels by motorbike (at position 1) likes asparagus."
+  ],
+  "96": [
+    "Premises 7 ('cat < french') and 4 ('french < cola') establish that the French person is at position 2 or 3.",
+    "Testing the French person at position 3, premise 2 ('horror' is between 'french' and 'malaysian') forces the order: Malaysian(1), Horror(2), French(3).",
+    "From premise 7, the cat owner must be at position 1.",
+    "From premise 9 (XOR), since 'horror(2) is french(3)' is false, it must be that 'horror drinks fanta'. So Fanta is at position 2.",
+    "From premise 6 (XOR) and with the cat at position 1, it must be that Juice is at position 1.",
+    "The remaining nationalities for positions 2 and 4 are Indian and Polish.",
+    "If Polish were at position 2, premise 1 ('epic <= polish') would place Epic at 1. Then premise 5 (XOR) would require a pony at position 1, which contradicts the cat being there.",
+    "Therefore, the assumption is wrong. Polish cannot be at position 2 and must be at position 4.",
+    "This leaves Indian for position 2."
+  ],
+  "97": [
+    "An analysis of premises 3 and 4 about the Pop listener shows that one of two scenarios must be true. The scenario where 'the egyptian person likes cauliflower' leads to a contradiction.",
+    "The only valid scenario is that 'the German person likes Pomegranate and listens to Pop'. These three attributes belong to the same person.",
+    "Premises 1, 2, and 6 establish relative orders that force the German person to be at the far right of the line, at position 4.",
+    "This means the person at position 4 is German, eats Pomegranate, listens to Pop, and travels by Ship.",
+    "The premises about the remaining music genres (gospel, indie, reggae) fix their order to be: Gospel(1), Indie(2), Reggae(3).",
+    "Premise 9 also places the person who eats Avocado at position 2.",
+    "The remaining foods are Cauliflower and Cucumber for the open slots at positions 1 and 3.",
+    "Premise 1 ('cauliflower <= cucumber') dictates that Cauliflower must be at position 1 and Cucumber at position 3.",
+    "Thus, the food the first person likes is cauliflower."
+  ],
+  "98": [
+    "Premise 1 says the Kiwi eater is between the Skydiver and the Photographer, while premise 3 says 'photography <= skydiving'.",
+    "Combining these two premises establishes a strict order across the three positions: Photography is at 1, the Kiwi eater is at 2, and the Skydiver is at 3.",
+    "This assigns the hobbies: Photography (1) and Skydiving (3). The remaining hobby, Chess, must be at position 2.",
+    "We now know the food at position 2 is Kiwi.",
+    "From premise 4, 'kiwi(2) <= grapes', which means Grapes must be at position 3.",
+    "The last remaining food, Blueberry, must therefore be at position 1."
+  ],
+  "99": [
+    "Premises 5 and 7 about the sports order combine to create a fixed sequence: Golf(1), Volleyball(2), Rugby(3). They also place the Juice drinker at position 4.",
+    "From premise 2 (an OR statement), since the Volleyball player (at 2) does not drink Juice (at 4), the other condition must be true: the Drama movie watcher is the Volleyball player at position 2.",
+    "From premise 4, 'fanta <= golf(1)', so Fanta must be at position 1.",
+    "From premise 10 (an XOR statement), if the Rabbit were at position 1, it would create a contradiction with Fanta being there. So, the Fanta drinker (at 1) must watch Action movies.",
+    "Premise 1 says '(rabbit drinks sprite) OR (drama(2) has rabbit)'.",
+    "Testing the possibility that Rabbit and Sprite are together at position 3 satisfies premise 1 and is consistent with all other premises.",
+    "For instance, premise 9 'spy <= sprite(3)' is satisfied if Spy is at 3, and premise 6 'rabbit(3) <= lizard' is satisfied if Lizard is at 4.",
+    "Therefore, the person who drinks Sprite is at position 3, and the pet at that position is the Rabbit."
+  ]
+}

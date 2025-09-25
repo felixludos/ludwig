@@ -9,7 +9,7 @@ requests/
 .idea/
 local_data/
 extra/
-assets/livebench/
+assets/livebench/livebench-*
 assets/chess/games/
 secrets/
 plugh.json

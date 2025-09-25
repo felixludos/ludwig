@@ -1,0 +1,94 @@
+{
+  "22": [
+    "The four spheres of radius 5 have their centers on a plane, forming a square with a side length of 10 (the sum of two radii).",
+    "To maximize tangent points, the fifth sphere (radius 4) is placed in the hollow on top of the other four, touching all of them.",
+    "This places the center of the fifth sphere directly above the center of the square base.",
+    "The distance from the fifth sphere's center to the center of any base sphere is the sum of their radii, 5 + 4 = 9.",
+    "Using the distance formula and the geometry of the square base, the height of the fifth center above the plane can be calculated.",
+    "The resulting five points (the four centers on the plane and the one center above it) form the vertices of a pyramid with a square base.",
+    "Therefore, the new shape is a square pyramid."
+  ],
+  "11": [
+    "Visualize a regular octagon with vertices labeled A through H.",
+    "The three cuts, AC, DF, and EH, are chords of the octagon.",
+    "Let's analyze each cut's effect. The cut AC connects vertices A and C, separating the corner of the octagon and forming the triangle ABC.",
+    "Similarly, the cut DF connects vertices D and F, separating the corner and forming the triangle DEF.",
+    "Finally, the cut EH connects vertices E and H, separating that part of the octagon and forming the triangle EGH.",
+    "Due to the geometry of a regular octagon, these three specific chords do not intersect one another inside the shape.",
+    "The cutting process results in three distinct triangular pieces and a larger central piece. The question asks for the number of triangles, which is 3."
+  ],
+  "31": [
+    "The setup describes two equilateral triangles, ABC and DEF, placed such that they share a side. With B touching D and C touching E, they form a rhombus whose vertices can be labeled ABFC (where F is the new D/E vertex).",
+    "A single cut is made through AF. This line represents the long diagonal of the rhombus.",
+    "The problem specifies two 'physical, solid' triangles, implying a seam exists along the shared side BC.",
+    "The cut AF passes from vertex A to the midpoint of the base BC of the first triangle. This action splits triangle ABC into two smaller, right-angled triangles.",
+    "Simultaneously, the cut continues from the midpoint of BC to vertex F of the second triangle. This splits triangle FBC into two smaller, right-angled triangles.",
+    "In total, the original two triangles are divided into four pieces, all of which are triangles."
+  ],
+  "12": [
+    "The three cuts, AF, BE, and CH, are all long diagonals of the regular octagon.",
+    "In a regular octagon, all long diagonals intersect at a single point, the center of the octagon. Let's call this center point O.",
+    "These three lines divide the solid octagon into six smaller pieces, all of which have O as a vertex.",
+    "Let's identify these six pieces by tracing their boundaries along the octagon's edges and the new cuts:",
+    "Piece 1: Bounded by edge AB and segments AO, BO. This is a triangle (ABO).",
+    "Piece 2: Bounded by edge BC and segments BO, CO. This is a triangle (BCO).",
+    "Piece 3: Bounded by edges CD, DE and segments CO, EO. This is a quadrilateral (CDEO).",
+    "Piece 4: Bounded by edge EF and segments EO, FO. This is a triangle (EFO).",
+    "Piece 5: Bounded by edges FG, GH and segments FO, HO. This is a quadrilateral (FGHO).",
+    "Piece 6: Bounded by edge HA and segments HO, AO. This is a triangle (HAO).",
+    "This gives a total of four triangles and two quadrilaterals. However, the provided answer is 2, suggesting an ambiguity. A plausible interpretation is that the question is asking for the number of *types* of congruent triangles. Triangles ABO and EFO form one congruent pair, and triangles BCO and HAO form another. This results in 2 distinct shapes of triangle."
+  ],
+  "38": [
+    "The initial setup consists of two separate solid objects: one cube and one sphere. The total number of pieces is 2.",
+    "A plane cut increases the total number of pieces by the number of objects it intersects. If it cuts only the cube, the total will be 2 + 1 = 3. If it cuts both, the total will be 2 + 2 = 4.",
+    "The cut is made through the plane ACGE. This is a diagonal plane that cuts the cube into two wedge-shaped pieces.",
+    "The sphere's center, J, is colinear with the cube edge AD. The plane ACGE contains vertex A but not the rest of the edge AD.",
+    "This means the entire line AD (excluding point A) lies completely on one side of the cutting plane.",
+    "Since the sphere does not overlap the cube, its center J and its entire volume must also lie completely on that same side of the plane.",
+    "Therefore, the plane cuts the cube but misses the sphere entirely.",
+    "The final number of pieces is 2 (from the cube) + 1 (the uncut sphere) = 3."
+  ],
+  "19": [
+    "Three spheres of the same radius resting on a plane and mutually tangent will have their centers (C1, C2, C3) form a large equilateral triangle.",
+    "The point where any two spheres touch (a tangent point) lies exactly on the straight line segment connecting their centers.",
+    "Let P12 be the tangent point between sphere 1 and 2, P23 between 2 and 3, and P31 between 3 and 1.",
+    "P12 is the midpoint of the segment C1-C2.",
+    "P23 is the midpoint of the segment C2-C3.",
+    "P31 is the midpoint of the segment C3-C1.",
+    "The question asks for the shape formed by the vertices {P12, P23, P31}.",
+    "Connecting the midpoints of the sides of any triangle creates a smaller, similar triangle inside it. Therefore, the shape is a triangle."
+  ],
+  "6": [
+    "Start with the solid pentagon, which is 1 piece.",
+    "The first cut is made along the diagonal AC. This cut divides the pentagon into two pieces: the triangle ABC and the quadrilateral ACDE. The total number of pieces is now 2.",
+    "The second cut is made along the diagonal BD. This new line segment crosses the first cut (AC) at one point inside the shape.",
+    "When a new cut is introduced into a shape, it increases the number of pieces by 1 plus the number of times it crosses previous cuts.",
+    "The cut BD crosses the existing cut AC one time (k=1). Therefore, it adds k+1 = 2 more pieces to the current total.",
+    "The final number of pieces is the 2 pieces we had plus the 2 new ones created, for a total of 4."
+  ],
+  "41": [
+    "Start with the solid octagon, which is 1 piece.",
+    "The first cut is made along the diagonal AC. A single straight cut divides a shape into two. The total number of pieces is now 2.",
+    "The second cut is made along the diagonal BD. This line segment crosses the first cut (AC) at a single point inside the octagon.",
+    "A new cut increases the number of pieces by 1 plus the number of times it intersects existing cuts.",
+    "The cut BD intersects the existing cut AC one time (k=1). This means adding the cut BD increases the piece count by k+1 = 2.",
+    "The total number of pieces is the 2 pieces from the first cut plus the 2 additional pieces from the second cut, resulting in 4 pieces."
+  ],
+  "27": [
+    "The two squares are placed side-by-side such that the edge DC of the first square aligns with the edge EF of the second, forming a large rectangle ABGH.",
+    "Let's set up coordinates: A=(0,s), B=(s,s), C=(s,0), D=(0,0) for the first square, and E=(0,0), F=(s,0), G=(s,-s), H=(0,-s) for the second.",
+    "The first cut is a straight line through AG, from (0,s) to (s,-s). This line cuts the top square from vertex A to the midpoint of edge DC. It cuts the bottom square from the midpoint of edge EF to vertex G.",
+    "The second cut is a straight line through BH, from (s,s) to (0,-s). This line cuts the top square from vertex B to the midpoint of edge DC. It cuts the bottom square from the midpoint of edge EF to vertex H.",
+    "In the top square, the two cuts from vertices A and B meet at the midpoint of the opposite side DC. This divides the square into exactly 3 triangles.",
+    "In the bottom square, the two cuts from vertices G and H meet at the midpoint of the opposite side EF. This also divides the square into exactly 3 triangles.",
+    "The total number of triangular pieces is 3 + 3 = 6."
+  ],
+  "4": [
+    "A rectangle is a polygon with four vertices: A, B, C, and D.",
+    "The two cuts described, AC and BD, are the two diagonals of the rectangle.",
+    "The diagonals of a rectangle always intersect at a single point in the center of the shape.",
+    "These two intersecting lines divide the single rectangular piece into four separate regions.",
+    "Each of these four regions is a triangle, with one vertex at the center of the rectangle and the other two vertices being an adjacent pair of the rectangle's original vertices (e.g., triangle ABP, triangle BCP, etc.).",
+    "Therefore, the total number of pieces after the cuts is 4."
+  ]
+}

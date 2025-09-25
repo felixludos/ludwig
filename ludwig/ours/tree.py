@@ -266,7 +266,8 @@ class TreeBuilder(ClientStrategy):
 	def _safety_concerns(self, code: str) -> Union[bool, str, None]:
 		if self.safety_template is not None:
 			safety_prompt = self.safety_template.fill(code=code)
-			check = self.client.get_response(safety_prompt, grammar='yes/no', max_tokens=5)
+			resp = self.client.step(safety_prompt, max_tokens=1024, grammar='yes/no')
+			check = self.client.extract_response(resp)
 			if check.strip().lower() == 'yes':
 				return True
 
