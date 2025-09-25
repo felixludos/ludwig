@@ -43,7 +43,7 @@ class ToolUse(ZeroShotPrompting):
 	def json(self) -> JSONOBJ:
 		return {
 			'tool_code': self._tool_code,
-			'tools': [tool.json() for tool in self.tools.values()],
+			'tools': {name: tool.json() for name, tool in self.tools.items()},
 			'check_work': self._check_work,
 			**super().json()
 		}
@@ -93,9 +93,10 @@ class ToolUse(ZeroShotPrompting):
 						chat.append({'role': 'tool', 'content': f'Error: {info["name"]!r} does not exist',
 									 'tool_call_id': tool_call['id'],})
 
-
 			elif msg['content'] is None:
-				raise StrategyFailure('No response from model (and no tool calls)')
+				chat.append({'role': 'user', 'content': 'You must either answer the question or call a function, '
+														'but in your last response, you have done neither. Try again.'})
+				# raise StrategyFailure('No response from model (and no tool calls)')
 			elif checks and self.judge.interpret(problem, {'final': msg['content']}).get('decision') is None:
 				checks -= 1
 				chat.append({'role': 'user', 'content': 'You have not answered the question yet. If necessary, '

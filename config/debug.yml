@@ -52,12 +52,13 @@ _meta.script_name: eval
 ##################
 # region chess
 
-###_base: [s/zshot, chess/puzzle, j/format, c/vllm, basic-view]
-##_base: [s/cot, chess/puzzle, j/format, c/vllm, basic-view]
-###_base: [s/tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
-#_base: [s/oracle-tool, chess/tools, chess/puzzle, j/format, c/vllm, basic-view]
+###_base: [s/zshot, chess/puzzle, c/vllm, basic-view]
+##_base: [s/cot, chess/puzzle, c/vllm, basic-view]
+###_base: [s/tool, chess/tools, chess/puzzle,c/vllm, basic-view]
+_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
 ##
 ##obs-rep: active
+obs-rep: white
 #obs-rep: fen
 ##obs-rep: pgn
 ###hint: all
@@ -83,8 +84,8 @@ _meta.script_name: eval
 #_base: [build, ttt/take-the-middle, c/mock, basic-view]
 #obs-rep: moves
 
-_base: [build, chess/puzzle, c/vllm, basic-view]
-obs-rep: fen
+#_base: [build, chess/puzzle, c/vllm, basic-view]
+#obs-rep: white
 
 #_base: [build, path/direct, c/vllm, basic-view]
 #graph: 90

@@ -42,7 +42,7 @@ class ChessPuzzle(JudgedTask):
 
 	@property
 	def name(self) -> str:
-		return "ChessPuzzle"
+		return "ChessPuzzleSAN"
 
 	_dev_set_cut = 100
 	def prepare(self, seed: Optional[int] = None) -> 'Self':
@@ -129,6 +129,7 @@ class ChessPuzzle(JudgedTask):
 		game.headers.clear()
 
 		fen = board.fen()
+		answer_san = board.san(board.parse_uci(answer))
 
 		active_player = 'white' if board.turn == chess.WHITE else 'black'
 		opponent = 'black' if active_player == 'white' else 'white'
@@ -148,14 +149,13 @@ class ChessPuzzle(JudgedTask):
 			obs = template.format(board=self._render_board(board))
 
 		question = (f"{opponent.capitalize()} just played {movesan}. "
-					f"Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? "
-						   f"Answer using either UCI or SAN format."
-					'Give your final answer in the form: "FINAL ANSWER: {move}".')
+					f'Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? '
+					'Answer using SAN format. Give your final answer in the form: "FINAL ANSWER: {san_move}".')
 
 		ctx['fen'] = fen
 		ctx['player'] = active_player
 
-		ctx['legal'] = [board.san(move) for move in board.legal_moves] + [move.uci() for move in board.legal_moves]
+		ctx['legal'] = [board.san(move) for move in board.legal_moves] #+ [move.uci() for move in board.legal_moves]
 		ctx['num_legal_moves'] = len(ctx['legal']) // 2
 		hint = None
 		if self._options is None:
@@ -180,10 +180,10 @@ class ChessPuzzle(JudgedTask):
 
 		ctx['question'] = question
 
-		ctx['rationale'] = list(self._rationale(board, raw['Themes'].split(), answer,
+		ctx['rationale'] = list(self._rationale(board, raw['Themes'].split(), answer_san,
 												[move['Move'] for move in analysis['moves'][:4]]))
 
-		ctx['answer'] = answer
+		ctx['answer'] = answer_san
 		# ctx['answer'] = [answer, board.san(board.parse_uci(answer))]
 
 		ctx['system'] = self._system_context
@@ -315,7 +315,9 @@ class ChessPuzzle(JudgedTask):
 
 			board = chess.Board(problem['fen'])
 			try:
-				move = board.parse_san(decision)
+				# move = board.san(board.parse_uci(decision))
+				# move = board.parse_san(decision)
+				move = board.san(board.parse_san(decision))
 			except (chess.InvalidMoveError, chess.IllegalMoveError, chess.AmbiguousMoveError):
 				pass
 			else:

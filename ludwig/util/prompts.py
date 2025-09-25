@@ -2,6 +2,7 @@ from .imports import *
 from .files import repo_root, hash_str
 from omnibelt import pformat_vars
 from .abstract import AbstractTool
+from .tools import ToolBase
 
 
 class AbstractTemplate:
@@ -143,7 +144,7 @@ class Custom_Formalizer(SimpleFormalizer):
 
 
 @fig.modifier('tool-adapter')
-class ToolAdapter(fig.Configurable, AbstractTool):
+class ToolAdapter(ToolBase):
 	def __init__(self, adapter_path: Union[Path, str], rep_index: int, adapter_description: str = None, **kwargs):
 		if isinstance(adapter_path, str):
 			adapter_path = Path(adapter_path.format(root=repo_root()))
@@ -158,7 +159,7 @@ class ToolAdapter(fig.Configurable, AbstractTool):
 		return {
 			'adapter_path': str(self.adapter_path),
 			'rep_index': self.rep_index,
-			'adapter_description': self._adapter_description,
+			# 'adapter_description': self._adapter_description,
 			**super().json()
 		}
 
