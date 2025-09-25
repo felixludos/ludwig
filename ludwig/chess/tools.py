@@ -173,9 +173,15 @@ class StockfishBestNextMove(StockfishTool):
 			raise ToolError(str(e))
 
 		if best_move:
-			board = chess.Board(fen)
-			move = board.parse_uci(best_move)
-			return board.san(move)
+			try:
+				board = chess.Board(fen)
+				move = board.parse_uci(best_move)
+				return board.san(move)
+			except (chess.InvalidMoveError, chess.AmbiguousMoveError, chess.IllegalMoveError):
+				print(best_move)
+				print(fen)
+				print(board)
+				raise
 		return ''
 
 
