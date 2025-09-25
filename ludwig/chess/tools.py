@@ -165,7 +165,10 @@ class StockfishBestNextMove(StockfishTool):
 		if not board.is_valid():
 			raise ToolError(f'Invalid FEN string: {fen}')
 
-		self.stockfish.set_fen_position(fen)
+		try:
+			self.stockfish.set_fen_position(fen)
+		except self._stockfish_error as e:
+			raise ToolError(f'Invalid (or incomplete) board state')
 
 		try:
 			best_move = self.stockfish.get_best_move()
@@ -178,10 +181,7 @@ class StockfishBestNextMove(StockfishTool):
 				move = board.parse_uci(best_move)
 				return board.san(move)
 			except (chess.InvalidMoveError, chess.AmbiguousMoveError, chess.IllegalMoveError):
-				print(best_move)
-				print(fen)
-				print(board)
-				raise
+				raise ToolError(f'Invalid (or incomplete) board state')
 		return ''
 
 
