@@ -54,3 +54,24 @@ class ClientStats(TimeStats):
 		if exc_type is None:
 			self.stats.update(self.client.stats(starting_from=self.starting_idx))
 		return out
+
+
+import subprocess
+
+def get_git_commit_hash() -> str:
+    """Gets the current git commit hash."""
+    try:
+        # Run the git command to get the short commit hash
+        commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            stderr=subprocess.STDOUT
+        ).strip().decode('utf-8')
+        return commit_hash
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.output.decode('utf-8').strip()}")
+        return "Not a git repository or git not installed."
+    except FileNotFoundError:
+        return "Git is not installed or not in the system's PATH."
+
+
+

@@ -2,6 +2,7 @@ from .imports import *
 from ..abstract import AbstractTask, AbstractStrategy, AbstractProtocol
 from ..util import AbstractBroker, DefaultBroker
 # from ..base import Task, Strategy
+from ..util.stats import get_git_commit_hash
 import pandas as pd
 from os import symlink, environ
 
@@ -130,6 +131,11 @@ def eval_task(cfg: fig.Configuration):
 			wandb_run.config['JOB_ID'] = environ['JOB_ID']
 		if 'JOB_NAME' in environ:
 			wandb_run.tags += (environ['JOB_NAME'],)
+		try:
+			wandb_run.config['git_commit'] = get_git_commit_hash()
+		except Exception as e:
+			print(f'Could not get git commit hash: {e}')
+			traceback.print_exc()
 		wandb_addr = f'{wandb_run.entity}/{wandb_run.project}/{wandb_run.id}'
 		if pause_after:
 			check_confirmation = lambda: 'confirm' in wandb.apis.public.Api().run(wandb_addr).tags
