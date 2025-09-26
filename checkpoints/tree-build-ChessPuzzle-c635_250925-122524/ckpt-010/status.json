@@ -1,0 +1,23 @@
+{
+  "fails": 0,
+  "invalid": 10,
+  "iterations": 10,
+  "strategy": {
+    "client": {
+      "input_tokens": 149032,
+      "output_tokens": 57344,
+      "requests": 90,
+      "time": {
+        "max": 16.62102222442627,
+        "mean": 3.056399114926656,
+        "min": 0.5915403366088867
+      },
+      "tok_per_sec": {
+        "max": 225.3548995275677,
+        "mean": 194.06228493376713,
+        "min": 78.03405078945188
+      }
+    }
+  },
+  "task": {}
+}
