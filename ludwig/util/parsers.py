@@ -174,12 +174,17 @@ class MessageParser(AbstractParser):
 			# 2. Iterate through each found block and parse its content
 			for tag, block in tool_call_blocks:
 				lines = block.strip().splitlines()
+				n = len(all_parsed_calls)
 				for line in lines:
 					if line.startswith('[') and line.endswith(']'):
 						all_parsed_calls.extend(parse_pythonic_tool_calls(line))
 						all_parsed_calls.extend(parse_json_tool_calls(line))
 					elif line.startswith('{') and line.endswith('}'):
 						all_parsed_calls.extend(parse_json_tool_calls(line))
+
+				if len(all_parsed_calls) == n:
+					all_parsed_calls.extend(parse_pythonic_tool_calls(block))
+					all_parsed_calls.extend(parse_json_tool_calls(block))
 
 			# 3. If any valid tool calls were parsed, update the message
 			if all_parsed_calls:

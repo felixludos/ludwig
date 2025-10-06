@@ -96,11 +96,15 @@ def test_tool():
 			# return f"The weather in {city}, {country} is {temp} degrees {unit} and {weather}."
 			return json.dumps({'city': city, 'country': country, 'unit': unit, 'temp': temp, 'weather': weather})
 
-	class Client(Tool_Client, vllm_Client): pass
-	addr = '8002'
-	client = Client(addr=addr, tools=[GetWeather()])
-	client.prepare()
+	# class Client(Tool_Client, vllm_Client): pass
+	# addr = '8002'
+	# client = Client(addr=addr, tools=[GetWeather()])
 
+	class Client(Tool_Client, SAIA_Client): pass
+	model_name = 'meta-llama-3.1-8b-instruct'
+	client = Client.connect(model=model_name, tools=[GetWeather()])
+
+	client.prepare()
 	data = client.json()
 	print(data)
 
@@ -217,7 +221,8 @@ _long_prompt = '''**Instructions:** You are a masterful fantasy storyteller. Wri
 Use descriptive language to immerse the reader, maintain a consistent narrative voice, and ensure the story remains suspenseful yet cohesive. Incorporate local legends, cultural tidbits, or subtle magical details to enhance the world-building. End with a resolution—triumphant or bittersweet—that reflects the rogue’s growth.'''
 def test_long_generation():
 
-	client = vllm_Client(addr='8000')
+	# client = vllm_Client(addr='8000')
+	client = SAIA_Client.connect(model='openai', use_chat_completion=True)
 
 	if not client.ping():
 		print("Client is not reachable.")

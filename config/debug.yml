@@ -100,8 +100,8 @@ _meta.script_name: eval
 
 ##_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, j/format, c/vllm, basic-view]
 #
-##_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
-_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
+_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
+#_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
 #
 #obs-rep: active
 obs-rep: white
@@ -149,14 +149,17 @@ n-votes: 3
 enable-thinking: no
 
 
-stockfish-path: 'C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe'
+# globe
+#stockfish-path: 'C:\Users\anwan\Downloads\stockfish-windows-x86-64\stockfish\stockfish-windows-x86-64.exe'
+# genesis
+stockfish-path: 'C:\Users\anwan\Documents\stockfish\stockfish-windows-x86-64-avx2.exe'
 
 # for format judge: j/format
 #style: end
 
 #addr: http://wagner.is.localnet:8000
 #addr: 8012
-addr: 8001
+addr: 8012
 #client.addr: 8001
 #judge.addr: 8001
 
