@@ -66,7 +66,7 @@ class FormalizationTask(JudgedTask):
 		observation = ctx.get('observation')
 		assert observation is not None, f'No obs found'
 
-		queestion = observation # TODO: add some preamble asking for formalization
+		question = observation # TODO: add some preamble asking for formalization
 
 		answer = self.rep.formalize(ctx)
 
@@ -74,7 +74,7 @@ class FormalizationTask(JudgedTask):
 			'source': ctx,
 			'problem': ctx.get('problem'),
 			'observation': observation,
-			'question': queestion,
+			'question': question,
 			'answer': answer,
 			'schema': self.rep.schema(),
 			'system': self.context(),

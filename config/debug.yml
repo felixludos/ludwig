@@ -100,19 +100,19 @@ _meta.script_name: eval
 
 ##_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, j/format, c/vllm, basic-view]
 #
-_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
-#_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
-#
-#obs-rep: active
-obs-rep: white
-##obs-rep: fen
-##obs-rep: pgn
-#
-adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
-rep-index: 4
-#
-#
-strategy.template: encourage-tool
+#_base: [s/oracle-tool, chess/tools, chess/puzzle, c/vllm, basic-view]
+##_base: [s/oracle-tool, chess/tool-adapter, chess/puzzle, c/vllm, basic-view]
+##
+##obs-rep: active
+#obs-rep: white
+###obs-rep: fen
+###obs-rep: pgn
+##
+#adapter-path: '{root}/checkpoints/tree-build-ChessPuzzle-c635_250923-154828'
+#rep-index: 4
+##
+##
+#strategy.template: encourage-tool
 
 # endregion
 #################
@@ -124,12 +124,12 @@ strategy.template: encourage-tool
 # region formalization
 
 ##_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
-##_base: [s/zshot, formal, chess/puzzle, c/mock, basic-view]
+_base: [s/zshot, formal, chess/puzzle, c/vllm, basic-view]
 #
 #template: tree/encode
 #
 #rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
-
+rep: "checkpoints/tree-build-ChessPuzzle-c635_250923-154828/log-formal.json#4"
 
 # endregion
 ##############

@@ -1,0 +1,7 @@
+
+protocol.task:
+  _type: formalization
+  source: <>source-task
+
+source-task: <>task
+

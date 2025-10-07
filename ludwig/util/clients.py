@@ -487,6 +487,7 @@ class OSSClient(OpenaiClientBase):
 		self._use_chat = use_chat_completion
 		self._tool_style = tool_style
 		self._enable_thinking = enable_thinking
+		self._model_root = None
 
 	def json(self) -> JSONOBJ:
 		info = super().json()
@@ -790,10 +791,12 @@ class OSSClient(OpenaiClientBase):
 class vllm_Client(OSSClient):
 	def __init__(self, addr: Union[str, int], **kwargs):
 		super().__init__(endpoint=self._to_full_addr(addr), **kwargs)
+		self._model_root = None
 	
 	def json(self) -> JSONOBJ:
 		info = super().json()
 		info['addr'] = str(self.endpoint.base_url)
+		info['root'] = self._model_root
 		return info
 	
 	@staticmethod
@@ -827,6 +830,7 @@ class vllm_Client(OSSClient):
 		# self._model_name = info.data[0].id
 		info = self._server_model_info()
 		self._model_name = info['data'][0]['id']
+		self._model_root = info['data'][0]['root']
 		super().prepare()
 	
 	def ping(self) -> bool:

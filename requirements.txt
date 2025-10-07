@@ -16,6 +16,7 @@ vllm
 openai
 tiktoken
 transformers
+timm
 
 # dev
 pytest
