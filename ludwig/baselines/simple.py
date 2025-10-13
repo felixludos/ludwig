@@ -1,7 +1,4 @@
 from .imports import *
-from .. import AbstractTask
-from ..abstract import AbstractJudge
-from ..errors import StrategyFailure
 
 
 @fig.component('zero-shot')
@@ -46,9 +43,9 @@ class ZeroShotPrompting(ClientStrategy):
 	def solve(self, problem: JSONOBJ) -> JSONOBJ:
 		# assert 'question' in problem, 'Problem must contain a question'
 		# question = problem['question']
-		for key in self.template.variables():
-			if key not in problem:
-				print(f'WARNING: Template expects a "{key}" not found in problem. Error is probably imminent.')
+		# for key in self.template.variables():
+		# 	if key not in problem:
+		# 		print(f'WARNING: Template expects a "{key}" not found in problem. Error is probably imminent.')
 
 		prompt = self.template.fill(**problem)
 

@@ -1,1 +1,2299 @@
-[{"rep": {"title": "ChessPuzzleState", "description": "High\u2011fidelity, concise representation of a position for puzzle solving.", "type": "object", "required": ["board", "turn", "activeColor", "hash", "sideCastling", "enPassant", "halfMoveClock", "fullMoveNumber"], "properties": {"board": {"description": "A 0\u2011indexed 8\u00d78 array of piece objects.", "type": "array", "minItems": 8, "items": {"type": "array", "minItems": 8, "items": {"type": "object", "properties": {"type": {"description": "Piece type: 'p','n','b','r','q','k' for black and uppercase for white.", "type": ["string", "null"]}, "color": {"description": "Piece color: 'w' or 'b'.", "type": ["string", "null"]}}, "additionalProperties": false, "required": ["type", "color"]}}}, "turn": {"description": "Side to move: 0 for White, 1 for Black.", "type": "integer", "enum": [0, 1]}, "activeColor": {"description": "The side that just moved (the owner of the last move).", "type": "string", "enum": ["white", "black"]}, "hash": {"description": "Zobrist hash of the current position, used for transposition table lookup.", "type": "string"}, "sideCastling": {"description": "Castling availability for each side.", "type": "object", "properties": {"whiteK": {"type": "boolean"}, "whiteQ": {"type": "boolean"}, "blackK": {"type": "boolean"}, "blackQ": {"type": "boolean"}}, "additionalProperties": false}, "enPassant": {"description": "Target square for a en\u2011passant capture or null if none.", "type": ["string", "null"]}, "halfMoveClock": {"description": "Number of half\u2011moves since the last capture or pawn move (for the 50\u2011move draw rule).", "type": "integer", "minimum": 0}, "fullMoveNumber": {"description": "Move count starting from 1, incremented after Black's move.", "type": "integer", "minimum": 1}, "pawnsWhite": {"description": "Bitboard representation of white pawns.", "type": "string"}, "pawnsBlack": {"description": "Bitboard representation of black pawns.", "type": "string"}, "unknownProperties": {"description": "Optional map for fast access by external modules. Should not be mutated by the search engine.", "type": "object", "additionalProperties": true}}, "additionalProperties": false}, "example": {"board": [[{"type": "r", "color": "b"}, {"type": "n", "color": "b"}, {"type": "b", "color": "b"}, {"type": "q", "color": "b"}, {"type": null, "color": null}, {"type": "r", "color": "b"}, {"type": "k", "color": "b"}, {"type": "b", "color": "b"}], [{"type": "p", "color": "b"}, {"type": "p", "color": "b"}, {"type": "p", "color": "b"}, {"type": "p", "color": "b"}, {"type": "b", "color": "b"}, {"type": "p", "color": "b"}, {"type": "p", "color": "b"}, {"type": "p", "color": "b"}], [{"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": "n", "color": "b"}, {"type": null, "color": null}, {"type": null, "color": null}], [{"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": "p", "color": "b"}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}], [{"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": "p", "color": "w"}, {"type": "n", "color": "w"}, {"type": null, "color": null}, {"type": null, "color": null}], [{"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}, {"type": null, "color": null}], [{"type": "p", "color": "w"}, {"type": "p", "color": "w"}, {"type": "p", "color": "w"}, {"type": "p", "color": "w"}, {"type": "b", "color": "w"}, {"type": "p", "color": "w"}, {"type": "p", "color": "w"}, {"type": "p", "color": "w"}], [{"type": "r", "color": "w"}, {"type": "n", "color": "w"}, {"type": "b", "color": "w"}, {"type": "q", "color": "w"}, {"type": null, "color": null}, {"type": "r", "color": "w"}, {"type": "k", "color": "w"}, {"type": null, "color": null}]], "turn": 1, "activeColor": "white", "hash": "4e3b1d0f6a9c2b8c7d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1g0h", "sideCastling": {"whiteK": false, "whiteQ": false, "blackK": true, "blackQ": true}, "enPassant": "e3", "halfMoveClock": 0, "fullMoveNumber": 1, "pawnsWhite": "0000000000000000100000000000001100001000000000000000000000000000", "pawnsBlack": "0000000010000000000010000000001001000000000000000000000000000000", "unknownProperties": {}}, "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON chess state representation into its FEN string.\n\n    This function processes a dictionary containing detailed information about a\n    chess position\u2014such as piece placement, turn, castling rights, and move\n    clocks\u2014and translates it into the standard Forsyth-Edwards Notation (FEN).\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN string corresponding to the input state.\n    \"\"\"\n    \n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in row:\n            if piece['type'] is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                empty_squares = 0\n                \n                piece_char = piece['type']\n                if piece['color'] == 'w':\n                    rank_fen += piece_char.upper()\n                else: # 'b'\n                    rank_fen += piece_char.lower()\n        \n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n            \n        board_fen_parts.append(rank_fen)\n    \n    piece_placement = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    active_color = 'w' if state['turn'] == 0 else 'b'\n\n    # 3. Castling Availability\n    castling = \"\"\n    side_castling = state['sideCastling']\n    if side_castling.get('whiteK'):\n        castling += 'K'\n    if side_castling.get('whiteQ'):\n        castling += 'Q'\n    if side_castling.get('blackK'):\n        castling += 'k'\n    if side_castling.get('blackQ'):\n        castling += 'q'\n    \n    if not castling:\n        castling = '-'\n\n    # 4. En Passant Target Square\n    en_passant = state['enPassant'] if state['enPassant'] is not None else '-'\n\n    # 5. Halfmove Clock\n    halfmove_clock = str(state['halfMoveClock'])\n\n    # 6. Fullmove Number\n    fullmove_number = str(state['fullMoveNumber'])\n\n    # Assemble the FEN string\n    fen_parts = [\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ]\n    \n    return \" \".join(fen_parts)", "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a chess position from a FEN string to a dictionary\n    that matches the specified JSON schema.\n\n    Args:\n        fen_string: The FEN string representing the chess position.\n\n    Returns:\n        A dictionary representing the state of the chess puzzle.\n    \"\"\"\n    \n    # 1. Split the FEN string into its 6 components\n    (\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number,\n    ) = fen_string.split()\n\n    # 2. Process the board (piece placement)\n    board = []\n    for rank_str in piece_placement.split('/'):\n        row = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add empty squares for numeric values\n                row.extend([{\"type\": None, \"color\": None}] * int(char))\n            else:\n                # Add the piece object\n                color = 'w' if char.isupper() else 'b'\n                piece_type = char.lower()\n                row.append({\"type\": piece_type, \"color\": color})\n        board.append(row)\n\n    # 3. Process castling availability\n    side_castling = {\n        \"whiteK\": 'K' in castling,\n        \"whiteQ\": 'Q' in castling,\n        \"blackK\": 'k' in castling,\n        \"blackQ\": 'q' in castling,\n    }\n\n    # 4. Assemble the final state dictionary\n    state = {\n        \"board\": board,\n        \"turn\": 0 if active_color == 'w' else 1,\n        \"activeColor\": \"white\" if active_color == 'w' else \"black\",\n        \"hash\": \"\",  # Zobrist hash calculation is complex and not specified.\n        \"sideCastling\": side_castling,\n        \"enPassant\": None if en_passant == '-' else en_passant,\n        \"halfMoveClock\": int(halfmove_clock),\n        \"fullMoveNumber\": int(fullmove_number),\n    }\n\n    return state"}, {"rep": {"title": "ChessPosition", "description": "A minimal, high\u2011fidelity representation of a chess position suitable for tree\u2011search.", "type": "object", "required": ["board", "side", "castling", "en_passant", "halfmove_clock", "fullmove_number"], "properties": {"board": {"description": "8x8 array of strings representing pieces or empty squares. Row 0 is the 8th rank, row 7 is the 1st rank.", "type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "string", "enum": ["", "P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"]}}}, "side": {"description": "Side to move. 'w' for white, 'b' for black.", "type": "string", "enum": ["w", "b"]}, "castling": {"description": "String containing any of the letters KQkq, or '-' if no castling rights remain.", "type": "string"}, "en_passant": {"description": "Square where a capture en passant is possible, e.g. 'e6'. Use '-' if none.", "type": "string"}, "halfmove_clock": {"description": "Number of half\u2011moves since the last pawn advance or capture (used for the fifty\u2011move rule).", "type": "integer", "minimum": 0}, "fullmove_number": {"description": "The number of the full move. Increments after Black\u2019s move.", "type": "integer", "minimum": 1}, "move_history": {"description": "Optional ordered list of moves made so far in UCI format. Useful for debugging but not required for a single position.", "type": "array", "items": {"type": "string"}}}, "additionalProperties": false}, "example": {"board": [["r", "n", "b", "q", "k", "", "", "r"], ["p", "p", "p", "p", "", "p", "p", "p"], ["", "", "", "", "", "", "", ""], ["", "", "", "n", "", "", "", ""], ["", "", "", "", "P", "", "", ""], ["", "", "", "", "", "N", "", ""], ["P", "P", "P", "P", "", "P", "P", "P"], ["R", "N", "B", "Q", "K", "B", "", "R"]], "side": "w", "castling": "KQkq", "en_passant": "-", "halfmove_clock": 2, "fullmove_number": 2, "move_history": ["e2e4", "c7c5", "g1f3", "b8c6"]}, "decode": "import json\nfrom typing import Dict, List, Union\n\ndef decode(state: Dict[str, Union[List[List[str]], str, int]]) -> str:\n    \"\"\"\n    Converts a JSON chess position representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN (Forsyth-Edwards Notation) string for the position.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        rank_fen = \"\"\n        empty_squares = 0\n        for piece in row:\n            if piece == \"\":\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        # Append count for any trailing empty squares\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    \n    board_part = \"/\".join(board_fen_parts)\n\n    # 2-6. Other FEN fields from the input state\n    side_part = state['side']\n    castling_part = state['castling']\n    en_passant_part = state['en_passant']\n    halfmove_clock_part = str(state['halfmove_clock'])\n    fullmove_number_part = str(state['fullmove_number'])\n\n    # Assemble the final FEN string\n    fen_string = \" \".join([\n        board_part,\n        side_part,\n        castling_part,\n        en_passant_part,\n        halfmove_clock_part,\n        fullmove_number_part\n    ])\n    \n    return fen_string", "encode": "def encode(fen_string: str):\n    \"\"\"\n    Converts a FEN string representation of a chess position into a\n    dictionary that matches the specified ChessPosition JSON schema.\n\n    Args:\n        fen_string: A standard FEN string.\n\n    Returns:\n        A dictionary representing the chess position.\n    \"\"\"\n    \n    # Split the FEN string into its six component fields\n    (\n        piece_placement,\n        side_to_move,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number,\n    ) = fen_string.split(\" \")\n\n    # --- 1. Process the board's piece placement ---\n    board = []\n    # Iterate over each rank (separated by '/')\n    for rank_str in piece_placement.split(\"/\"):\n        rank = []\n        # Iterate over each character in the rank string\n        for char in rank_str:\n            if char.isdigit():\n                # If it's a digit, add that many empty squares\n                rank.extend([\"\"] * int(char))\n            else:\n                # If it's a letter, add the piece\n                rank.append(char)\n        board.append(rank)\n\n    # --- 2. Assemble the final state dictionary ---\n    chess_position = {\n        \"board\": board,\n        \"side\": side_to_move,\n        \"castling\": castling,\n        \"en_passant\": en_passant,\n        \"halfmove_clock\": int(halfmove_clock),\n        \"fullmove_number\": int(fullmove_number),\n    }\n\n    return chess_position"}, {"rep": {"title": "Chess State Representation for Tree\u2011Search", "description": "A compact, high\u2011fidelity representation of a chess position suitable for tree\u2011search algorithms (move generation, evaluation, expansion).  All fields are required; missing information would prevent unambiguous solving.", "type": "object", "required": ["board", "sideToMove", "castling", "enPassantTarget", "halfmoveClock", "fullmoveNumber"], "properties": {"board": {"description": "8\u00d78 array that maps each square to a piece code or null.  The first dimension is the rank (index 0 -> rank 8, index 7 -> rank 1).  The second dimension is the file (index 0 -> file 'a', index 7 -> file 'h').", "type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"anyOf": [{"type": "null"}, {"type": "string", "enum": ["P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k"], "description": "Uppercase = White, lowercase = Black."}]}}}, "sideToMove": {"type": "string", "enum": ["w", "b"], "description": "The colour whose turn it is.  'w' for White, 'b' for Black."}, "castling": {"type": "string", "description": "Castling availability in standard notation.  Empty (\"\" or \"-\") means no castling rights."}, "enPassantTarget": {"type": "string", "description": "Target square where an en\u2011passant capture is possible.  \"-\" indicates none."}, "halfmoveClock": {"type": "integer", "minimum": 0, "description": "Number of half\u2011moves since the last pawn advance or capture (for the 50\u2011move draw rule)."}, "fullmoveNumber": {"type": "integer", "minimum": 1, "description": "The full move number.  Incremented after each Black move."}}, "additionalProperties": false}, "example": {"board": [["r", null, "b", null, "k", null, null, "r"], ["p", "p", "p", null, null, "p", "p", "p"], [null, null, null, null, null, null, null, null], [null, null, null, null, null, "n", null, null], [null, null, null, null, "P", null, null, null], [null, null, null, null, null, null, null, null], ["P", "P", "P", "P", null, "P", "P", "P"], ["R", "N", "B", "Q", "K", "B", null, "R"]], "sideToMove": "w", "castling": "KQkq", "enPassantTarget": "-", "halfmoveClock": 4, "fullmoveNumber": 10}, "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, following the\n               specified input schema.\n\n    Returns:\n        The FEN string for the given chess position.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_ranks = []\n    for rank in state['board']:\n        rank_fen = \"\"\n        empty_squares = 0\n        for piece in rank:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_ranks.append(rank_fen)\n    board_part = \"/\".join(board_fen_ranks)\n\n    # 2. Active Color\n    side_to_move_part = state['sideToMove']\n\n    # 3. Castling Availability\n    # Use '-' if the input string is empty, otherwise use the provided string.\n    castling_part = state['castling'] if state['castling'] else \"-\"\n\n    # 4. En Passant Target Square\n    en_passant_part = state['enPassantTarget']\n\n    # 5. Halfmove Clock\n    halfmove_part = str(state['halfmoveClock'])\n\n    # 6. Fullmove Number\n    fullmove_part = str(state['fullmoveNumber'])\n\n    # Assemble all parts of the FEN string\n    fen_parts = [\n        board_part,\n        side_to_move_part,\n        castling_part,\n        en_passant_part,\n        halfmove_part,\n        fullmove_part\n    ]\n    \n    return \" \".join(fen_parts)", "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a FEN string into a JSON-compatible dictionary representation.\n\n    Args:\n        fen_string: A string representing a chess position in FEN format.\n\n    Returns:\n        A dictionary matching the specified chess state JSON schema.\n    \"\"\"\n    # Split the FEN string into its six component fields.\n    parts = fen_string.split()\n    piece_placement, side_to_move, castling, en_passant, halfmove, fullmove = parts\n\n    ## Board Representation\n    # Process the piece placement field to create the 8x8 board array.\n    board = []\n    ranks = piece_placement.split('/')\n    for rank_str in ranks:\n        rank_list = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add null for empty squares indicated by numbers.\n                rank_list.extend([None] * int(char))\n            else:\n                # Add the piece character.\n                rank_list.append(char)\n        board.append(rank_list)\n\n    ## Construct the Final Dictionary\n    # Assemble the final state dictionary from the parsed FEN components.\n    state = {\n        \"board\": board,\n        \"sideToMove\": side_to_move,\n        \"castling\": castling,\n        \"enPassantTarget\": en_passant,\n        \"halfmoveClock\": int(halfmove),\n        \"fullmoveNumber\": int(fullmove)\n    }\n    return state"}, {"rep": {"title": "ChessPuzzleState", "description": "Minimal, high\u2011fidelity representation of a chess puzzle state.", "type": "object", "required": ["fen", "sideToMove", "activePieces", "castlingRights", "enPassantTarget", "halfmoveClock", "fullmoveNumber"], "properties": {"fen": {"type": "string", "description": "Standard FEN string of the board."}, "sideToMove": {"type": "string", "enum": ["w", "b"], "description": "Side that has the next move."}, "activePieces": {"type": "object", "properties": {"w": {"type": "object", "properties": {"K": {"type": "integer", "minimum": 0, "maximum": 1}, "Q": {"type": "integer", "minimum": 0}, "R": {"type": "integer", "minimum": 0}, "B": {"type": "integer", "minimum": 0}, "N": {"type": "integer", "minimum": 0}, "P": {"type": "integer", "minimum": 0}}, "additionalProperties": false}, "b": {"type": "object", "properties": {"K": {"type": "integer", "minimum": 0, "maximum": 1}, "Q": {"type": "integer", "minimum": 0}, "R": {"type": "integer", "minimum": 0}, "B": {"type": "integer", "minimum": 0}, "N": {"type": "integer", "minimum": 0}, "P": {"type": "integer", "minimum": 0}}, "additionalProperties": false}}, "additionalProperties": false}, "castlingRights": {"type": "string", "description": "Castling availability per FEN (e.g., \"KQkq\" or \"-\" for none)."}, "enPassantTarget": {"type": "string", "description": "En\u2011passant target square or '-' if none."}, "halfmoveClock": {"type": "integer", "minimum": 0, "description": "Half\u2011move counter for the 50\u2011move rule."}, "fullmoveNumber": {"type": "integer", "minimum": 1, "description": "Full\u2011move number counter."}}, "additionalProperties": false}, "example": {"fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2P5/5N2/PP1PPPPP/RNBQKB1R w KQkq - 0 4", "sideToMove": "w", "activePieces": {"w": {"K": 1, "Q": 1, "R": 2, "B": 2, "N": 2, "P": 8}, "b": {"K": 1, "Q": 1, "R": 2, "B": 1, "N": 2, "P": 8}}, "castlingRights": "KQkq", "enPassantTarget": "-", "halfmoveClock": 0, "fullmoveNumber": 4}, "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess puzzle state from a dictionary representation to a\n    standard FEN string.\n\n    Args:\n        state: A dictionary conforming to the ChessPuzzleState schema,\n               containing all necessary components of a chess position.\n\n    Returns:\n        The full FEN string for the given state.\n    \"\"\"\n    # Extract the board layout from the 'fen' field. This handles cases\n    # where the field might contain the full FEN or just the piece placement.\n    board_layout = state['fen'].split(' ')[0]\n\n    # Assemble the full FEN string from its constituent parts.\n    fen_string = \" \".join([\n        board_layout,\n        state['sideToMove'],\n        state['castlingRights'],\n        state['enPassantTarget'],\n        str(state['halfmoveClock']),\n        str(state['fullmoveNumber'])\n    ])\n\n    return fen_string", "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a FEN string into a structured dictionary matching the specified schema.\n\n    This function parses a standard FEN string, which represents a chess position,\n    and transforms it into a detailed dictionary format. This includes counting\n    all active pieces for both white and black.\n\n    Args:\n        fen_string: A standard Forsyth-Edwards Notation (FEN) string.\n\n    Returns:\n        A dictionary representing the detailed state of the chess puzzle.\n        \n    Raises:\n        ValueError: If the input FEN string is malformed and does not contain\n                    the expected six space-separated fields.\n    \"\"\"\n    # Split the FEN string into its six standard components.\n    try:\n        (piece_placement, side_to_move, castling_rights, \n         en_passant_target, halfmove_clock, fullmove_number) = fen_string.split()\n    except ValueError:\n        raise ValueError(\"Invalid FEN string: must contain 6 space-separated fields.\")\n\n    # Initialize a structure to hold the counts of active pieces for each side.\n    # The schema requires all piece types, even if the count is zero.\n    active_pieces = {\n        'w': {'K': 0, 'Q': 0, 'R': 0, 'B': 0, 'N': 0, 'P': 0},\n        'b': {'K': 0, 'Q': 0, 'R': 0, 'B': 0, 'N': 0, 'P': 0}\n    }\n\n    # Count the pieces based on the first field of the FEN string.\n    for char in piece_placement:\n        if char.isalpha():  # Ignore numbers (empty squares) and '/' (rank separators)\n            color = 'w' if char.isupper() else 'b'\n            piece_type = char.upper()\n            \n            # Increment the count for the corresponding piece.\n            if piece_type in active_pieces[color]:\n                active_pieces[color][piece_type] += 1\n\n    # Assemble the final dictionary according to the JSON schema.\n    state_representation = {\n        \"fen\": fen_string,\n        \"sideToMove\": side_to_move,\n        \"activePieces\": active_pieces,\n        \"castlingRights\": castling_rights,\n        \"enPassantTarget\": en_passant_target,\n        \"halfmoveClock\": int(halfmove_clock),\n        \"fullmoveNumber\": int(fullmove_number)\n    }\n\n    return state_representation"}, {"rep": {"title": "Chess Position State", "description": "A minimal yet fully descriptive representation of a chess position suitable for tree\u2011search.", "type": "object", "required": ["board", "toMove", "castling", "enPassant", "halfMoveClock", "fullMoveNumber"], "properties": {"board": {"description": "8\u00d78 array representing the board from White\u2019s perspective.\nRows are numbered 0 (rank 8) to 7 (rank 1). Each element is either `null` or a string that specifies the piece.\nPiece notation: `K`,`Q`,`R`,`B`,`N`,`P` for White, lower\u2011case for Black.", "type": "array", "items": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"anyOf": [{"type": "string", "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"]}, {"type": "null"}]}}, "minItems": 8, "maxItems": 8}, "toMove": {"description": "Side to move: `w` for White, `b` for Black.", "type": "string", "enum": ["w", "b"]}, "castling": {"description": "Castling availability. Bitmask represented as a string of characters in alphabetical order.\n\n`s` \u2013 White kingside, `q` \u2013 White queenside, `k` \u2013 Black kingside, `q` \u2013 Black queenside.\nAn empty string indicates no castling rights.", "type": "string"}, "enPassant": {"description": "En\u2011passant target square in algebraic notation (e.g., `e3`). `-` if none.", "type": "string"}, "halfMoveClock": {"description": "Number of half\u2011moves since the last capture or pawn move, for the fifty\u2011move rule.", "type": "integer", "minimum": 0}, "fullMoveNumber": {"description": "Full move count starting at 1. Incremented after Black\u2019s move.", "type": "integer", "minimum": 1}, "activePieces": {"description": "Optional auxiliary structure listing all active pieces for fast evaluation.\nKey is a piece type (`K`,`Q`,`R`,`B`,`N`,`P`,`k`,`q`,`r`,`b`,`n`,`p`)\nand value is an array of board coordinates (e.g., `e4`).", "type": "object", "additionalProperties": {"type": "array", "items": {"type": "string"}}}, "zobristHash": {"description": "Optional Zobrist hash of the position for O(1) repetition detection.", "type": "string"}}, "additionalProperties": false}, "example": {"board": [["r", "n", "b", "q", "k", "b", "n", "r"], ["p", "p", "p", "p", null, "p", "p", "p"], [null, null, null, null, null, null, null, null], [null, null, null, null, "p", null, null, null], [null, null, null, null, "P", null, null, null], [null, null, "N", null, null, null, null, null], ["P", "P", "P", "P", null, "P", "P", "P"], ["R", "N", "B", "Q", "K", "B", null, "R"]], "toMove": "w", "castling": "s", "enPassant": "e6", "halfMoveClock": 0, "fullMoveNumber": 3, "activePieces": {"K": ["e1"], "Q": ["d1"], "R": ["a1", "h1"], "N": ["b1", "c3"], "B": ["c1", "f1"], "P": ["a2", "b2", "c2", "d2", "f2", "g2", "h2", "e4"], "k": ["e8"], "q": ["d8"], "r": ["a8", "h8"], "n": ["b8", "g8"], "b": ["c8", "f8"], "p": ["a7", "b7", "c7", "d7", "e5", "f7", "g7", "h7"]}}, "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess position from a JSON-like dictionary format to a FEN string.\n\n    Args:\n        state: A dictionary representing the chess state, conforming to the\n               specified input schema. It must contain 'board', 'toMove',\n               'castling', 'enPassant', 'halfMoveClock', and 'fullMoveNumber'.\n\n    Returns:\n        The FEN (Forsyth-Edwards Notation) string for the given position.\n    \"\"\"\n    \n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in row:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    board_fen = \"/\".join(board_fen_parts)\n    \n    # 2. Active Color\n    to_move_fen = state['toMove']\n    \n    # 3. Castling Availability\n    # FEN requires a specific order: KQkq. We build it from the input.\n    castling_input = state['castling']\n    castling_fen = \"\"\n    if 'K' in castling_input: castling_fen += 'K'\n    if 'Q' in castling_input: castling_fen += 'Q'\n    if 'k' in castling_input: castling_fen += 'k'\n    if 'q' in castling_input: castling_fen += 'q'\n    if not castling_fen:\n        castling_fen = \"-\"\n        \n    # 4. En Passant Target Square\n    en_passant_fen = state['enPassant']\n    \n    # 5. Halfmove Clock\n    half_move_clock_fen = str(state['halfMoveClock'])\n    \n    # 6. Fullmove Number\n    full_move_number_fen = str(state['fullMoveNumber'])\n    \n    # Assemble all parts of the FEN string\n    return \" \".join([\n        board_fen,\n        to_move_fen,\n        castling_fen,\n        en_passant_fen,\n        half_move_clock_fen,\n        full_move_number_fen\n    ])", "encode": "import json\nfrom collections import defaultdict\nfrom typing import Dict, Any, List, Optional\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string into a JSON-compatible dictionary representing\n    the chess position.\n\n    Args:\n        fen: A string representing a chess position in Forsyth-Edwards\n             Notation (FEN).\n\n    Returns:\n        A dictionary conforming to the specified chess position schema.\n    \"\"\"\n    \n    # 1. Split the FEN string into its components\n    parts = fen.split()\n    (\n        piece_placement,\n        to_move,\n        castling,\n        en_passant,\n        half_move_clock,\n        full_move_number,\n    ) = parts\n\n    # 2. Parse the board layout and active pieces\n    board: List[List[Optional[str]]] = []\n    active_pieces: Dict[str, List[str]] = defaultdict(list)\n    \n    fen_rows = piece_placement.split('/')\n    for r, fen_row in enumerate(fen_rows):\n        board_row: List[Optional[str]] = []\n        c = 0\n        for char in fen_row:\n            if char.isdigit():\n                num_empty = int(char)\n                board_row.extend([None] * num_empty)\n                c += num_empty\n            else:\n                board_row.append(char)\n                # Calculate algebraic notation for the active piece\n                file = chr(ord('a') + c)\n                rank = str(8 - r)\n                active_pieces[char].append(f\"{file}{rank}\")\n                c += 1\n        board.append(board_row)\n\n    # 3. Format castling rights\n    # The schema asks for alphabetical order.\n    # FEN's standard is 'KQkq'. Sorting ensures compliance.\n    castling_availability = \"\" if castling == '-' else \"\".join(sorted(castling))\n        \n    # 4. Construct the final state dictionary\n    state = {\n        \"board\": board,\n        \"toMove\": to_move,\n        \"castling\": castling_availability,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": int(half_move_clock),\n        \"fullMoveNumber\": int(full_move_number),\n        \"activePieces\": dict(active_pieces)\n    }\n\n    return state"}, {"rep": {"title": "ChessState", "description": "A minimal, high\u2011fidelity representation of a chess position suitable for tree search.", "type": "object", "required": ["board", "activeColor", "castling", "enPassant", "halfmoveClock", "fullmoveNumber"], "properties": {"board": {"description": "8\u00d78 matrix of piece codes. Empty squares are represented by `null`. The array is in rank order from 8 (top) to 1 (bottom), and file order from a (left) to h (right).", "type": "array", "items": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"oneOf": [{"type": "string", "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"]}, {"type": "null"}]}}, "minItems": 8, "maxItems": 8}, "activeColor": {"description": "The side to move.", "type": "string", "enum": ["w", "b"]}, "castling": {"description": "Castling availability. Empty string if none. Standard Forsyth notation: KQkq.", "type": "string"}, "enPassant": {"description": "En\u2011passant target square in standard algebraic notation. `-` if none.", "type": "string", "enum": ["-", "a3", "b3", "c3", "d3", "e3", "f3", "g3", "h3", "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6"], "default": "-"}, "halfmoveClock": {"description": "Number of half\u2011moves since the last capture or pawn move (used for the 50\u2011move rule).", "type": "integer", "minimum": 0}, "fullmoveNumber": {"description": "Full move count. Incremented after Black's move.", "type": "integer", "minimum": 1}}, "additionalProperties": false}, "example": {"board": [["r", null, "b", "q", "k", null, "n", "r"], [null, "p", null, null, null, "p", "p", null], ["p", null, "n", null, null, null, null, null], [null, null, null, "P", "p", null, null, null], [null, null, "P", null, null, null, null, null], [null, null, null, null, null, "N", null, null], ["P", "P", null, null, null, "P", "P", "P"], ["R", "N", "B", "Q", "K", "B", "N", "R"]], "activeColor": "b", "castling": "Kq", "enPassant": "-", "halfmoveClock": 4, "fullmoveNumber": 18}, "decode": "import json\nfrom typing import List, Optional, Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a Forsyth-Edwards\n    Notation (FEN) string.\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN string for the given chess position.\n    \"\"\"\n    # 1. Piece Placement Data\n    board_fen_parts = []\n    for rank in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in rank:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                rank_fen += piece\n                empty_squares = 0\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    board_fen = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    active_color = state['activeColor']\n\n    # 3. Castling Availability\n    castling = state['castling'] or \"-\"\n\n    # 4. En passant target square\n    en_passant = state['enPassant']\n\n    # 5. Halfmove clock\n    halfmove_clock = str(state['halfmoveClock'])\n\n    # 6. Fullmove number\n    fullmove_number = str(state['fullmoveNumber'])\n\n    # Assemble the final FEN string\n    fen_string = \" \".join([\n        board_fen,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ])\n\n    return fen_string", "encode": "import json\nfrom typing import Dict, Any\n\ndef encode(fen_string: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string representation of a chess state into a dictionary\n    that conforms to the specified JSON schema.\n\n    Args:\n        fen_string: A string containing the chess position in FEN format.\n\n    Returns:\n        A dictionary representing the chess state.\n    \"\"\"\n    \n    # Split the FEN string into its 6 constituent parts\n    parts = fen_string.split()\n    piece_placement, active_color, castling, en_passant, halfmove_clock, fullmove_number = parts\n\n    ## Board\n    # Process the piece placement part of the FEN string\n    board = []\n    ranks = piece_placement.split('/')\n    for rank in ranks:\n        row = []\n        for char in rank:\n            if char.isdigit():\n                # Add null ('None' in Python) for empty squares\n                row.extend([None] * int(char))\n            else:\n                # Add the piece character\n                row.append(char)\n        board.append(row)\n\n    ## State Dictionary\n    # Assemble the final dictionary based on the schema\n    state = {\n        \"board\": board,\n        \"activeColor\": active_color,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfmoveClock\": int(halfmove_clock),\n        \"fullmoveNumber\": int(fullmove_number)\n    }\n\n    return state"}, {"rep": {"title": "ChessPuzzleState", "description": "This schema tightly encodes the essential information needed for a tree search: the current FEN (to reconstruct board geometry), the side to move, the active pieces for rapid access, and a minimal legal move list for expansion. All auxiliary information (e.g., evaluation heuristics, positional tables) can be derived from these core fields during search, ensuring the state is both compact and fully expressive.", "type": "object", "required": ["fEN", "sideToMove", "sideKeys", "edges"], "properties": {"fEN": {"type": "string", "description": "Standard FEN string representation of the current board and full game data (castling rights, en\u2011passant target, half\u2011move counter, full\u2011move number). This keeps the representation compact while preserving all necessary state."}, "sideToMove": {"type": "string", "enum": ["w", "b"], "description": "Indicator for the side to move: 'w' for White, 'b' for Black."}, "sideKeys": {"type": "object", "properties": {"w": {"type": "array", "items": {"$ref": "#/definitions/piece"}, "minItems": 1}, "b": {"type": "array", "items": {"$ref": "#/definitions/piece"}, "minItems": 1}}, "required": ["w", "b"], "additionalProperties": false, "description": "Separate lists of active pieces for each side, stored as simple objects. This avoids the overhead of a full bitboard representation while providing easy access to pieces for move generation."}, "edges": {"type": "array", "items": {"$ref": "#/definitions/move"}, "minItems": 0, "description": "Pre\u2011computed legal move envelope for the current side. Each move references a destination and any captured piece. The list is only stored for the side to move; the opponent\u2019s legal moves are implicitly derived when they become the side to move."}}, "definitions": {"piece": {"type": "object", "required": ["type", "square"], "properties": {"type": {"type": "string", "enum": ["P", "N", "B", "R", "Q", "K"], "description": "Piece type using standard uppercase notation (P=Pawn, N=Knight, \u2026)."}, "square": {"type": "string", "description": "Square coordinate in standard algebraic notation (e.g., 'e4')."}}}, "move": {"type": "object", "required": ["from", "to", "type"], "properties": {"from": {"$ref": "#/definitions/square"}, "to": {"$ref": "#/definitions/square"}, "type": {"type": "string", "enum": ["normal", "capture", "enPassant", "castling", "promotion", "castleKing", "castleQueen"], "description": "Kind of move for evaluation purposes."}, "capturedPiece": {"$ref": "#/definitions/piece", "description": "Piece captured if any (absent for non\u2011capture or en\u2011passant).", "nullable": true}, "promoteTo": {"type": "string", "enum": ["Q", "R", "B", "N"], "description": "If the move is a promotion, the resulting piece type.", "nullable": true}}}, "square": {"type": "string", "description": "Algebraic square identifier."}}, "additionalProperties": false}, "example": {"fEN": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", "sideToMove": "w", "sideKeys": {"w": [{"type": "P", "square": "a2"}, {"type": "P", "square": "b2"}, {"type": "P", "square": "c2"}, {"type": "P", "square": "d2"}, {"type": "P", "square": "e2"}, {"type": "P", "square": "f2"}, {"type": "P", "square": "g2"}, {"type": "P", "square": "h2"}, {"type": "R", "square": "a1"}, {"type": "N", "square": "b1"}, {"type": "B", "square": "c1"}, {"type": "Q", "square": "d1"}, {"type": "K", "square": "e1"}, {"type": "B", "square": "f1"}, {"type": "N", "square": "g1"}, {"type": "R", "square": "h1"}], "b": [{"type": "P", "square": "a7"}, {"type": "P", "square": "b7"}, {"type": "P", "square": "c7"}, {"type": "P", "square": "d7"}, {"type": "P", "square": "e7"}, {"type": "P", "square": "f7"}, {"type": "P", "square": "g7"}, {"type": "P", "square": "h7"}, {"type": "R", "square": "a8"}, {"type": "N", "square": "b8"}, {"type": "B", "square": "c8"}, {"type": "Q", "square": "d8"}, {"type": "K", "square": "e8"}, {"type": "B", "square": "f8"}, {"type": "N", "square": "g8"}, {"type": "R", "square": "h8"}]}, "edges": [{"from": "e2", "to": "e4", "type": "normal"}, {"from": "e2", "to": "e3", "type": "normal"}, {"from": "g1", "to": "f3", "type": "normal"}, {"from": "g1", "to": "h3", "type": "normal"}, {"from": "d2", "to": "d4", "type": "normal"}, {"from": "d2", "to": "d3", "type": "normal"}]}, "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Extracts the FEN string from a chess puzzle state object.\n\n    This function takes a dictionary representing a chess position, which\n    conforms to the specified INPUT JSON schema, and returns the\n    corresponding Forsyth-Edwards Notation (FEN) string.\n\n    Args:\n        state: A dictionary containing the chess puzzle's state,\n               including the 'fEN' key.\n\n    Returns:\n        The FEN string that represents the board state.\n        \n    Example:\n        >>> puzzle_state = {\n        ...   \"fEN\": \"r5k1/pp3p1p/2b2qp1/3pr3/8/4P2P/R1PN1PP1/Q3K2R w K - 0 19\",\n        ...   \"sideToMove\": \"w\",\n        ...   # ... other fields\n        ... }\n        >>> decode(puzzle_state)\n        'r5k1/pp3p1p/2b2qp1/3pr3/8/4P2P/R1PN1PP1/Q3K2R w K - 0 19'\n    \"\"\"\n    return state[\"fEN\"]", "encode": "import chess\nimport json\nfrom typing import Dict, Any\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a chess position from a FEN string to a structured dictionary.\n\n    This function parses a FEN string to create a detailed state representation\n    that includes the FEN itself, the side to move, lists of all pieces for\n    each side, and a pre-computed list of all legal moves (edges) for the\n    current player.\n\n    Args:\n        fen: A standard Forsyth-Edwards Notation (FEN) string representing\n             the chess position.\n\n    Returns:\n        A dictionary conforming to the specified ChessPuzzleState JSON schema.\n    \"\"\"\n    board = chess.Board(fen)\n\n    # 1. Extract side to move\n    side_to_move = 'w' if board.turn == chess.WHITE else 'b'\n\n    # 2. Populate piece lists for each side\n    side_keys = {'w': [], 'b': []}\n    for square_index in chess.SQUARES:\n        piece = board.piece_at(square_index)\n        if piece:\n            square = chess.square_name(square_index)\n            piece_type = piece.symbol().upper()\n            color_key = 'w' if piece.color == chess.WHITE else 'b'\n            side_keys[color_key].append({'type': piece_type, 'square': square})\n\n    # 3. Generate the list of legal moves (edges)\n    edges = []\n    for move in board.legal_moves:\n        move_obj = {\n            'from': chess.square_name(move.from_square),\n            'to': chess.square_name(move.to_square),\n        }\n\n        # Determine move type and add relevant properties\n        if move.promotion:\n            move_obj['type'] = 'promotion'\n            move_obj['promoteTo'] = chess.piece_symbol(move.promotion).upper()\n            # A promotion can also be a capture\n            if board.is_capture(move):\n                 # In a promotion-capture, the captured piece is on the 'to' square\n                captured_piece = board.piece_at(move.to_square)\n                if captured_piece:\n                    move_obj['capturedPiece'] = {\n                        'type': captured_piece.symbol().upper(),\n                        'square': move_obj['to']\n                    }\n        elif board.is_kingside_castling(move):\n            move_obj['type'] = 'castleKing'\n        elif board.is_queenside_castling(move):\n            move_obj['type'] = 'castleQueen'\n        elif board.is_en_passant(move):\n            move_obj['type'] = 'enPassant'\n            # For en passant, the captured pawn is not on the 'to' square\n            captured_pawn_square = chess.square(\n                chess.square_file(move.to_square),\n                chess.square_rank(move.from_square)\n            )\n            move_obj['capturedPiece'] = {\n                'type': 'P',\n                'square': chess.square_name(captured_pawn_square)\n            }\n        elif board.is_capture(move):\n            move_obj['type'] = 'capture'\n            captured_piece = board.piece_at(move.to_square)\n            if captured_piece:\n                move_obj['capturedPiece'] = {\n                    'type': captured_piece.symbol().upper(),\n                    'square': move_obj['to']\n                }\n        else:\n            move_obj['type'] = 'normal'\n            \n        edges.append(move_obj)\n\n    # 4. Assemble the final state object\n    state = {\n        'fEN': fen,\n        'sideToMove': side_to_move,\n        'sideKeys': side_keys,\n        'edges': edges\n    }\n    \n    return state"}, {"rep": {"title": "ChessBoardState", "description": "High\u2011fidelity representation of a chess position suitable for tree\u2011search algorithms.", "type": "object", "required": ["fen", "turn", "castling", "enPassant", "halfMoveClock", "fullMoveNumber", "board", "pieces"], "properties": {"fen": {"type": "string", "description": "Standard FEN string representing the position."}, "turn": {"type": "string", "enum": ["w", "b"], "description": "Side to move: 'w' for White, 'b' for Black."}, "castling": {"type": "string", "description": "Castling availability in the same order as FEN (e.g., 'KQkq' or '-')."}, "enPassant": {"type": "string", "description": "File and rank of the en\u2011passant target square (e.g., 'e3') or '-' if none."}, "halfMoveClock": {"type": "integer", "minimum": 0, "description": "Half\u2011move clock for the fifty\u2011move rule."}, "fullMoveNumber": {"type": "integer", "minimum": 1, "description": "Full move number starting at 1."}, "board": {"type": "array", "minItems": 8, "maxItems": 8, "description": "8x8 array representation of the board. Each cell is one of: 'r','n','b','q','k','p','R','N','B','Q','K','P', or '.' for empty.", "items": {"type": "array", "minItems": 8, "maxItems": 8, "items": {"type": "string"}}}, "pieces": {"type": "array", "description": "Flat list of all active pieces with absolute coordinates. Useful for fast move generation.", "items": {"type": "object", "required": ["type", "color", "square"], "properties": {"type": {"type": "string", "enum": ["p", "n", "b", "r", "q", "k"], "description": "Piece type in lowercase."}, "color": {"type": "string", "enum": ["w", "b"], "description": "Piece color."}, "square": {"type": "string", "description": "Board coordinate from White\u2019s perspective."}}}}}, "additionalProperties": false}, "example": {"fen": "r1b2rk1/pppppppp/2q5/5bN1/2B1P3/3Q4/PPPP1PPP/4K2R", "turn": "w", "castling": "KQkq", "enPassant": "-", "halfMoveClock": 4, "fullMoveNumber": 12, "board": [["r", ".", "b", ".", ".", "r", "k", "."], ["p", "p", "p", "n", "p", "p", "p", "p"], [".", ".", "q", ".", ".", ".", ".", "."], [".", ".", ".", ".", ".", "b", "N", "."], [".", ".", "B", ".", "P", ".", ".", "."], [".", ".", ".", "Q", ".", ".", ".", "."], ["P", "P", "P", "P", ".", "P", "P", "P"], [".", ".", ".", ".", "K", ".", ".", "R"]], "pieces": [{"type": "k", "color": "w", "square": "e1"}, {"type": "q", "color": "w", "square": "d3"}, {"type": "r", "color": "w", "square": "h1"}, {"type": "n", "color": "w", "square": "g5"}, {"type": "b", "color": "w", "square": "c4"}, {"type": "p", "color": "w", "square": "a2"}, {"type": "p", "color": "w", "square": "b2"}, {"type": "p", "color": "w", "square": "c2"}, {"type": "p", "color": "w", "square": "d2"}, {"type": "p", "color": "w", "square": "e4"}, {"type": "p", "color": "w", "square": "f2"}, {"type": "p", "color": "w", "square": "g2"}, {"type": "p", "color": "w", "square": "h2"}, {"type": "k", "color": "b", "square": "g8"}, {"type": "q", "color": "b", "square": "c6"}, {"type": "r", "color": "b", "square": "a8"}, {"type": "r", "color": "b", "square": "f8"}, {"type": "b", "color": "b", "square": "c8"}, {"type": "b", "color": "b", "square": "f5"}, {"type": "n", "color": "b", "square": "d7"}, {"type": "p", "color": "b", "square": "a7"}, {"type": "p", "color": "b", "square": "b7"}, {"type": "p", "color": "b", "square": "c7"}, {"type": "p", "color": "b", "square": "e7"}, {"type": "p", "color": "b", "square": "f7"}, {"type": "p", "color": "b", "square": "g7"}, {"type": "p", "color": "b", "square": "h7"}]}, "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a detailed chess board state dictionary into its standard FEN string.\n\n    This function operates by extracting the 'fen' key from the input state,\n    which is assumed to be the correct and complete FEN representation.\n\n    Args:\n        state: A dictionary representing the chess board state, which includes\n               a 'fen' string and other detailed representations of the position.\n\n    Returns:\n        The FEN string corresponding to the input state.\n    \"\"\"\n    return state[\"fen\"]", "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a standard Forsyth-Edwards Notation (FEN) string to a\n    detailed JSON-compatible dictionary representation of the chess position.\n\n    Args:\n        fen_string: The FEN string representing the chess position.\n\n    Returns:\n        A dictionary matching the specified schema.\n    \"\"\"\n    # 1. Split the FEN string into its six component fields\n    fen_parts = fen_string.split()\n    piece_placement = fen_parts[0]\n    turn = fen_parts[1]\n    castling = fen_parts[2]\n    en_passant = fen_parts[3]\n    half_move_clock = int(fen_parts[4])\n    full_move_number = int(fen_parts[5])\n\n    board = []\n    pieces = []\n\n    # 2. Process the piece placement field to build the 'board' and 'pieces' lists\n    # FEN ranks are from 8 to 1, so we map rank_idx 0 to rank '8', etc.\n    for rank_idx, rank_str in enumerate(piece_placement.split('/')):\n        board_row = []\n        file_idx = 0  # File index 'a' through 'h' corresponds to 0 through 7\n        for char in rank_str:\n            if char.isdigit():\n                # Add empty squares represented by the digit\n                num_empty = int(char)\n                board_row.extend(['.'] * num_empty)\n                file_idx += num_empty\n            else:\n                # Add the piece to the board representation\n                board_row.append(char)\n\n                # Add the piece to the detailed pieces list\n                piece_type = char.lower()\n                color = 'w' if char.isupper() else 'b'\n                # Calculate algebraic notation for the square\n                square = f\"{chr(ord('a') + file_idx)}{8 - rank_idx}\"\n                \n                pieces.append({\n                    \"type\": piece_type,\n                    \"color\": color,\n                    \"square\": square\n                })\n                file_idx += 1\n        board.append(board_row)\n    \n    # 3. Assemble the final dictionary according to the schema\n    state_representation = {\n        \"fen\": fen_string,\n        \"turn\": turn,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": half_move_clock,\n        \"fullMoveNumber\": full_move_number,\n        \"board\": board,\n        \"pieces\": pieces\n    }\n    \n    return state_representation"}, {"rep": {"title": "Chess State Representation", "description": "A minimal yet comprehensive representation of a chess position suitable for tree\u2011search algorithms.", "type": "object", "required": ["board", "turn", "castling", "enPassant", "halfMoveClock", "fullMoveNumber"], "properties": {"board": {"type": "array", "description": "8\u00d78 array (ranks 8 to 1) of piece identifiers. Empty squares are `null` or an empty string.", "minItems": 8, "items": {"type": "array", "minItems": 8, "items": {"anyOf": [{"type": "string", "description": "Piece notation: KQNRBP for white, kqnrpbp for black."}, {"type": ["null", "string"], "enum": [null, ""], "description": "Empty square."}]}}}, "turn": {"type": "string", "enum": ["w", "b"], "description": "Side to move: 'w' for White, 'b' for Black."}, "castling": {"type": "object", "description": "Availability of king\u2011side / queen\u2011side castling for each side.", "required": ["K", "Q", "k", "q"], "properties": {"K": {"type": "boolean", "description": "White king\u2011side castling available."}, "Q": {"type": "boolean", "description": "White queen\u2011side castling available."}, "k": {"type": "boolean", "description": "Black king\u2011side castling available."}, "q": {"type": "boolean", "description": "Black queen\u2011side castling available."}}, "additionalProperties": false}, "enPassant": {"type": ["string", "null"], "description": "Square that can be captured en passant, or `null` if none."}, "halfMoveClock": {"type": "integer", "minimum": 0, "description": "Number of half\u2011moves since the last capture or pawn advance (for the fifty\u2011move rule)."}, "fullMoveNumber": {"type": "integer", "minimum": 1, "description": "Number of the full move. Increases after Black\u2019s turn."}, "moveHistory": {"type": "array", "description": "Optional list of SAN moves leading to this position, starting from the initial position.", "items": {"type": "string"}}}, "additionalProperties": false}, "example": {"board": [["r", null, "b", "q", "k", "b", null, "r"], ["p", "p", null, null, null, "p", "p", "p"], [null, null, "n", null, null, null, null, null], [null, null, null, "p", "P", null, null, null], [null, null, null, null, null, null, "N", null], [null, null, "B", null, null, null, "P", null], ["P", "P", null, null, "Q", "P", null, null], ["R", null, null, null, "K", null, null, "R"]], "turn": "w", "castling": {"K": true, "Q": true, "k": true, "q": true}, "enPassant": null, "halfMoveClock": 4, "fullMoveNumber": 16, "moveHistory": ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nf6", "Ng5", "O-O", "Nxf7", "Qh5", "Nxe5", "d6", "exd6", "Qxd1+", "Kxd1", "Qxb2", "Qxd3+", "Kc2", "b4", "Ne6+"]}, "decode": "from typing import Any, Dict\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess state from a JSON-like dictionary to its FEN string representation.\n\n    Args:\n        state: A dictionary conforming to the specified INPUT schema, representing the chess position.\n\n    Returns:\n        A FEN (Forsyth-Edwards Notation) string representing the given chess state.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_parts = []\n    for rank in state['board']:\n        rank_str = \"\"\n        empty_squares = 0\n        for piece in rank:\n            if piece is None or piece == \"\":\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_str += str(empty_squares)\n                    empty_squares = 0\n                rank_str += piece\n        if empty_squares > 0:\n            rank_str += str(empty_squares)\n        board_fen_parts.append(rank_str)\n    board_fen = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    turn_fen = state['turn']\n\n    # 3. Castling Availability\n    castling = state['castling']\n    castling_fen = \"\"\n    if castling.get('K'): castling_fen += 'K'\n    if castling.get('Q'): castling_fen += 'Q'\n    if castling.get('k'): castling_fen += 'k'\n    if castling.get('q'): castling_fen += 'q'\n    if not castling_fen:\n        castling_fen = '-'\n\n    # 4. En Passant Target Square\n    en_passant_fen = state.get('enPassant') or '-'\n\n    # 5. Halfmove Clock\n    half_move_clock_fen = str(state['halfMoveClock'])\n\n    # 6. Fullmove Number\n    full_move_number_fen = str(state['fullMoveNumber'])\n\n    # Assemble the final FEN string\n    return \" \".join([\n        board_fen,\n        turn_fen,\n        castling_fen,\n        en_passant_fen,\n        half_move_clock_fen,\n        full_move_number_fen\n    ])", "encode": "import json\nfrom typing import Dict, Any\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string representation of a chess position into a\n    structured dictionary that matches the specified JSON schema.\n\n    Args:\n        fen: A valid FEN string.\n\n    Returns:\n        A dictionary representing the chess state.\n    \"\"\"\n    parts = fen.split()\n    (\n        piece_placement,\n        turn,\n        castling_str,\n        en_passant_sq,\n        half_move_clock,\n        full_move_number,\n    ) = parts\n\n    # 1. Process the board layout\n    board = []\n    ranks = piece_placement.split('/')\n    for rank_str in ranks:\n        rank = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add null for empty squares\n                rank.extend([None] * int(char))\n            else:\n                # Add the piece identifier\n                rank.append(char)\n        board.append(rank)\n\n    # 2. Process castling rights\n    castling = {\n        \"K\": 'K' in castling_str,\n        \"Q\": 'Q' in castling_str,\n        \"k\": 'k' in castling_str,\n        \"q\": 'q' in castling_str\n    }\n    \n    # 3. Process en passant square\n    # FEN uses '-' for no en passant square; schema wants null.\n    en_passant = None if en_passant_sq == '-' else en_passant_sq\n\n    # 4. Assemble the final state dictionary\n    state = {\n        \"board\": board,\n        \"turn\": turn,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": int(half_move_clock),\n        \"fullMoveNumber\": int(full_move_number),\n    }\n\n    return state"}, {"rep": {"title": "Chess Position", "description": "Minimal, complete representation of a chess position for tree\u2011search.", "type": "object", "required": ["board", "turn", "halfmove", "fullmove", "castling", "enpassant"], "properties": {"board": {"description": "Mapping from square identifiers (\"a1\" \u2026 \"h8\") to piece codes.\nPiece codes: K,Q,R,B,N,P for White; k,q,r,b,n,p for Black.\nSquares not present are empty.", "type": "object", "additionalProperties": {"type": "string"}, "minProperties": 0}, "turn": {"description": "Side to move: \"w\" for White, \"b\" for Black.", "type": "string", "enum": ["w", "b"]}, "castling": {"description": "String of castling rights: any subset of 'KQkq', or \"\" if none.", "type": "string"}, "enpassant": {"description": "Square where an en\u2011passant capture is possible, or \"-\" if none.", "type": "string"}, "halfmove": {"description": "Half\u2011move clock (pawn move or capture since last reset).", "type": "integer", "minimum": 0}, "fullmove": {"description": "Full\u2011move number (incremented after Black\u2019s move).", "type": "integer", "minimum": 1}}, "additionalProperties": false}, "example": {"board": {"g1": "K", "d1": "Q", "a1": "R", "f1": "R", "c1": "B", "f4": "B", "e4": "N", "a2": "P", "b2": "P", "c2": "P", "d4": "P", "f2": "P", "g2": "P", "h2": "P", "g8": "k", "d8": "q", "a8": "r", "f8": "r", "c8": "b", "c3": "b", "f6": "n", "a7": "p", "b7": "p", "c7": "p", "d5": "p", "e7": "p", "f7": "p", "g7": "p", "h7": "p"}, "turn": "b", "castling": "", "enpassant": "-", "halfmove": 4, "fullmove": 12}, "decode": "def decode(state: dict) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, following the\n               specified schema.\n\n    Returns:\n        The FEN string representation of the position.\n    \"\"\"\n    ## Piece Placement\n    board_fen_parts = []\n    # Ranks are processed from 8 down to 1\n    for rank in range(8, 0, -1):\n        rank_str = \"\"\n        empty_squares = 0\n        # Files are processed from 'a' to 'h'\n        for file_char_code in range(ord('a'), ord('h') + 1):\n            file = chr(file_char_code)\n            square = f\"{file}{rank}\"\n\n            if square in state[\"board\"]:\n                if empty_squares > 0:\n                    rank_str += str(empty_squares)\n                    empty_squares = 0\n                rank_str += state[\"board\"][square]\n            else:\n                empty_squares += 1\n\n        # Append any trailing empty squares count for the rank\n        if empty_squares > 0:\n            rank_str += str(empty_squares)\n\n        board_fen_parts.append(rank_str)\n\n    piece_placement = \"/\".join(board_fen_parts)\n\n    ## Active Color\n    active_color = state[\"turn\"]\n\n    ## Castling Availability\n    # FEN uses \"-\" for no castling rights, while the input might use an empty string\n    castling = state[\"castling\"] if state[\"castling\"] else \"-\"\n\n    ## En Passant Target Square\n    en_passant = state[\"enpassant\"]\n\n    ## Clock Values\n    halfmove_clock = str(state[\"halfmove\"])\n    fullmove_number = str(state[\"fullmove\"])\n\n    ## Final Assembly\n    # Assemble the final FEN string by joining all six parts with a space\n    fen_string = \" \".join([\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ])\n\n    return fen_string", "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a chess position from Forsyth-Edwards Notation (FEN) to a\n    dictionary that conforms to the specified JSON schema.\n\n    Args:\n        fen_string: A string representing the chess position in FEN format.\n\n    Returns:\n        A dictionary representing the chess position.\n    \"\"\"\n    parts = fen_string.split()\n    piece_placement, turn, castling, enpassant, halfmove, fullmove = parts\n\n    # Parse the board state\n    board = {}\n    ranks = piece_placement.split('/')\n    for rank_idx, rank_str in enumerate(ranks):\n        rank = 8 - rank_idx\n        file_idx = 0\n        for char in rank_str:\n            if char.isdigit():\n                file_idx += int(char)\n            else:\n                file = chr(ord('a') + file_idx)\n                square = f\"{file}{rank}\"\n                board[square] = char\n                file_idx += 1\n\n    # Assemble the final JSON-compatible dictionary\n    position = {\n        \"board\": board,\n        \"turn\": turn,\n        \"castling\": \"\" if castling == \"-\" else castling,\n        \"enpassant\": enpassant,\n        \"halfmove\": int(halfmove),\n        \"fullmove\": int(fullmove)\n    }\n\n    return position"}]
+[
+  {
+    "rep": {
+      "title": "ChessPuzzleState",
+      "description": "High\u2011fidelity, concise representation of a position for puzzle solving.",
+      "type": "object",
+      "required": [
+        "board",
+        "turn",
+        "activeColor",
+        "hash",
+        "sideCastling",
+        "enPassant",
+        "halfMoveClock",
+        "fullMoveNumber"
+      ],
+      "properties": {
+        "board": {
+          "description": "A 0\u2011indexed 8\u00d78 array of piece objects.",
+          "type": "array",
+          "minItems": 8,
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Piece type: 'p','n','b','r','q','k' for black and uppercase for white.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "color": {
+                  "description": "Piece color: 'w' or 'b'.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "required": [
+                "type",
+                "color"
+              ]
+            }
+          }
+        },
+        "turn": {
+          "description": "Side to move: 0 for White, 1 for Black.",
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "activeColor": {
+          "description": "The side that just moved (the owner of the last move).",
+          "type": "string",
+          "enum": [
+            "white",
+            "black"
+          ]
+        },
+        "hash": {
+          "description": "Zobrist hash of the current position, used for transposition table lookup.",
+          "type": "string"
+        },
+        "sideCastling": {
+          "description": "Castling availability for each side.",
+          "type": "object",
+          "properties": {
+            "whiteK": {
+              "type": "boolean"
+            },
+            "whiteQ": {
+              "type": "boolean"
+            },
+            "blackK": {
+              "type": "boolean"
+            },
+            "blackQ": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "enPassant": {
+          "description": "Target square for a en\u2011passant capture or null if none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "halfMoveClock": {
+          "description": "Number of half\u2011moves since the last capture or pawn move (for the 50\u2011move draw rule).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fullMoveNumber": {
+          "description": "Move count starting from 1, incremented after Black's move.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "pawnsWhite": {
+          "description": "Bitboard representation of white pawns.",
+          "type": "string"
+        },
+        "pawnsBlack": {
+          "description": "Bitboard representation of black pawns.",
+          "type": "string"
+        },
+        "unknownProperties": {
+          "description": "Optional map for fast access by external modules. Should not be mutated by the search engine.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          {
+            "type": "r",
+            "color": "b"
+          },
+          {
+            "type": "n",
+            "color": "b"
+          },
+          {
+            "type": "b",
+            "color": "b"
+          },
+          {
+            "type": "q",
+            "color": "b"
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": "r",
+            "color": "b"
+          },
+          {
+            "type": "k",
+            "color": "b"
+          },
+          {
+            "type": "b",
+            "color": "b"
+          }
+        ],
+        [
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "b",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": "p",
+            "color": "b"
+          }
+        ],
+        [
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": "n",
+            "color": "b"
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          }
+        ],
+        [
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": "p",
+            "color": "b"
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          }
+        ],
+        [
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "n",
+            "color": "w"
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          }
+        ],
+        [
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": null,
+            "color": null
+          }
+        ],
+        [
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "b",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          },
+          {
+            "type": "p",
+            "color": "w"
+          }
+        ],
+        [
+          {
+            "type": "r",
+            "color": "w"
+          },
+          {
+            "type": "n",
+            "color": "w"
+          },
+          {
+            "type": "b",
+            "color": "w"
+          },
+          {
+            "type": "q",
+            "color": "w"
+          },
+          {
+            "type": null,
+            "color": null
+          },
+          {
+            "type": "r",
+            "color": "w"
+          },
+          {
+            "type": "k",
+            "color": "w"
+          },
+          {
+            "type": null,
+            "color": null
+          }
+        ]
+      ],
+      "turn": 1,
+      "activeColor": "white",
+      "hash": "4e3b1d0f6a9c2b8c7d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1g0h",
+      "sideCastling": {
+        "whiteK": false,
+        "whiteQ": false,
+        "blackK": true,
+        "blackQ": true
+      },
+      "enPassant": "e3",
+      "halfMoveClock": 0,
+      "fullMoveNumber": 1,
+      "pawnsWhite": "0000000000000000100000000000001100001000000000000000000000000000",
+      "pawnsBlack": "0000000010000000000010000000001001000000000000000000000000000000",
+      "unknownProperties": {}
+    },
+    "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON chess state representation into its FEN string.\n\n    This function processes a dictionary containing detailed information about a\n    chess position\u2014such as piece placement, turn, castling rights, and move\n    clocks\u2014and translates it into the standard Forsyth-Edwards Notation (FEN).\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN string corresponding to the input state.\n    \"\"\"\n    \n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in row:\n            if piece['type'] is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                empty_squares = 0\n                \n                piece_char = piece['type']\n                if piece['color'] == 'w':\n                    rank_fen += piece_char.upper()\n                else: # 'b'\n                    rank_fen += piece_char.lower()\n        \n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n            \n        board_fen_parts.append(rank_fen)\n    \n    piece_placement = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    active_color = 'w' if state['turn'] == 0 else 'b'\n\n    # 3. Castling Availability\n    castling = \"\"\n    side_castling = state['sideCastling']\n    if side_castling.get('whiteK'):\n        castling += 'K'\n    if side_castling.get('whiteQ'):\n        castling += 'Q'\n    if side_castling.get('blackK'):\n        castling += 'k'\n    if side_castling.get('blackQ'):\n        castling += 'q'\n    \n    if not castling:\n        castling = '-'\n\n    # 4. En Passant Target Square\n    en_passant = state['enPassant'] if state['enPassant'] is not None else '-'\n\n    # 5. Halfmove Clock\n    halfmove_clock = str(state['halfMoveClock'])\n\n    # 6. Fullmove Number\n    fullmove_number = str(state['fullMoveNumber'])\n\n    # Assemble the FEN string\n    fen_parts = [\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ]\n    \n    return \" \".join(fen_parts)",
+    "encode": "def encode(fen_string: str) -> dict:\n    \"\"\"\n    Converts a chess position from a FEN string to a dictionary\n    that matches the specified JSON schema.\n\n    Args:\n        fen_string: The FEN string representing the chess position.\n\n    Returns:\n        A dictionary representing the state of the chess puzzle.\n    \"\"\"\n    \n    # 1. Split the FEN string into its 6 components\n    (\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number,\n    ) = fen_string.split()\n\n    # 2. Process the board (piece placement)\n    board = []\n    for rank_str in piece_placement.split('/'):\n        row = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add empty squares for numeric values\n                row.extend([{\"type\": None, \"color\": None}] * int(char))\n            else:\n                # Add the piece object\n                color = 'w' if char.isupper() else 'b'\n                piece_type = char.lower()\n                row.append({\"type\": piece_type, \"color\": color})\n        board.append(row)\n\n    # 3. Process castling availability\n    side_castling = {\n        \"whiteK\": 'K' in castling,\n        \"whiteQ\": 'Q' in castling,\n        \"blackK\": 'k' in castling,\n        \"blackQ\": 'q' in castling,\n    }\n\n    # 4. Assemble the final state dictionary\n    state = {\n        \"board\": board,\n        \"turn\": 0 if active_color == 'w' else 1,\n        \"activeColor\": \"white\" if active_color == 'w' else \"black\",\n        \"hash\": \"\",  # Zobrist hash calculation is complex and not specified.\n        \"sideCastling\": side_castling,\n        \"enPassant\": None if en_passant == '-' else en_passant,\n        \"halfMoveClock\": int(halfmove_clock),\n        \"fullMoveNumber\": int(fullmove_number),\n    }\n\n    return state"
+  },
+  {
+    "rep": {
+      "title": "ChessPosition",
+      "description": "A minimal, high\u2011fidelity representation of a chess position suitable for tree\u2011search.",
+      "type": "object",
+      "required": [
+        "board",
+        "side",
+        "castling",
+        "en_passant",
+        "halfmove_clock",
+        "fullmove_number"
+      ],
+      "properties": {
+        "board": {
+          "description": "8x8 array of strings representing pieces or empty squares. Row 0 is the 8th rank, row 7 is the 1st rank.",
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "enum": [
+                "",
+                "P",
+                "N",
+                "B",
+                "R",
+                "Q",
+                "K",
+                "p",
+                "n",
+                "b",
+                "r",
+                "q",
+                "k"
+              ]
+            }
+          }
+        },
+        "side": {
+          "description": "Side to move. 'w' for white, 'b' for black.",
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ]
+        },
+        "castling": {
+          "description": "String containing any of the letters KQkq, or '-' if no castling rights remain.",
+          "type": "string"
+        },
+        "en_passant": {
+          "description": "Square where a capture en passant is possible, e.g. 'e6'. Use '-' if none.",
+          "type": "string"
+        },
+        "halfmove_clock": {
+          "description": "Number of half\u2011moves since the last pawn advance or capture (used for the fifty\u2011move rule).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fullmove_number": {
+          "description": "The number of the full move. Increments after Black\u2019s move.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "move_history": {
+          "description": "Optional ordered list of moves made so far in UCI format. Useful for debugging but not required for a single position.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          "r",
+          "n",
+          "b",
+          "q",
+          "k",
+          "",
+          "",
+          "r"
+        ],
+        [
+          "p",
+          "p",
+          "p",
+          "p",
+          "",
+          "p",
+          "p",
+          "p"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "n",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "P",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "N",
+          "",
+          ""
+        ],
+        [
+          "P",
+          "P",
+          "P",
+          "P",
+          "",
+          "P",
+          "P",
+          "P"
+        ],
+        [
+          "R",
+          "N",
+          "B",
+          "Q",
+          "K",
+          "B",
+          "",
+          "R"
+        ]
+      ],
+      "side": "w",
+      "castling": "KQkq",
+      "en_passant": "-",
+      "halfmove_clock": 2,
+      "fullmove_number": 2,
+      "move_history": [
+        "e2e4",
+        "c7c5",
+        "g1f3",
+        "b8c6"
+      ]
+    },
+    "decode": "import json\nfrom typing import Dict, List, Union\n\ndef decode(state: Dict[str, Union[List[List[str]], str, int]]) -> str:\n    \"\"\"\n    Converts a JSON chess position representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN (Forsyth-Edwards Notation) string for the position.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        rank_fen = \"\"\n        empty_squares = 0\n        for piece in row:\n            if piece == \"\":\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        # Append count for any trailing empty squares\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    \n    board_part = \"/\".join(board_fen_parts)\n\n    # 2-6. Other FEN fields from the input state\n    side_part = state['side']\n    castling_part = state['castling']\n    en_passant_part = state['en_passant']\n    halfmove_clock_part = str(state['halfmove_clock'])\n    fullmove_number_part = str(state['fullmove_number'])\n\n    # Assemble the final FEN string\n    fen_string = \" \".join([\n        board_part,\n        side_part,\n        castling_part,\n        en_passant_part,\n        halfmove_clock_part,\n        fullmove_number_part\n    ])\n    \n    return fen_string",
+    "encode": "def encode(fen: str):\n    \"\"\"\n    Converts a FEN string representation of a chess position into a\n    dictionary that matches the specified ChessPosition JSON schema.\n\n    Args:\n        fen_string: A standard FEN string.\n\n    Returns:\n        A dictionary representing the chess position.\n    \"\"\"\n    \n    # Split the FEN string into its six component fields\n    (\n        piece_placement,\n        side_to_move,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number,\n    ) = fen_string.split(\" \")\n\n    # --- 1. Process the board's piece placement ---\n    board = []\n    # Iterate over each rank (separated by '/')\n    for rank_str in piece_placement.split(\"/\"):\n        rank = []\n        # Iterate over each character in the rank string\n        for char in rank_str:\n            if char.isdigit():\n                # If it's a digit, add that many empty squares\n                rank.extend([\"\"] * int(char))\n            else:\n                # If it's a letter, add the piece\n                rank.append(char)\n        board.append(rank)\n\n    # --- 2. Assemble the final state dictionary ---\n    chess_position = {\n        \"board\": board,\n        \"side\": side_to_move,\n        \"castling\": castling,\n        \"en_passant\": en_passant,\n        \"halfmove_clock\": int(halfmove_clock),\n        \"fullmove_number\": int(fullmove_number),\n    }\n\n    return chess_position"
+  },
+  {
+    "rep": {
+      "title": "Chess State Representation for Tree\u2011Search",
+      "description": "A compact, high\u2011fidelity representation of a chess position suitable for tree\u2011search algorithms (move generation, evaluation, expansion).  All fields are required; missing information would prevent unambiguous solving.",
+      "type": "object",
+      "required": [
+        "board",
+        "sideToMove",
+        "castling",
+        "enPassantTarget",
+        "halfmoveClock",
+        "fullmoveNumber"
+      ],
+      "properties": {
+        "board": {
+          "description": "8\u00d78 array that maps each square to a piece code or null.  The first dimension is the rank (index 0 -> rank 8, index 7 -> rank 1).  The second dimension is the file (index 0 -> file 'a', index 7 -> file 'h').",
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "P",
+                    "N",
+                    "B",
+                    "R",
+                    "Q",
+                    "K",
+                    "p",
+                    "n",
+                    "b",
+                    "r",
+                    "q",
+                    "k"
+                  ],
+                  "description": "Uppercase = White, lowercase = Black."
+                }
+              ]
+            }
+          }
+        },
+        "sideToMove": {
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ],
+          "description": "The colour whose turn it is.  'w' for White, 'b' for Black."
+        },
+        "castling": {
+          "type": "string",
+          "description": "Castling availability in standard notation.  Empty (\"\" or \"-\") means no castling rights."
+        },
+        "enPassantTarget": {
+          "type": "string",
+          "description": "Target square where an en\u2011passant capture is possible.  \"-\" indicates none."
+        },
+        "halfmoveClock": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of half\u2011moves since the last pawn advance or capture (for the 50\u2011move draw rule)."
+        },
+        "fullmoveNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The full move number.  Incremented after each Black move."
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          "r",
+          null,
+          "b",
+          null,
+          "k",
+          null,
+          null,
+          "r"
+        ],
+        [
+          "p",
+          "p",
+          "p",
+          null,
+          null,
+          "p",
+          "p",
+          "p"
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          "n",
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "P",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "P",
+          "P",
+          "P",
+          "P",
+          null,
+          "P",
+          "P",
+          "P"
+        ],
+        [
+          "R",
+          "N",
+          "B",
+          "Q",
+          "K",
+          "B",
+          null,
+          "R"
+        ]
+      ],
+      "sideToMove": "w",
+      "castling": "KQkq",
+      "enPassantTarget": "-",
+      "halfmoveClock": 4,
+      "fullmoveNumber": 10
+    },
+    "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, following the\n               specified input schema.\n\n    Returns:\n        The FEN string for the given chess position.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_ranks = []\n    for rank in state['board']:\n        rank_fen = \"\"\n        empty_squares = 0\n        for piece in rank:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_ranks.append(rank_fen)\n    board_part = \"/\".join(board_fen_ranks)\n\n    # 2. Active Color\n    side_to_move_part = state['sideToMove']\n\n    # 3. Castling Availability\n    # Use '-' if the input string is empty, otherwise use the provided string.\n    castling_part = state['castling'] if state['castling'] else \"-\"\n\n    # 4. En Passant Target Square\n    en_passant_part = state['enPassantTarget']\n\n    # 5. Halfmove Clock\n    halfmove_part = str(state['halfmoveClock'])\n\n    # 6. Fullmove Number\n    fullmove_part = str(state['fullmoveNumber'])\n\n    # Assemble all parts of the FEN string\n    fen_parts = [\n        board_part,\n        side_to_move_part,\n        castling_part,\n        en_passant_part,\n        halfmove_part,\n        fullmove_part\n    ]\n    \n    return \" \".join(fen_parts)",
+    "encode": "def encode(fen: str) -> dict:\n    \"\"\"\n    Converts a FEN string into a JSON-compatible dictionary representation.\n\n    Args:\n        fen_string: A string representing a chess position in FEN format.\n\n    Returns:\n        A dictionary matching the specified chess state JSON schema.\n    \"\"\"\n    # Split the FEN string into its six component fields.\n    parts = fen_string.split()\n    piece_placement, side_to_move, castling, en_passant, halfmove, fullmove = parts\n\n    ## Board Representation\n    # Process the piece placement field to create the 8x8 board array.\n    board = []\n    ranks = piece_placement.split('/')\n    for rank_str in ranks:\n        rank_list = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add null for empty squares indicated by numbers.\n                rank_list.extend([None] * int(char))\n            else:\n                # Add the piece character.\n                rank_list.append(char)\n        board.append(rank_list)\n\n    ## Construct the Final Dictionary\n    # Assemble the final state dictionary from the parsed FEN components.\n    state = {\n        \"board\": board,\n        \"sideToMove\": side_to_move,\n        \"castling\": castling,\n        \"enPassantTarget\": en_passant,\n        \"halfmoveClock\": int(halfmove),\n        \"fullmoveNumber\": int(fullmove)\n    }\n    return state"
+  },
+  {
+    "rep": {
+      "title": "ChessPuzzleState",
+      "description": "Minimal, high\u2011fidelity representation of a chess puzzle state.",
+      "type": "object",
+      "required": [
+        "fen",
+        "sideToMove",
+        "activePieces",
+        "castlingRights",
+        "enPassantTarget",
+        "halfmoveClock",
+        "fullmoveNumber"
+      ],
+      "properties": {
+        "fen": {
+          "type": "string",
+          "description": "Standard FEN string of the board."
+        },
+        "sideToMove": {
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ],
+          "description": "Side that has the next move."
+        },
+        "activePieces": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "object",
+              "properties": {
+                "K": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "Q": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "R": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "B": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "N": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "P": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            },
+            "b": {
+              "type": "object",
+              "properties": {
+                "K": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "Q": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "R": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "B": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "N": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "P": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "castlingRights": {
+          "type": "string",
+          "description": "Castling availability per FEN (e.g., \"KQkq\" or \"-\" for none)."
+        },
+        "enPassantTarget": {
+          "type": "string",
+          "description": "En\u2011passant target square or '-' if none."
+        },
+        "halfmoveClock": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Half\u2011move counter for the 50\u2011move rule."
+        },
+        "fullmoveNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Full\u2011move number counter."
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "fen": "r1bqkbnr/pppp1ppp/2n5/4p3/2P5/5N2/PP1PPPPP/RNBQKB1R w KQkq - 0 4",
+      "sideToMove": "w",
+      "activePieces": {
+        "w": {
+          "K": 1,
+          "Q": 1,
+          "R": 2,
+          "B": 2,
+          "N": 2,
+          "P": 8
+        },
+        "b": {
+          "K": 1,
+          "Q": 1,
+          "R": 2,
+          "B": 1,
+          "N": 2,
+          "P": 8
+        }
+      },
+      "castlingRights": "KQkq",
+      "enPassantTarget": "-",
+      "halfmoveClock": 0,
+      "fullmoveNumber": 4
+    },
+    "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess puzzle state from a dictionary representation to a\n    standard FEN string.\n\n    Args:\n        state: A dictionary conforming to the ChessPuzzleState schema,\n               containing all necessary components of a chess position.\n\n    Returns:\n        The full FEN string for the given state.\n    \"\"\"\n    # Extract the board layout from the 'fen' field. This handles cases\n    # where the field might contain the full FEN or just the piece placement.\n    board_layout = state['fen'].split(' ')[0]\n\n    # Assemble the full FEN string from its constituent parts.\n    fen_string = \" \".join([\n        board_layout,\n        state['sideToMove'],\n        state['castlingRights'],\n        state['enPassantTarget'],\n        str(state['halfmoveClock']),\n        str(state['fullmoveNumber'])\n    ])\n\n    return fen_string",
+    "encode": "def encode(fen: str) -> dict:\n    \"\"\"\n    Converts a FEN string into a structured dictionary matching the specified schema.\n\n    This function parses a standard FEN string, which represents a chess position,\n    and transforms it into a detailed dictionary format. This includes counting\n    all active pieces for both white and black.\n\n    Args:\n        fen: A standard Forsyth-Edwards Notation (FEN) string.\n\n    Returns:\n        A dictionary representing the detailed state of the chess puzzle.\n        \n    Raises:\n        ValueError: If the input FEN string is malformed and does not contain\n                    the expected six space-separated fields.\n    \"\"\"\n    # Split the FEN string into its six standard components.\n    try:\n        (piece_placement, side_to_move, castling_rights, \n         en_passant_target, halfmove_clock, fullmove_number) = fen.split()\n    except ValueError:\n        raise ValueError(\"Invalid FEN string: must contain 6 space-separated fields.\")\n\n    # Initialize a structure to hold the counts of active pieces for each side.\n    # The schema requires all piece types, even if the count is zero.\n    active_pieces = {\n        'w': {'K': 0, 'Q': 0, 'R': 0, 'B': 0, 'N': 0, 'P': 0},\n        'b': {'K': 0, 'Q': 0, 'R': 0, 'B': 0, 'N': 0, 'P': 0}\n    }\n\n    # Count the pieces based on the first field of the FEN string.\n    for char in piece_placement:\n        if char.isalpha():  # Ignore numbers (empty squares) and '/' (rank separators)\n            color = 'w' if char.isupper() else 'b'\n            piece_type = char.upper()\n            \n            # Increment the count for the corresponding piece.\n            if piece_type in active_pieces[color]:\n                active_pieces[color][piece_type] += 1\n\n    # Assemble the final dictionary according to the JSON schema.\n    state_representation = {\n        \"fen\": fen,\n        \"sideToMove\": side_to_move,\n        \"activePieces\": active_pieces,\n        \"castlingRights\": castling_rights,\n        \"enPassantTarget\": en_passant_target,\n        \"halfmoveClock\": int(halfmove_clock),\n        \"fullmoveNumber\": int(fullmove_number)\n    }\n\n    return state_representation"
+  },
+  {
+    "rep": {
+      "title": "Chess Position State",
+      "description": "A minimal yet fully descriptive representation of a chess position suitable for tree\u2011search.",
+      "type": "object",
+      "required": [
+        "board",
+        "toMove",
+        "castling",
+        "enPassant",
+        "halfMoveClock",
+        "fullMoveNumber"
+      ],
+      "properties": {
+        "board": {
+          "description": "8\u00d78 array representing the board from White\u2019s perspective.\nRows are numbered 0 (rank 8) to 7 (rank 1). Each element is either `null` or a string that specifies the piece.\nPiece notation: `K`,`Q`,`R`,`B`,`N`,`P` for White, lower\u2011case for Black.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "K",
+                    "Q",
+                    "R",
+                    "B",
+                    "N",
+                    "P",
+                    "k",
+                    "q",
+                    "r",
+                    "b",
+                    "n",
+                    "p"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "toMove": {
+          "description": "Side to move: `w` for White, `b` for Black.",
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ]
+        },
+        "castling": {
+          "description": "Castling availability. Bitmask represented as a string of characters in alphabetical order.\n\n`s` \u2013 White kingside, `q` \u2013 White queenside, `k` \u2013 Black kingside, `q` \u2013 Black queenside.\nAn empty string indicates no castling rights.",
+          "type": "string"
+        },
+        "enPassant": {
+          "description": "En\u2011passant target square in algebraic notation (e.g., `e3`). `-` if none.",
+          "type": "string"
+        },
+        "halfMoveClock": {
+          "description": "Number of half\u2011moves since the last capture or pawn move, for the fifty\u2011move rule.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fullMoveNumber": {
+          "description": "Full move count starting at 1. Incremented after Black\u2019s move.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "activePieces": {
+          "description": "Optional auxiliary structure listing all active pieces for fast evaluation.\nKey is a piece type (`K`,`Q`,`R`,`B`,`N`,`P`,`k`,`q`,`r`,`b`,`n`,`p`)\nand value is an array of board coordinates (e.g., `e4`).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "zobristHash": {
+          "description": "Optional Zobrist hash of the position for O(1) repetition detection.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          "r",
+          "n",
+          "b",
+          "q",
+          "k",
+          "b",
+          "n",
+          "r"
+        ],
+        [
+          "p",
+          "p",
+          "p",
+          "p",
+          null,
+          "p",
+          "p",
+          "p"
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "p",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          "P",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "N",
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "P",
+          "P",
+          "P",
+          "P",
+          null,
+          "P",
+          "P",
+          "P"
+        ],
+        [
+          "R",
+          "N",
+          "B",
+          "Q",
+          "K",
+          "B",
+          null,
+          "R"
+        ]
+      ],
+      "toMove": "w",
+      "castling": "s",
+      "enPassant": "e6",
+      "halfMoveClock": 0,
+      "fullMoveNumber": 3,
+      "activePieces": {
+        "K": [
+          "e1"
+        ],
+        "Q": [
+          "d1"
+        ],
+        "R": [
+          "a1",
+          "h1"
+        ],
+        "N": [
+          "b1",
+          "c3"
+        ],
+        "B": [
+          "c1",
+          "f1"
+        ],
+        "P": [
+          "a2",
+          "b2",
+          "c2",
+          "d2",
+          "f2",
+          "g2",
+          "h2",
+          "e4"
+        ],
+        "k": [
+          "e8"
+        ],
+        "q": [
+          "d8"
+        ],
+        "r": [
+          "a8",
+          "h8"
+        ],
+        "n": [
+          "b8",
+          "g8"
+        ],
+        "b": [
+          "c8",
+          "f8"
+        ],
+        "p": [
+          "a7",
+          "b7",
+          "c7",
+          "d7",
+          "e5",
+          "f7",
+          "g7",
+          "h7"
+        ]
+      }
+    },
+    "decode": "import json\nfrom typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess position from a JSON-like dictionary format to a FEN string.\n\n    Args:\n        state: A dictionary representing the chess state, conforming to the\n               specified input schema. It must contain 'board', 'toMove',\n               'castling', 'enPassant', 'halfMoveClock', and 'fullMoveNumber'.\n\n    Returns:\n        The FEN (Forsyth-Edwards Notation) string for the given position.\n    \"\"\"\n    \n    # 1. Piece Placement\n    board_fen_parts = []\n    for row in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in row:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                    empty_squares = 0\n                rank_fen += piece\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    board_fen = \"/\".join(board_fen_parts)\n    \n    # 2. Active Color\n    to_move_fen = state['toMove']\n    \n    # 3. Castling Availability\n    # FEN requires a specific order: KQkq. We build it from the input.\n    castling_input = state['castling']\n    castling_fen = \"\"\n    if 'K' in castling_input: castling_fen += 'K'\n    if 'Q' in castling_input: castling_fen += 'Q'\n    if 'k' in castling_input: castling_fen += 'k'\n    if 'q' in castling_input: castling_fen += 'q'\n    if not castling_fen:\n        castling_fen = \"-\"\n        \n    # 4. En Passant Target Square\n    en_passant_fen = state['enPassant']\n    \n    # 5. Halfmove Clock\n    half_move_clock_fen = str(state['halfMoveClock'])\n    \n    # 6. Fullmove Number\n    full_move_number_fen = str(state['fullMoveNumber'])\n    \n    # Assemble all parts of the FEN string\n    return \" \".join([\n        board_fen,\n        to_move_fen,\n        castling_fen,\n        en_passant_fen,\n        half_move_clock_fen,\n        full_move_number_fen\n    ])",
+    "encode": "import json\nfrom collections import defaultdict\nfrom typing import Dict, Any, List, Optional\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string into a JSON-compatible dictionary representing\n    the chess position.\n\n    Args:\n        fen: A string representing a chess position in Forsyth-Edwards\n             Notation (FEN).\n\n    Returns:\n        A dictionary conforming to the specified chess position schema.\n    \"\"\"\n    \n    # 1. Split the FEN string into its components\n    parts = fen.split()\n    (\n        piece_placement,\n        to_move,\n        castling,\n        en_passant,\n        half_move_clock,\n        full_move_number,\n    ) = parts\n\n    # 2. Parse the board layout and active pieces\n    board: List[List[Optional[str]]] = []\n    active_pieces: Dict[str, List[str]] = defaultdict(list)\n    \n    fen_rows = piece_placement.split('/')\n    for r, fen_row in enumerate(fen_rows):\n        board_row: List[Optional[str]] = []\n        c = 0\n        for char in fen_row:\n            if char.isdigit():\n                num_empty = int(char)\n                board_row.extend([None] * num_empty)\n                c += num_empty\n            else:\n                board_row.append(char)\n                # Calculate algebraic notation for the active piece\n                file = chr(ord('a') + c)\n                rank = str(8 - r)\n                active_pieces[char].append(f\"{file}{rank}\")\n                c += 1\n        board.append(board_row)\n\n    # 3. Format castling rights\n    # The schema asks for alphabetical order.\n    # FEN's standard is 'KQkq'. Sorting ensures compliance.\n    castling_availability = \"\" if castling == '-' else \"\".join(sorted(castling))\n        \n    # 4. Construct the final state dictionary\n    state = {\n        \"board\": board,\n        \"toMove\": to_move,\n        \"castling\": castling_availability,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": int(half_move_clock),\n        \"fullMoveNumber\": int(full_move_number),\n        \"activePieces\": dict(active_pieces)\n    }\n\n    return state"
+  },
+  {
+    "rep": {
+      "title": "ChessState",
+      "description": "A minimal, high\u2011fidelity representation of a chess position suitable for tree search.",
+      "type": "object",
+      "required": [
+        "board",
+        "activeColor",
+        "castling",
+        "enPassant",
+        "halfmoveClock",
+        "fullmoveNumber"
+      ],
+      "properties": {
+        "board": {
+          "description": "8\u00d78 matrix of piece codes. Empty squares are represented by `null`. The array is in rank order from 8 (top) to 1 (bottom), and file order from a (left) to h (right).",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "K",
+                    "Q",
+                    "R",
+                    "B",
+                    "N",
+                    "P",
+                    "k",
+                    "q",
+                    "r",
+                    "b",
+                    "n",
+                    "p"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "minItems": 8,
+          "maxItems": 8
+        },
+        "activeColor": {
+          "description": "The side to move.",
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ]
+        },
+        "castling": {
+          "description": "Castling availability. Empty string if none. Standard Forsyth notation: KQkq.",
+          "type": "string"
+        },
+        "enPassant": {
+          "description": "En\u2011passant target square in standard algebraic notation. `-` if none.",
+          "type": "string",
+          "enum": [
+            "-",
+            "a3",
+            "b3",
+            "c3",
+            "d3",
+            "e3",
+            "f3",
+            "g3",
+            "h3",
+            "a6",
+            "b6",
+            "c6",
+            "d6",
+            "e6",
+            "f6",
+            "g6",
+            "h6"
+          ],
+          "default": "-"
+        },
+        "halfmoveClock": {
+          "description": "Number of half\u2011moves since the last capture or pawn move (used for the 50\u2011move rule).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fullmoveNumber": {
+          "description": "Full move count. Incremented after Black's move.",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          "r",
+          null,
+          "b",
+          "q",
+          "k",
+          null,
+          "n",
+          "r"
+        ],
+        [
+          null,
+          "p",
+          null,
+          null,
+          null,
+          "p",
+          "p",
+          null
+        ],
+        [
+          "p",
+          null,
+          "n",
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          "P",
+          "p",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          "P",
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          "N",
+          null,
+          null
+        ],
+        [
+          "P",
+          "P",
+          null,
+          null,
+          null,
+          "P",
+          "P",
+          "P"
+        ],
+        [
+          "R",
+          "N",
+          "B",
+          "Q",
+          "K",
+          "B",
+          "N",
+          "R"
+        ]
+      ],
+      "activeColor": "b",
+      "castling": "Kq",
+      "enPassant": "-",
+      "halfmoveClock": 4,
+      "fullmoveNumber": 18
+    },
+    "decode": "import json\nfrom typing import List, Optional, Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a Forsyth-Edwards\n    Notation (FEN) string.\n\n    Args:\n        state: A dictionary representing the chess position, conforming to the\n               specified input schema.\n\n    Returns:\n        The FEN string for the given chess position.\n    \"\"\"\n    # 1. Piece Placement Data\n    board_fen_parts = []\n    for rank in state['board']:\n        empty_squares = 0\n        rank_fen = \"\"\n        for piece in rank:\n            if piece is None:\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_fen += str(empty_squares)\n                rank_fen += piece\n                empty_squares = 0\n        if empty_squares > 0:\n            rank_fen += str(empty_squares)\n        board_fen_parts.append(rank_fen)\n    board_fen = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    active_color = state['activeColor']\n\n    # 3. Castling Availability\n    castling = state['castling'] or \"-\"\n\n    # 4. En passant target square\n    en_passant = state['enPassant']\n\n    # 5. Halfmove clock\n    halfmove_clock = str(state['halfmoveClock'])\n\n    # 6. Fullmove number\n    fullmove_number = str(state['fullmoveNumber'])\n\n    # Assemble the final FEN string\n    fen = \" \".join([\n        board_fen,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ])\n\n    return fen",
+    "encode": "import json\nfrom typing import Dict, Any\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string representation of a chess state into a dictionary\n    that conforms to the specified JSON schema.\n\n    Args:\n        fen: A string containing the chess position in FEN format.\n\n    Returns:\n        A dictionary representing the chess state.\n    \"\"\"\n    \n    # Split the FEN string into its 6 constituent parts\n    parts = fen.split()\n    piece_placement, active_color, castling, en_passant, halfmove_clock, fullmove_number = parts\n\n    ## Board\n    # Process the piece placement part of the FEN string\n    board = []\n    ranks = piece_placement.split('/')\n    for rank in ranks:\n        row = []\n        for char in rank:\n            if char.isdigit():\n                # Add null ('None' in Python) for empty squares\n                row.extend([None] * int(char))\n            else:\n                # Add the piece character\n                row.append(char)\n        board.append(row)\n\n    ## State Dictionary\n    # Assemble the final dictionary based on the schema\n    state = {\n        \"board\": board,\n        \"activeColor\": active_color,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfmoveClock\": int(halfmove_clock),\n        \"fullmoveNumber\": int(fullmove_number)\n    }\n\n    return state"
+  },
+  {
+    "rep": {
+      "title": "ChessPuzzleState",
+      "description": "This schema tightly encodes the essential information needed for a tree search: the current FEN (to reconstruct board geometry), the side to move, the active pieces for rapid access, and a minimal legal move list for expansion. All auxiliary information (e.g., evaluation heuristics, positional tables) can be derived from these core fields during search, ensuring the state is both compact and fully expressive.",
+      "type": "object",
+      "required": [
+        "fEN",
+        "sideToMove",
+        "sideKeys",
+        "edges"
+      ],
+      "properties": {
+        "fEN": {
+          "type": "string",
+          "description": "Standard FEN string representation of the current board and full game data (castling rights, en\u2011passant target, half\u2011move counter, full\u2011move number). This keeps the representation compact while preserving all necessary state."
+        },
+        "sideToMove": {
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ],
+          "description": "Indicator for the side to move: 'w' for White, 'b' for Black."
+        },
+        "sideKeys": {
+          "type": "object",
+          "properties": {
+            "w": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/piece"
+              },
+              "minItems": 1
+            },
+            "b": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/piece"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "w",
+            "b"
+          ],
+          "additionalProperties": false,
+          "description": "Separate lists of active pieces for each side, stored as simple objects. This avoids the overhead of a full bitboard representation while providing easy access to pieces for move generation."
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/move"
+          },
+          "minItems": 0,
+          "description": "Pre\u2011computed legal move envelope for the current side. Each move references a destination and any captured piece. The list is only stored for the side to move; the opponent\u2019s legal moves are implicitly derived when they become the side to move."
+        }
+      },
+      "definitions": {
+        "piece": {
+          "type": "object",
+          "required": [
+            "type",
+            "square"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "P",
+                "N",
+                "B",
+                "R",
+                "Q",
+                "K"
+              ],
+              "description": "Piece type using standard uppercase notation (P=Pawn, N=Knight, \u2026)."
+            },
+            "square": {
+              "type": "string",
+              "description": "Square coordinate in standard algebraic notation (e.g., 'e4')."
+            }
+          }
+        },
+        "move": {
+          "type": "object",
+          "required": [
+            "from",
+            "to",
+            "type"
+          ],
+          "properties": {
+            "from": {
+              "$ref": "#/definitions/square"
+            },
+            "to": {
+              "$ref": "#/definitions/square"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "capture",
+                "enPassant",
+                "castling",
+                "promotion",
+                "castleKing",
+                "castleQueen"
+              ],
+              "description": "Kind of move for evaluation purposes."
+            },
+            "capturedPiece": {
+              "$ref": "#/definitions/piece",
+              "description": "Piece captured if any (absent for non\u2011capture or en\u2011passant).",
+              "nullable": true
+            },
+            "promoteTo": {
+              "type": "string",
+              "enum": [
+                "Q",
+                "R",
+                "B",
+                "N"
+              ],
+              "description": "If the move is a promotion, the resulting piece type.",
+              "nullable": true
+            }
+          }
+        },
+        "square": {
+          "type": "string",
+          "description": "Algebraic square identifier."
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "fEN": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "sideToMove": "w",
+      "sideKeys": {
+        "w": [
+          {
+            "type": "P",
+            "square": "a2"
+          },
+          {
+            "type": "P",
+            "square": "b2"
+          },
+          {
+            "type": "P",
+            "square": "c2"
+          },
+          {
+            "type": "P",
+            "square": "d2"
+          },
+          {
+            "type": "P",
+            "square": "e2"
+          },
+          {
+            "type": "P",
+            "square": "f2"
+          },
+          {
+            "type": "P",
+            "square": "g2"
+          },
+          {
+            "type": "P",
+            "square": "h2"
+          },
+          {
+            "type": "R",
+            "square": "a1"
+          },
+          {
+            "type": "N",
+            "square": "b1"
+          },
+          {
+            "type": "B",
+            "square": "c1"
+          },
+          {
+            "type": "Q",
+            "square": "d1"
+          },
+          {
+            "type": "K",
+            "square": "e1"
+          },
+          {
+            "type": "B",
+            "square": "f1"
+          },
+          {
+            "type": "N",
+            "square": "g1"
+          },
+          {
+            "type": "R",
+            "square": "h1"
+          }
+        ],
+        "b": [
+          {
+            "type": "P",
+            "square": "a7"
+          },
+          {
+            "type": "P",
+            "square": "b7"
+          },
+          {
+            "type": "P",
+            "square": "c7"
+          },
+          {
+            "type": "P",
+            "square": "d7"
+          },
+          {
+            "type": "P",
+            "square": "e7"
+          },
+          {
+            "type": "P",
+            "square": "f7"
+          },
+          {
+            "type": "P",
+            "square": "g7"
+          },
+          {
+            "type": "P",
+            "square": "h7"
+          },
+          {
+            "type": "R",
+            "square": "a8"
+          },
+          {
+            "type": "N",
+            "square": "b8"
+          },
+          {
+            "type": "B",
+            "square": "c8"
+          },
+          {
+            "type": "Q",
+            "square": "d8"
+          },
+          {
+            "type": "K",
+            "square": "e8"
+          },
+          {
+            "type": "B",
+            "square": "f8"
+          },
+          {
+            "type": "N",
+            "square": "g8"
+          },
+          {
+            "type": "R",
+            "square": "h8"
+          }
+        ]
+      },
+      "edges": [
+        {
+          "from": "e2",
+          "to": "e4",
+          "type": "normal"
+        },
+        {
+          "from": "e2",
+          "to": "e3",
+          "type": "normal"
+        },
+        {
+          "from": "g1",
+          "to": "f3",
+          "type": "normal"
+        },
+        {
+          "from": "g1",
+          "to": "h3",
+          "type": "normal"
+        },
+        {
+          "from": "d2",
+          "to": "d4",
+          "type": "normal"
+        },
+        {
+          "from": "d2",
+          "to": "d3",
+          "type": "normal"
+        }
+      ]
+    },
+    "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Extracts the FEN string from a chess puzzle state object.\n\n    This function takes a dictionary representing a chess position, which\n    conforms to the specified INPUT JSON schema, and returns the\n    corresponding Forsyth-Edwards Notation (FEN) string.\n\n    Args:\n        state: A dictionary containing the chess puzzle's state,\n               including the 'fEN' key.\n\n    Returns:\n        The FEN string that represents the board state.\n        \n    Example:\n        >>> puzzle_state = {\n        ...   \"fEN\": \"r5k1/pp3p1p/2b2qp1/3pr3/8/4P2P/R1PN1PP1/Q3K2R w K - 0 19\",\n        ...   \"sideToMove\": \"w\",\n        ...   # ... other fields\n        ... }\n        >>> decode(puzzle_state)\n        'r5k1/pp3p1p/2b2qp1/3pr3/8/4P2P/R1PN1PP1/Q3K2R w K - 0 19'\n    \"\"\"\n    return state[\"fEN\"]",
+    "encode": "import chess\nimport json\nfrom typing import Dict, Any\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a chess position from a FEN string to a structured dictionary.\n\n    This function parses a FEN string to create a detailed state representation\n    that includes the FEN itself, the side to move, lists of all pieces for\n    each side, and a pre-computed list of all legal moves (edges) for the\n    current player.\n\n    Args:\n        fen: A standard Forsyth-Edwards Notation (FEN) string representing\n             the chess position.\n\n    Returns:\n        A dictionary conforming to the specified ChessPuzzleState JSON schema.\n    \"\"\"\n    board = chess.Board(fen)\n\n    # 1. Extract side to move\n    side_to_move = 'w' if board.turn == chess.WHITE else 'b'\n\n    # 2. Populate piece lists for each side\n    side_keys = {'w': [], 'b': []}\n    for square_index in chess.SQUARES:\n        piece = board.piece_at(square_index)\n        if piece:\n            square = chess.square_name(square_index)\n            piece_type = piece.symbol().upper()\n            color_key = 'w' if piece.color == chess.WHITE else 'b'\n            side_keys[color_key].append({'type': piece_type, 'square': square})\n\n    # 3. Generate the list of legal moves (edges)\n    edges = []\n    for move in board.legal_moves:\n        move_obj = {\n            'from': chess.square_name(move.from_square),\n            'to': chess.square_name(move.to_square),\n        }\n\n        # Determine move type and add relevant properties\n        if move.promotion:\n            move_obj['type'] = 'promotion'\n            move_obj['promoteTo'] = chess.piece_symbol(move.promotion).upper()\n            # A promotion can also be a capture\n            if board.is_capture(move):\n                 # In a promotion-capture, the captured piece is on the 'to' square\n                captured_piece = board.piece_at(move.to_square)\n                if captured_piece:\n                    move_obj['capturedPiece'] = {\n                        'type': captured_piece.symbol().upper(),\n                        'square': move_obj['to']\n                    }\n        elif board.is_kingside_castling(move):\n            move_obj['type'] = 'castleKing'\n        elif board.is_queenside_castling(move):\n            move_obj['type'] = 'castleQueen'\n        elif board.is_en_passant(move):\n            move_obj['type'] = 'enPassant'\n            # For en passant, the captured pawn is not on the 'to' square\n            captured_pawn_square = chess.square(\n                chess.square_file(move.to_square),\n                chess.square_rank(move.from_square)\n            )\n            move_obj['capturedPiece'] = {\n                'type': 'P',\n                'square': chess.square_name(captured_pawn_square)\n            }\n        elif board.is_capture(move):\n            move_obj['type'] = 'capture'\n            captured_piece = board.piece_at(move.to_square)\n            if captured_piece:\n                move_obj['capturedPiece'] = {\n                    'type': captured_piece.symbol().upper(),\n                    'square': move_obj['to']\n                }\n        else:\n            move_obj['type'] = 'normal'\n            \n        edges.append(move_obj)\n\n    # 4. Assemble the final state object\n    state = {\n        'fEN': fen,\n        'sideToMove': side_to_move,\n        'sideKeys': side_keys,\n        'edges': edges\n    }\n    \n    return state"
+  },
+  {
+    "rep": {
+      "title": "ChessBoardState",
+      "description": "High\u2011fidelity representation of a chess position suitable for tree\u2011search algorithms.",
+      "type": "object",
+      "required": [
+        "fen",
+        "turn",
+        "castling",
+        "enPassant",
+        "halfMoveClock",
+        "fullMoveNumber",
+        "board",
+        "pieces"
+      ],
+      "properties": {
+        "fen": {
+          "type": "string",
+          "description": "Standard FEN string representing the position."
+        },
+        "turn": {
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ],
+          "description": "Side to move: 'w' for White, 'b' for Black."
+        },
+        "castling": {
+          "type": "string",
+          "description": "Castling availability in the same order as FEN (e.g., 'KQkq' or '-')."
+        },
+        "enPassant": {
+          "type": "string",
+          "description": "File and rank of the en\u2011passant target square (e.g., 'e3') or '-' if none."
+        },
+        "halfMoveClock": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Half\u2011move clock for the fifty\u2011move rule."
+        },
+        "fullMoveNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Full move number starting at 1."
+        },
+        "board": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "description": "8x8 array representation of the board. Each cell is one of: 'r','n','b','q','k','p','R','N','B','Q','K','P', or '.' for empty.",
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "maxItems": 8,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "pieces": {
+          "type": "array",
+          "description": "Flat list of all active pieces with absolute coordinates. Useful for fast move generation.",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "color",
+              "square"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "p",
+                  "n",
+                  "b",
+                  "r",
+                  "q",
+                  "k"
+                ],
+                "description": "Piece type in lowercase."
+              },
+              "color": {
+                "type": "string",
+                "enum": [
+                  "w",
+                  "b"
+                ],
+                "description": "Piece color."
+              },
+              "square": {
+                "type": "string",
+                "description": "Board coordinate from White\u2019s perspective."
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "fen": "r1b2rk1/pppppppp/2q5/5bN1/2B1P3/3Q4/PPPP1PPP/4K2R",
+      "turn": "w",
+      "castling": "KQkq",
+      "enPassant": "-",
+      "halfMoveClock": 4,
+      "fullMoveNumber": 12,
+      "board": [
+        [
+          "r",
+          ".",
+          "b",
+          ".",
+          ".",
+          "r",
+          "k",
+          "."
+        ],
+        [
+          "p",
+          "p",
+          "p",
+          "n",
+          "p",
+          "p",
+          "p",
+          "p"
+        ],
+        [
+          ".",
+          ".",
+          "q",
+          ".",
+          ".",
+          ".",
+          ".",
+          "."
+        ],
+        [
+          ".",
+          ".",
+          ".",
+          ".",
+          ".",
+          "b",
+          "N",
+          "."
+        ],
+        [
+          ".",
+          ".",
+          "B",
+          ".",
+          "P",
+          ".",
+          ".",
+          "."
+        ],
+        [
+          ".",
+          ".",
+          ".",
+          "Q",
+          ".",
+          ".",
+          ".",
+          "."
+        ],
+        [
+          "P",
+          "P",
+          "P",
+          "P",
+          ".",
+          "P",
+          "P",
+          "P"
+        ],
+        [
+          ".",
+          ".",
+          ".",
+          ".",
+          "K",
+          ".",
+          ".",
+          "R"
+        ]
+      ],
+      "pieces": [
+        {
+          "type": "k",
+          "color": "w",
+          "square": "e1"
+        },
+        {
+          "type": "q",
+          "color": "w",
+          "square": "d3"
+        },
+        {
+          "type": "r",
+          "color": "w",
+          "square": "h1"
+        },
+        {
+          "type": "n",
+          "color": "w",
+          "square": "g5"
+        },
+        {
+          "type": "b",
+          "color": "w",
+          "square": "c4"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "a2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "b2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "c2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "d2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "e4"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "f2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "g2"
+        },
+        {
+          "type": "p",
+          "color": "w",
+          "square": "h2"
+        },
+        {
+          "type": "k",
+          "color": "b",
+          "square": "g8"
+        },
+        {
+          "type": "q",
+          "color": "b",
+          "square": "c6"
+        },
+        {
+          "type": "r",
+          "color": "b",
+          "square": "a8"
+        },
+        {
+          "type": "r",
+          "color": "b",
+          "square": "f8"
+        },
+        {
+          "type": "b",
+          "color": "b",
+          "square": "c8"
+        },
+        {
+          "type": "b",
+          "color": "b",
+          "square": "f5"
+        },
+        {
+          "type": "n",
+          "color": "b",
+          "square": "d7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "a7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "b7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "c7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "e7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "f7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "g7"
+        },
+        {
+          "type": "p",
+          "color": "b",
+          "square": "h7"
+        }
+      ]
+    },
+    "decode": "from typing import Dict, Any\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a detailed chess board state dictionary into its standard FEN string.\n\n    This function operates by extracting the 'fen' key from the input state,\n    which is assumed to be the correct and complete FEN representation.\n\n    Args:\n        state: A dictionary representing the chess board state, which includes\n               a 'fen' string and other detailed representations of the position.\n\n    Returns:\n        The FEN string corresponding to the input state.\n    \"\"\"\n    return state[\"fen\"]",
+    "encode": "def encode(fen: str) -> dict:\n    \"\"\"\n    Converts a standard Forsyth-Edwards Notation (FEN) string to a\n    detailed JSON-compatible dictionary representation of the chess position.\n\n    Args:\n        fen: The FEN string representing the chess position.\n\n    Returns:\n        A dictionary matching the specified schema.\n    \"\"\"\n    # 1. Split the FEN string into its six component fields\n    fen_parts = fen.split()\n    piece_placement = fen_parts[0]\n    turn = fen_parts[1]\n    castling = fen_parts[2]\n    en_passant = fen_parts[3]\n    half_move_clock = int(fen_parts[4])\n    full_move_number = int(fen_parts[5])\n\n    board = []\n    pieces = []\n\n    # 2. Process the piece placement field to build the 'board' and 'pieces' lists\n    # FEN ranks are from 8 to 1, so we map rank_idx 0 to rank '8', etc.\n    for rank_idx, rank_str in enumerate(piece_placement.split('/')):\n        board_row = []\n        file_idx = 0  # File index 'a' through 'h' corresponds to 0 through 7\n        for char in rank_str:\n            if char.isdigit():\n                # Add empty squares represented by the digit\n                num_empty = int(char)\n                board_row.extend(['.'] * num_empty)\n                file_idx += num_empty\n            else:\n                # Add the piece to the board representation\n                board_row.append(char)\n\n                # Add the piece to the detailed pieces list\n                piece_type = char.lower()\n                color = 'w' if char.isupper() else 'b'\n                # Calculate algebraic notation for the square\n                square = f\"{chr(ord('a') + file_idx)}{8 - rank_idx}\"\n                \n                pieces.append({\n                    \"type\": piece_type,\n                    \"color\": color,\n                    \"square\": square\n                })\n                file_idx += 1\n        board.append(board_row)\n    \n    # 3. Assemble the final dictionary according to the schema\n    state_representation = {\n        \"fen\": fen,\n        \"turn\": turn,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": half_move_clock,\n        \"fullMoveNumber\": full_move_number,\n        \"board\": board,\n        \"pieces\": pieces\n    }\n    \n    return state_representation"
+  },
+  {
+    "rep": {
+      "title": "Chess State Representation",
+      "description": "A minimal yet comprehensive representation of a chess position suitable for tree\u2011search algorithms.",
+      "type": "object",
+      "required": [
+        "board",
+        "turn",
+        "castling",
+        "enPassant",
+        "halfMoveClock",
+        "fullMoveNumber"
+      ],
+      "properties": {
+        "board": {
+          "type": "array",
+          "description": "8\u00d78 array (ranks 8 to 1) of piece identifiers. Empty squares are `null` or an empty string.",
+          "minItems": 8,
+          "items": {
+            "type": "array",
+            "minItems": 8,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "Piece notation: KQNRBP for white, kqnrpbp for black."
+                },
+                {
+                  "type": [
+                    "null",
+                    "string"
+                  ],
+                  "enum": [
+                    null,
+                    ""
+                  ],
+                  "description": "Empty square."
+                }
+              ]
+            }
+          }
+        },
+        "turn": {
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ],
+          "description": "Side to move: 'w' for White, 'b' for Black."
+        },
+        "castling": {
+          "type": "object",
+          "description": "Availability of king\u2011side / queen\u2011side castling for each side.",
+          "required": [
+            "K",
+            "Q",
+            "k",
+            "q"
+          ],
+          "properties": {
+            "K": {
+              "type": "boolean",
+              "description": "White king\u2011side castling available."
+            },
+            "Q": {
+              "type": "boolean",
+              "description": "White queen\u2011side castling available."
+            },
+            "k": {
+              "type": "boolean",
+              "description": "Black king\u2011side castling available."
+            },
+            "q": {
+              "type": "boolean",
+              "description": "Black queen\u2011side castling available."
+            }
+          },
+          "additionalProperties": false
+        },
+        "enPassant": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Square that can be captured en passant, or `null` if none."
+        },
+        "halfMoveClock": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of half\u2011moves since the last capture or pawn advance (for the fifty\u2011move rule)."
+        },
+        "fullMoveNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of the full move. Increases after Black\u2019s turn."
+        },
+        "moveHistory": {
+          "type": "array",
+          "description": "Optional list of SAN moves leading to this position, starting from the initial position.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": [
+        [
+          "r",
+          null,
+          "b",
+          "q",
+          "k",
+          "b",
+          null,
+          "r"
+        ],
+        [
+          "p",
+          "p",
+          null,
+          null,
+          null,
+          "p",
+          "p",
+          "p"
+        ],
+        [
+          null,
+          null,
+          "n",
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          "p",
+          "P",
+          null,
+          null,
+          null
+        ],
+        [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          "N",
+          null
+        ],
+        [
+          null,
+          null,
+          "B",
+          null,
+          null,
+          null,
+          "P",
+          null
+        ],
+        [
+          "P",
+          "P",
+          null,
+          null,
+          "Q",
+          "P",
+          null,
+          null
+        ],
+        [
+          "R",
+          null,
+          null,
+          null,
+          "K",
+          null,
+          null,
+          "R"
+        ]
+      ],
+      "turn": "w",
+      "castling": {
+        "K": true,
+        "Q": true,
+        "k": true,
+        "q": true
+      },
+      "enPassant": null,
+      "halfMoveClock": 4,
+      "fullMoveNumber": 16,
+      "moveHistory": [
+        "e4",
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bc4",
+        "Nf6",
+        "Ng5",
+        "O-O",
+        "Nxf7",
+        "Qh5",
+        "Nxe5",
+        "d6",
+        "exd6",
+        "Qxd1+",
+        "Kxd1",
+        "Qxb2",
+        "Qxd3+",
+        "Kc2",
+        "b4",
+        "Ne6+"
+      ]
+    },
+    "decode": "from typing import Any, Dict\n\ndef decode(state: Dict[str, Any]) -> str:\n    \"\"\"\n    Converts a chess state from a JSON-like dictionary to its FEN string representation.\n\n    Args:\n        state: A dictionary conforming to the specified INPUT schema, representing the chess position.\n\n    Returns:\n        A FEN (Forsyth-Edwards Notation) string representing the given chess state.\n    \"\"\"\n    # 1. Piece Placement\n    board_fen_parts = []\n    for rank in state['board']:\n        rank_str = \"\"\n        empty_squares = 0\n        for piece in rank:\n            if piece is None or piece == \"\":\n                empty_squares += 1\n            else:\n                if empty_squares > 0:\n                    rank_str += str(empty_squares)\n                    empty_squares = 0\n                rank_str += piece\n        if empty_squares > 0:\n            rank_str += str(empty_squares)\n        board_fen_parts.append(rank_str)\n    board_fen = \"/\".join(board_fen_parts)\n\n    # 2. Active Color\n    turn_fen = state['turn']\n\n    # 3. Castling Availability\n    castling = state['castling']\n    castling_fen = \"\"\n    if castling.get('K'): castling_fen += 'K'\n    if castling.get('Q'): castling_fen += 'Q'\n    if castling.get('k'): castling_fen += 'k'\n    if castling.get('q'): castling_fen += 'q'\n    if not castling_fen:\n        castling_fen = '-'\n\n    # 4. En Passant Target Square\n    en_passant_fen = state.get('enPassant') or '-'\n\n    # 5. Halfmove Clock\n    half_move_clock_fen = str(state['halfMoveClock'])\n\n    # 6. Fullmove Number\n    full_move_number_fen = str(state['fullMoveNumber'])\n\n    # Assemble the final FEN string\n    return \" \".join([\n        board_fen,\n        turn_fen,\n        castling_fen,\n        en_passant_fen,\n        half_move_clock_fen,\n        full_move_number_fen\n    ])",
+    "encode": "import json\nfrom typing import Dict, Any\n\ndef encode(fen: str) -> Dict[str, Any]:\n    \"\"\"\n    Converts a FEN string representation of a chess position into a\n    structured dictionary that matches the specified JSON schema.\n\n    Args:\n        fen: A valid FEN string.\n\n    Returns:\n        A dictionary representing the chess state.\n    \"\"\"\n    parts = fen.split()\n    (\n        piece_placement,\n        turn,\n        castling_str,\n        en_passant_sq,\n        half_move_clock,\n        full_move_number,\n    ) = parts\n\n    # 1. Process the board layout\n    board = []\n    ranks = piece_placement.split('/')\n    for rank_str in ranks:\n        rank = []\n        for char in rank_str:\n            if char.isdigit():\n                # Add null for empty squares\n                rank.extend([None] * int(char))\n            else:\n                # Add the piece identifier\n                rank.append(char)\n        board.append(rank)\n\n    # 2. Process castling rights\n    castling = {\n        \"K\": 'K' in castling_str,\n        \"Q\": 'Q' in castling_str,\n        \"k\": 'k' in castling_str,\n        \"q\": 'q' in castling_str\n    }\n    \n    # 3. Process en passant square\n    # FEN uses '-' for no en passant square; schema wants null.\n    en_passant = None if en_passant_sq == '-' else en_passant_sq\n\n    # 4. Assemble the final state dictionary\n    state = {\n        \"board\": board,\n        \"turn\": turn,\n        \"castling\": castling,\n        \"enPassant\": en_passant,\n        \"halfMoveClock\": int(half_move_clock),\n        \"fullMoveNumber\": int(full_move_number),\n    }\n\n    return state"
+  },
+  {
+    "rep": {
+      "title": "Chess Position",
+      "description": "Minimal, complete representation of a chess position for tree\u2011search.",
+      "type": "object",
+      "required": [
+        "board",
+        "turn",
+        "halfmove",
+        "fullmove",
+        "castling",
+        "enpassant"
+      ],
+      "properties": {
+        "board": {
+          "description": "Mapping from square identifiers (\"a1\" \u2026 \"h8\") to piece codes.\nPiece codes: K,Q,R,B,N,P for White; k,q,r,b,n,p for Black.\nSquares not present are empty.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "minProperties": 0
+        },
+        "turn": {
+          "description": "Side to move: \"w\" for White, \"b\" for Black.",
+          "type": "string",
+          "enum": [
+            "w",
+            "b"
+          ]
+        },
+        "castling": {
+          "description": "String of castling rights: any subset of 'KQkq', or \"\" if none.",
+          "type": "string"
+        },
+        "enpassant": {
+          "description": "Square where an en\u2011passant capture is possible, or \"-\" if none.",
+          "type": "string"
+        },
+        "halfmove": {
+          "description": "Half\u2011move clock (pawn move or capture since last reset).",
+          "type": "integer",
+          "minimum": 0
+        },
+        "fullmove": {
+          "description": "Full\u2011move number (incremented after Black\u2019s move).",
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "example": {
+      "board": {
+        "g1": "K",
+        "d1": "Q",
+        "a1": "R",
+        "f1": "R",
+        "c1": "B",
+        "f4": "B",
+        "e4": "N",
+        "a2": "P",
+        "b2": "P",
+        "c2": "P",
+        "d4": "P",
+        "f2": "P",
+        "g2": "P",
+        "h2": "P",
+        "g8": "k",
+        "d8": "q",
+        "a8": "r",
+        "f8": "r",
+        "c8": "b",
+        "c3": "b",
+        "f6": "n",
+        "a7": "p",
+        "b7": "p",
+        "c7": "p",
+        "d5": "p",
+        "e7": "p",
+        "f7": "p",
+        "g7": "p",
+        "h7": "p"
+      },
+      "turn": "b",
+      "castling": "",
+      "enpassant": "-",
+      "halfmove": 4,
+      "fullmove": 12
+    },
+    "decode": "def decode(state: dict) -> str:\n    \"\"\"\n    Converts a JSON-like chess state representation into a FEN string.\n\n    Args:\n        state: A dictionary representing the chess position, following the\n               specified schema.\n\n    Returns:\n        The FEN string representation of the position.\n    \"\"\"\n    ## Piece Placement\n    board_fen_parts = []\n    # Ranks are processed from 8 down to 1\n    for rank in range(8, 0, -1):\n        rank_str = \"\"\n        empty_squares = 0\n        # Files are processed from 'a' to 'h'\n        for file_char_code in range(ord('a'), ord('h') + 1):\n            file = chr(file_char_code)\n            square = f\"{file}{rank}\"\n\n            if square in state[\"board\"]:\n                if empty_squares > 0:\n                    rank_str += str(empty_squares)\n                    empty_squares = 0\n                rank_str += state[\"board\"][square]\n            else:\n                empty_squares += 1\n\n        # Append any trailing empty squares count for the rank\n        if empty_squares > 0:\n            rank_str += str(empty_squares)\n\n        board_fen_parts.append(rank_str)\n\n    piece_placement = \"/\".join(board_fen_parts)\n\n    ## Active Color\n    active_color = state[\"turn\"]\n\n    ## Castling Availability\n    # FEN uses \"-\" for no castling rights, while the input might use an empty string\n    castling = state[\"castling\"] if state[\"castling\"] else \"-\"\n\n    ## En Passant Target Square\n    en_passant = state[\"enpassant\"]\n\n    ## Clock Values\n    halfmove_clock = str(state[\"halfmove\"])\n    fullmove_number = str(state[\"fullmove\"])\n\n    ## Final Assembly\n    # Assemble the final FEN string by joining all six parts with a space\n    fen = \" \".join([\n        piece_placement,\n        active_color,\n        castling,\n        en_passant,\n        halfmove_clock,\n        fullmove_number\n    ])\n\n    return fen",
+    "encode": "def encode(fen: str) -> dict:\n    \"\"\"\n    Converts a chess position from Forsyth-Edwards Notation (FEN) to a\n    dictionary that conforms to the specified JSON schema.\n\n    Args:\n        fen: A string representing the chess position in FEN format.\n\n    Returns:\n        A dictionary representing the chess position.\n    \"\"\"\n    parts = fen.split()\n    piece_placement, turn, castling, enpassant, halfmove, fullmove = parts\n\n    # Parse the board state\n    board = {}\n    ranks = piece_placement.split('/')\n    for rank_idx, rank_str in enumerate(ranks):\n        rank = 8 - rank_idx\n        file_idx = 0\n        for char in rank_str:\n            if char.isdigit():\n                file_idx += int(char)\n            else:\n                file = chr(ord('a') + file_idx)\n                square = f\"{file}{rank}\"\n                board[square] = char\n                file_idx += 1\n\n    # Assemble the final JSON-compatible dictionary\n    position = {\n        \"board\": board,\n        \"turn\": turn,\n        \"castling\": \"\" if castling == \"-\" else castling,\n        \"enpassant\": enpassant,\n        \"halfmove\": int(halfmove),\n        \"fullmove\": int(fullmove)\n    }\n\n    return position"
+  }
+]

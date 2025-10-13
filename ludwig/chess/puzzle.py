@@ -1,7 +1,7 @@
 from ..imports import *
 from ..base import TaskBase, JudgedTask
-from ..util import repo_root
-from ..util.prompts import SimpleFormalizer
+from ..util import repo_root, AbstractFormalizer
+from ..util.prompts import SimpleFormalizer, Custom_Formalizer
 
 from .helpers import *
 
@@ -23,6 +23,54 @@ class Chess_Formalizer(SimpleFormalizer):
 	def formalization_args(self, context: JSONOBJ) -> JSONOBJ:
 		return {'fen': context['fen']}
 
+
+@fig.component('chess/custom-formalizer')
+class Chess_Custom_Formalizer(Custom_Formalizer):
+	def __init__(self, *, important: Union[str, Sequence[str]] = None, **kwargs):
+		super().__init__(**kwargs)
+		self.important = important
+
+	def _infer_important_keys(self, schema) -> Iterator[str]:
+		props = schema.get('properties', {})
+		boards = [key for key in props if 'board' in key.lower()]
+		if boards:
+			yield from boards
+		fens = [key for key in props if 'fen' in key.lower()]
+		if fens:
+			yield from fens
+		if 'toMove' in props:
+			yield 'toMove'
+
+	def json(self):
+		return {
+			'important': self.important,
+			**super().json()
+		}
+
+	def prepare(self, task: 'AbstractTask'):
+		super().prepare(task)
+		if self.important is None or self.important != 'all':
+			important = list(self._infer_important_keys(self.schema()))
+			if not important:
+				options = ', '.join(sorted(self.schema().get('properties', {}).keys()))
+				raise ValueError(f'Could not infer important keys from schema; please specify them manually: {options}')
+			self.important = important
+
+	def correct(self, context: JSONOBJ, formal: JSONOBJ) -> bool:
+		if formal is None:
+			return None
+		if not self.important or self.important == 'all':
+			return super().correct(context, formal)
+
+		gt = self.formalize(context)
+		for key in self.important:
+			if key not in gt:
+				raise ValueError(f'Important key {key!r} missing from formalization or ground truth.')
+			if key not in formal:
+				return False
+			if gt[key] != formal[key]:
+				return False
+		return True
 
 
 @fig.component('chess/puzzle')
@@ -148,12 +196,14 @@ class ChessPuzzle(JudgedTask):
 		else:
 			obs = template.format(board=self._render_board(board))
 
-		question = (f"{opponent.capitalize()} just played {movesan}. "
-					f'Given the resulting board position:\n\n{obs}\n\nWhat is the best move for {active_player}? '
+		full_obs = f"{opponent.capitalize()} just played {movesan}, resulting in the board position:\n\n{obs}"
+
+		question = (f'{full_obs}\n\nWhat is the best move for {active_player}? '
 					'Answer using SAN format. Give your final answer in the form: "FINAL ANSWER: {san_move}".')
 
 		ctx['fen'] = fen
 		ctx['player'] = active_player
+		ctx['observation'] = full_obs
 
 		ctx['legal'] = [board.san(move) for move in board.legal_moves] #+ [move.uci() for move in board.legal_moves]
 		ctx['num_legal_moves'] = len(ctx['legal']) // 2
@@ -300,6 +350,9 @@ class ChessPuzzle(JudgedTask):
 
 	def format_description(self, task_description: str) -> str:
 		return task_description
+
+	def formalizer(self) -> AbstractFormalizer:
+		return Chess_Formalizer()
 
 	_regex_pattern = r'(?ix)\b(?:the|my)?\s*final\s+answers?\s*(?:is|are|[:=\-])?\s*\**(\w+)\**'
 

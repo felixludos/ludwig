@@ -2,7 +2,7 @@ import json
 
 from ..imports import *
 from ..base import TaskBase, JudgedTask
-from ..util import repo_root, AbstractFormalizer
+from ..util import repo_root, AbstractFormalizer, PromptTemplate
 from ..util.prompts import Custom_Formalizer
 
 
@@ -34,6 +34,7 @@ class FormalizationTask(JudgedTask):
 		self.rep.prepare(self.source)
 
 	def show_keys(self) -> Iterator[str]:
+		yield 'observation'
 		yield 'question'
 		yield 'observation'
 		yield 'schema'
@@ -51,7 +52,8 @@ class FormalizationTask(JudgedTask):
 
 	def description(self) -> str:
 		return self.source.description()
-		return f'Your task is to complete an intermediate step for this task:\n{self.source.description()}\n\nSpecifically, your task is to formalize a specific problem using a specific representation given as a JSON schema.'
+		return (f'Your task is to formalize a specific problem using a specific representation '
+				f'given as a JSON schema to make progress towards the overall goal.')
 
 	def specification(self) -> JSONOBJ:
 		return {'schema': self.rep.schema()}
@@ -65,18 +67,19 @@ class FormalizationTask(JudgedTask):
 
 		observation = ctx.get('observation')
 		assert observation is not None, f'No obs found'
+		question = ctx.get('question')
+		assert question is not None, f'No question found'
 
-		question = observation # TODO: add some preamble asking for formalization
-
+		schema = self.rep.schema()
 		answer = self.rep.formalize(ctx)
 
 		return {
 			'source': ctx,
 			'problem': ctx.get('problem'),
-			'observation': observation,
 			'question': question,
+			'observation': observation,
 			'answer': answer,
-			'schema': self.rep.schema(),
+			'schema': schema,
 			'system': self.context(),
 			'task': self.description(),
 		}
@@ -90,7 +93,7 @@ class FormalizationTask(JudgedTask):
 		except json.JSONDecodeError:
 			formal = None
 
-		return {'formal': formal, **self.rep.compare(problem['source'], formal)}
+		return {'formal': formal, 'diffs': None if formal is None else self.rep.compare(problem['source'], formal)}
 	
 	def judge(self, problem: JSONOBJ, response: JSONOBJ) -> bool:
 		return self.rep.correct(problem['source'], response['formal'])

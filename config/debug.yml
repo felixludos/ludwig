@@ -125,11 +125,18 @@ _meta.script_name: eval
 
 ##_base: [s/zshot, formal, ttt/take-the-middle, c/mock, basic-view]
 _base: [s/zshot, formal, chess/puzzle, c/vllm, basic-view]
+obs-rep: fen
 #
 #template: tree/encode
 #
 #rep: "{root}/local_data/tree-build-TakeTheMiddle-8fc9_250813-230409/log-formal.jsonl#0"
-rep: "checkpoints/tree-build-ChessPuzzle-c635_250923-154828/log-formal.json#4"
+rep:
+  _type: chess/custom-formalizer
+  path: "checkpoints/tree-build-ChessPuzzle-c635_250923-154828/log-formal.json"
+  index: 0
+#  important: all
+
+template: formalization-default
 
 # endregion
 ##############
@@ -159,7 +166,7 @@ stockfish-path: 'C:\Users\anwan\Documents\stockfish\stockfish-windows-x86-64-avx
 
 #addr: http://wagner.is.localnet:8000
 #addr: 8012
-addr: 8012
+addr: 8001
 #client.addr: 8001
 #judge.addr: 8001
 

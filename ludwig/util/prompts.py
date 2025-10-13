@@ -85,7 +85,7 @@ def filter_schema(data):
 
 
 @fig.component('custom-formalizer')
-class Custom_Formalizer(SimpleFormalizer):
+class Custom_Formalizer(fig.Configurable, SimpleFormalizer):
 	def __init__(self, path: str, index: int = None, **kwargs):
 		if isinstance(path, str):
 			path = Path(pformat(path, root=repo_root()))
@@ -99,10 +99,24 @@ class Custom_Formalizer(SimpleFormalizer):
 			raise FileNotFoundError(path)
 
 		data = None
-		with path.open('r') as f:
-			for i, line in enumerate(f):
-				if index is None or index == i:
-					data = json.loads(line)
+		if path.suffix == '.jsonl':
+			with path.open('r') as f:
+				for i, line in enumerate(f):
+					if index is None or index == i:
+						data = json.loads(line)
+		elif path.suffix == '.json':
+			reps = json.load(path.open('r'))
+			if not isinstance(reps, list):
+				reps = [reps]
+			if index is None:
+				if len(reps) > 1:
+					raise ValueError(f'Multiple representations found in {path}, please specify an index')
+				index = 0
+			if not (-len(reps) <= index < len(reps)):
+				raise ValueError(f'Invalid index: {index} < {len(reps)}')
+			data = reps[index]
+		else:
+			raise ValueError(f'Unsupported file type: {path}')
 		if data is None:
 			raise ValueError(f'Invalid index: {index!r}.')
 		self.data = data
@@ -112,7 +126,7 @@ class Custom_Formalizer(SimpleFormalizer):
 
 	def json(self):
 		return {
-			'path': self.path,
+			'path': str(self.path),
 			'index': self.index,
 			**super().json(),
 		}
@@ -121,18 +135,18 @@ class Custom_Formalizer(SimpleFormalizer):
 		super().prepare(task)
 		self.extractor = task.formalizer()
 
-		if 'rep' not in self.data['table']:
+		if 'rep' not in self.data:
 			raise ValueError(f'Missing rep')
-		self._schema = filter_schema(self.data['table']['rep'])
-		if 'formalize_code' not in self.data['table']:
-			raise ValueError(f'Missing formalize_code')
-		self._code = self.data['table']['formalize_code']
+		self._schema = filter_schema(self.data['rep'])
+		if 'encode' not in self.data:
+			raise ValueError(f'Missing encode')
+		self._code = self.data['encode']
 
 		objs = {}
 		exec(self._code, objs)
-		self._fn = objs.get('formalize')
+		self._fn = objs.get('encode')
 		if self._fn is None:
-			raise ValueError(f'Missing `formalize` fn')
+			raise ValueError(f'Missing `encode` fn')
 
 	def schema(self) -> JSONOBJ:
 		return self._schema
@@ -256,6 +270,9 @@ class PromptTemplate(fig.Configurable, AbstractTemplate):
 		if not path.exists():
 			raise FileNotFoundError(f'prompt template not found: {raw}')
 		return path.read_text(encoding='utf-8').strip()
+
+	def __str__(self):
+		return f'PromptTemplate({self.ident})'
 
 	@property
 	def loaded_template(self) -> bool:
